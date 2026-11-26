@@ -1,0 +1,1407 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchtopus · Island landscape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------
+   Tokens. Shared values first, then one set for dark and one for light.
+   Components below reference only these properties.
+------------------------------------------------------------------- */
+:root {
+  --font: "Figtree", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+  --r-window: 12px;
+  --r-island: 16px;
+  --r-block: 10px;
+  --r-control: 8px;
+  --r-small: 6px;
+  --r-key: 4px;
+  --r-card: 12px;
+  --r-bar: 2px;
+  --r-tick: 1px;
+
+  --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-20: 20px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 140ms;
+  --t-enter: 320ms;
+  --t-sky: 900ms;
+
+  --side-w: 248px;
+  --panel-w: 320px;
+}
+
+:root[data-mode="dark"] {
+  color-scheme: dark;
+  --page: #0b0c0e;
+  --page-ink: #a9afb8;
+  --ctrl-bg: #17191d;
+  --ctrl-on: #2a2d33;
+
+  --island: #16181c;
+  --island-2: #1e2126;
+  --btn-bg: #24272d;
+  --btn-hover: #2c3037;
+  --glass: rgba(19, 22, 28, 0.74);
+  --glass-row: rgba(255, 255, 255, 0.07);
+  --glass-hover: rgba(255, 255, 255, 0.04);
+  --term: #111317;
+  --track: rgba(236, 238, 241, 0.10);
+  --field: #16181c;
+
+  --ink: #eceef1;
+  --ink-2: #aab0b9;
+  --ink-3: #8b929d;
+  --line: rgba(236, 238, 241, 0.08);
+  --line-2: rgba(236, 238, 241, 0.16);
+  --focus: #c9ced6;
+
+  --primary-bg: #eceef1;
+  --primary-hover: #ffffff;
+  --primary-ink: #15171a;
+  --primary-key: rgba(21, 23, 26, 0.55);
+
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 6px rgba(0, 0, 0, 0.22), 0 16px 40px rgba(0, 0, 0, 0.34);
+  --shadow-soft: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 32px rgba(0, 0, 0, 0.26);
+  --row-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --win-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 64px rgba(0, 0, 0, 0.55);
+
+  /* Signals: hue keeps its meaning, lightness tuned for this mode */
+  --amber: #e9b25a;   --amber-tint: rgba(233, 178, 90, 0.10);
+  --violet: #b6a7f6;  --violet-tint: rgba(182, 167, 246, 0.10);
+  --green: #63cf9a;   --green-tint: rgba(99, 207, 154, 0.09);
+  --red: #f07c7f;     --red-tint: rgba(240, 124, 127, 0.11);  --red-fill: rgba(240, 124, 127, 0.28);
+  --orange: #f0a066;  --orange-tint: rgba(240, 160, 102, 0.10);
+  --blue: #7cb0f5;    --blue-tint: rgba(124, 176, 245, 0.10);
+
+  /* Landscape: night */
+  --sky-top: #0a0e16;
+  --sky-low: #182133;
+  --orb: #dfe2d4;     --orb-o: 0.30;
+  --star-o: 0.55;
+  --cloud: #3a4458;   --cloud-o: 0.22;
+  --far: #1a2232;
+  --mid: #141b27;
+  --lake: #0f1520;
+  --glint: #9aa7bd;   --glint-o: 0.14;
+  --near: #0c1118;
+
+  --h-wait: #c98a3a;   --h-wait-o: 0.50;
+  --h-danger: #b4474b; --h-danger-o: 0.46;
+  --h-calm: #33405a;   --h-calm-o: 0.55;
+  --cloud-danger-o: 0.42;
+
+  --pet: #8b929d;
+  --star: #e8ecf4;
+  --seg-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.30);
+
+  /* Variant previews in settings */
+  --pv-sky: #1a2335; --pv-hill: #121925; --pv-isl: #23272e; --pv-isl-2: #2e333b;
+  --pv-graph: #141415; --pv-graph-2: #232325; --pv-graph-3: #2d2d30;
+  --pv-paper: #2a2622; --pv-paper-2: #37322c; --pv-paper-3: #423c35;
+}
+
+:root[data-mode="light"] {
+  color-scheme: light;
+  --page: #e4e6e9;
+  --page-ink: #4c525c;
+  --ctrl-bg: #ffffff;
+  --ctrl-on: #e9ebee;
+
+  --island: #ffffff;
+  --island-2: #f3f4f6;
+  --btn-bg: #eff1f3;
+  --btn-hover: #e6e8eb;
+  --glass: rgba(250, 251, 251, 0.76);
+  --glass-row: rgba(255, 255, 255, 0.92);
+  --glass-hover: rgba(255, 255, 255, 0.55);
+  --term: #fafaf9;
+  --track: rgba(25, 27, 31, 0.09);
+  --field: #ffffff;
+
+  --ink: #191b1f;
+  --ink-2: #4c525c;
+  --ink-3: #626873;
+  --line: rgba(25, 27, 31, 0.08);
+  --line-2: rgba(25, 27, 31, 0.16);
+  --focus: #3a4049;
+
+  --primary-bg: #1c1f24;
+  --primary-hover: #2a2e35;
+  --primary-ink: #ffffff;
+  --primary-key: rgba(255, 255, 255, 0.62);
+
+  --shadow: 0 1px 2px rgba(28, 40, 52, 0.06), 0 12px 32px rgba(28, 40, 52, 0.11);
+  --shadow-soft: 0 1px 2px rgba(28, 40, 52, 0.05), 0 10px 28px rgba(28, 40, 52, 0.08);
+  --row-shadow: 0 1px 2px rgba(28, 40, 52, 0.08);
+  --win-shadow: 0 0 0 1px rgba(25, 27, 31, 0.08), 0 24px 64px rgba(28, 40, 52, 0.22);
+
+  --amber: #8d5300;   --amber-tint: rgba(240, 170, 60, 0.13);
+  --violet: #6146c6;  --violet-tint: rgba(97, 70, 198, 0.08);
+  --green: #1c7a4b;   --green-tint: rgba(40, 170, 100, 0.10);
+  --red: #b8262d;     --red-tint: rgba(220, 60, 60, 0.08);    --red-fill: rgba(220, 60, 60, 0.20);
+  --orange: #a94c0c;  --orange-tint: rgba(230, 120, 40, 0.10);
+  --blue: #2361c2;    --blue-tint: rgba(35, 97, 194, 0.08);
+
+  /* Landscape: day */
+  --sky-top: #c6d3de;
+  --sky-low: #e4e9ec;
+  --orb: #fffaf0;     --orb-o: 0.85;
+  --star-o: 0;
+  --cloud: #ffffff;   --cloud-o: 0.55;
+  --far: #bfccd5;
+  --mid: #adbcba;
+  --lake: #ced9de;
+  --glint: #ffffff;   --glint-o: 0.45;
+  --near: #9eafa7;
+
+  --h-wait: #f2bd6e;   --h-wait-o: 0.62;
+  --h-danger: #e59a96; --h-danger-o: 0.56;
+  --h-calm: #f3efe6;   --h-calm-o: 0.50;
+  --cloud-danger-o: 0.80;
+
+  --pet: #626873;
+  --star: #ffffff;
+  --seg-shadow: 0 1px 2px rgba(28, 40, 52, 0.10), 0 1px 3px rgba(28, 40, 52, 0.08);
+
+  --pv-sky: #cdd8e1; --pv-hill: #a9b9b6; --pv-isl: #ffffff; --pv-isl-2: #eef0f2;
+  --pv-graph: #fafafa; --pv-graph-2: #ececee; --pv-graph-3: #dcdcdf;
+  --pv-paper: #f7f4ee; --pv-paper-2: #ebe5da; --pv-paper-3: #ddd5c7;
+}
+
+/* Overall state drives the horizon. Always paired with the sky note text. */
+#win[data-sky="wait"]   { --horizon: var(--h-wait);   --horizon-o: var(--h-wait-o); }
+#win[data-sky="danger"] { --horizon: var(--h-danger); --horizon-o: var(--h-danger-o); --cloud-o: var(--cloud-danger-o); }
+#win[data-sky="calm"]   { --horizon: var(--h-calm);   --horizon-o: var(--h-calm-o); }
+
+/* ------------------------------------------------------------------
+   Page and frame
+------------------------------------------------------------------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-14);
+  line-height: 20px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+#stage {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 24px);
+  width: 1440px;
+  height: 900px;
+  transform: translate(-50%, -50%) scale(var(--scale, 1));
+  transform-origin: center center;
+}
+#win {
+  position: relative;
+  width: 1440px;
+  height: 900px;
+  border-radius: var(--r-window);
+  overflow: hidden;
+  background: var(--sky-top);
+  box-shadow: var(--win-shadow);
+}
+
+/* Landscape */
+.land { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.land .hz-stop { transition: stop-color var(--t-sky) var(--ease), stop-opacity var(--t-sky) var(--ease); }
+.land .clouds { opacity: var(--cloud-o); transition: opacity var(--t-sky) var(--ease); }
+.land .stars { opacity: var(--star-o); }
+
+/* Title bar */
+.titlebar {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 48px;
+  display: flex; align-items: center; gap: var(--s3);
+  padding-left: var(--s6);
+  color: var(--ink);
+}
+.brand { display: flex; align-items: center; gap: var(--s2); font-size: 15px; font-weight: 600; }
+.brand svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.titlebar .grow { flex: 1; }
+.skynote {
+  height: 32px;
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s3);
+  border-radius: var(--r-control);
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-size: var(--fs-13);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+}
+.skynote b { font-weight: 500; }
+.skynote .muted { color: var(--ink-2); }
+.tb-icon {
+  width: 32px; height: 32px; border: 0; border-radius: var(--r-control);
+  display: grid; place-items: center;
+  background: transparent; color: var(--ink);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.tb-icon:hover { background: var(--glass); }
+.tb-icon.on { background: var(--glass); box-shadow: var(--shadow-soft); }
+.winctl { display: flex; margin-left: var(--s2); }
+.winctl span {
+  width: 46px; height: 48px; display: grid; place-items: center; color: var(--ink);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.winctl span:hover { background: var(--glass); }
+
+/* Shell */
+.shell {
+  position: absolute;
+  top: 48px; left: 20px; right: 20px; bottom: 20px;
+  display: flex; gap: var(--s4);
+}
+.island { background: var(--island); border-radius: var(--r-island); box-shadow: var(--shadow); }
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(28px) saturate(1.1);
+  -webkit-backdrop-filter: blur(28px) saturate(1.1);
+  border-radius: var(--r-island);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Icons */
+.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Dots: always next to a word */
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--ink-3)); flex: none; display: inline-block; }
+.dot.ring { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+
+/* Buttons */
+.btn {
+  height: 36px;
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s3);
+  border: 0; border-radius: var(--r-control);
+  background: var(--btn-bg); color: var(--ink);
+  font-size: var(--fs-14); font-weight: 500; white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.btn:hover { background: var(--btn-hover); }
+.btn:active { transform: scale(0.98); }
+.btn .i { color: var(--ink-2); }
+.btn.primary { background: var(--primary-bg); color: var(--primary-ink); padding: 0 var(--s4); }
+.btn.primary:hover { background: var(--primary-hover); }
+.btn.primary .i { color: inherit; }
+.btn.quiet { background: transparent; color: var(--ink-2); }
+.btn.quiet:hover { background: var(--btn-bg); color: var(--ink); }
+.btn.sm { height: 32px; font-size: var(--fs-13); }
+.btn.icon { width: 36px; padding: 0; justify-content: center; }
+.kbd {
+  font: 500 11px/16px var(--mono);
+  min-width: 18px; padding: 0 4px; text-align: center;
+  border-radius: var(--r-key);
+  color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--line-2), inset 0 -1px 0 var(--line-2);
+}
+.btn.primary .kbd { color: var(--primary-key); box-shadow: inset 0 0 0 1px var(--primary-key); }
+
+/* Tag: state word with its signal colour */
+.tag {
+  height: 24px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 var(--s2);
+  border-radius: var(--r-small);
+  background: var(--c-tint); color: var(--c);
+  font-size: var(--fs-13); font-weight: 500; white-space: nowrap;
+}
+.tag .i { width: 14px; height: 14px; }
+.mono { font-family: var(--mono); }
+code { font-family: var(--mono); font-size: 0.93em; color: var(--ink); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------
+   Sidebar: always visible session list
+------------------------------------------------------------------- */
+.side { width: var(--side-w); flex: none; display: flex; flex-direction: column; padding: var(--s2); }
+.navrow {
+  height: 36px; display: flex; align-items: center; gap: var(--s3);
+  padding: 0 var(--s3); border-radius: var(--r-control);
+  color: var(--ink); transition: background-color var(--t-fast) var(--ease);
+}
+.navrow:hover { background: var(--glass-hover); }
+.navrow .i { color: var(--ink-2); }
+.navrow .count { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 500; }
+.group { margin-top: var(--s6); }
+.glabel {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 20px; padding: 0 var(--s3); margin-bottom: var(--s2);
+  font-size: var(--fs-13); color: var(--ink-3);
+}
+.srow {
+  display: grid; grid-template-columns: 8px 1fr auto; column-gap: var(--s3); row-gap: 2px;
+  align-items: center;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-control);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.srow + .srow { margin-top: 2px; }
+.srow:hover { background: var(--glass-hover); }
+.srow.on { background: var(--glass-row); box-shadow: var(--row-shadow); }
+.srow .sname { font-size: var(--fs-14); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow.on .sname { font-weight: 500; }
+.srow .sstate { font-size: var(--fs-13); font-weight: 500; color: var(--c); }
+.srow .ssub { grid-column: 2 / 4; font-size: var(--fs-12); line-height: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sfoot { margin-top: auto; padding: var(--s3); font-size: var(--fs-12); line-height: 16px; color: var(--ink-3); }
+.sfoot .line1 { display: flex; align-items: center; gap: var(--s2); color: var(--ink-2); margin-bottom: var(--s1); }
+
+/* ------------------------------------------------------------------
+   Screens
+------------------------------------------------------------------- */
+.screens { flex: 1; min-width: 0; display: flex; }
+.screen { display: none; flex: 1; min-width: 0; gap: var(--s4); }
+.screen.on { display: flex; animation: enter var(--t-enter) var(--ease) both; }
+@keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.col { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; min-height: 0; }
+.col.grow { flex: 1; }
+
+/* Session header */
+.shead { height: 72px; flex: none; display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4) 0 var(--s6); }
+.stitle { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stitle .name { font-size: var(--fs-20); line-height: 28px; font-weight: 500; }
+.stitle .branch { display: flex; align-items: center; gap: 6px; font: 400 var(--fs-12)/16px var(--mono); color: var(--ink-3); white-space: nowrap; }
+.stitle { flex: none; }
+.stitle .branch .i { width: 14px; height: 14px; }
+.shead .grow { flex: 1; }
+.shead .acts { display: flex; gap: var(--s2); }
+
+/* Also-waiting hint */
+.hint { height: 44px; flex: none; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2) 0 var(--s5); font-size: var(--fs-14); color: var(--ink-2); }
+.hint b { color: var(--ink); font-weight: 500; }
+.hint .grow { flex: 1; }
+
+/* Decision island */
+.decision { flex: none; overflow: hidden; }
+.dhead { background: var(--c-tint); padding: var(--s5) var(--s6) var(--s4); }
+.dhead .row1 { display: flex; align-items: center; gap: var(--s3); }
+.dhead .meta { font-size: var(--fs-13); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dhead .grow { flex: 1; }
+.dtitle { margin: var(--s2) 0 0; font-size: var(--fs-20); line-height: 28px; font-weight: 500; }
+.dbody { padding: var(--s5) var(--s6) var(--s6); display: flex; flex-direction: column; gap: var(--s4); }
+.cmd {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s2) var(--s3) var(--s4);
+  border-radius: var(--r-block);
+  background: var(--island-2);
+  font: 400 var(--fs-14)/20px var(--mono); color: var(--ink);
+}
+.cmd .ps { color: var(--ink-3); }
+.cmd .grow { flex: 1; }
+.cmd .btn.icon { width: 28px; height: 28px; }
+.what .lbl { font-size: var(--fs-13); color: var(--ink-3); margin-bottom: var(--s1); }
+.what p { margin: 0; max-width: 640px; font-size: var(--fs-14); line-height: 22px; color: var(--ink-2); }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s5); font-size: var(--fs-13); color: var(--ink-2); }
+.facts span { display: inline-flex; align-items: center; gap: var(--s2); }
+.facts .i { color: var(--ink-3); }
+.actions { display: flex; align-items: center; gap: var(--s2); padding-top: var(--s1); }
+.actions .grow { flex: 1; }
+.lockhint { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-13); color: var(--ink-3); margin-left: var(--s2); }
+
+/* Hold to allow once */
+.hold {
+  position: relative; overflow: hidden; isolation: isolate;
+  background: var(--red-tint); color: var(--red);
+  padding: 0 var(--s4);
+  user-select: none; -webkit-user-select: none; touch-action: none;
+}
+.hold:hover { background: var(--red-tint); }
+.hold .fill {
+  position: absolute; inset: 0; z-index: -1;
+  background: var(--red-fill);
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform 200ms var(--ease);
+}
+.hold.holding .fill { transform: scaleX(1); transition: transform 1000ms linear; }
+.hold .secs { font-weight: 400; color: var(--red); opacity: 0.8; font-variant-numeric: tabular-nums; }
+.hold.done { cursor: default; }
+.hold.done .fill { transform: scaleX(1); transition: none; }
+.hold:active { transform: none; }
+
+/* Terminal */
+.term { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--term); }
+.term-head { height: 44px; flex: none; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s5); font-size: var(--fs-13); color: var(--ink-3); box-shadow: inset 0 -1px 0 var(--line); }
+.term-head .grow { flex: 1; }
+.term-body { padding: var(--s4) var(--s5); font: 400 var(--fs-13)/20px var(--mono); color: var(--ink-2); white-space: pre; overflow: hidden; }
+.term-body .t { color: var(--ink); }
+.term-body .r { color: var(--ink-3); }
+.term-body .w { color: var(--amber); }
+.term-body .x { color: var(--red); }
+
+/* Info panel */
+.panel { width: var(--panel-w); flex: none; display: flex; flex-direction: column; }
+.psec { padding: var(--s5) var(--s6); }
+.psec + .psec { box-shadow: inset 0 1px 0 var(--line); }
+.plabel { font-size: var(--fs-13); color: var(--ink-3); margin-bottom: var(--s3); display: flex; justify-content: space-between; }
+.pbig { font-size: var(--fs-20); line-height: 28px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.psub { color: var(--ink-2); margin-top: 2px; }
+.bar { height: 4px; border-radius: var(--r-bar); background: var(--track); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: var(--r-bar); background: var(--c, var(--ink-2)); width: var(--v); }
+.psec .bar { margin-top: var(--s4); }
+.phases { list-style: none; margin: 0; padding: 0; }
+.phases li { height: 28px; display: grid; grid-template-columns: 16px 1fr auto; column-gap: var(--s3); align-items: center; color: var(--ink-2); }
+.phases li .mk { display: grid; place-items: center; color: var(--ink-3); }
+.phases li .st { font-size: var(--fs-13); color: var(--ink-3); }
+.phases li.cur { color: var(--ink); font-weight: 500; }
+.phases li.cur .st { color: var(--blue); font-weight: 500; }
+.kv { display: grid; grid-template-columns: auto 1fr; column-gap: var(--s4); row-gap: var(--s2); margin: 0; }
+.kv dt { color: var(--ink-2); }
+.kv dd { margin: 0; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kv .bar { grid-column: 1 / 3; margin-top: 0; }
+.chat { margin-top: auto; }
+.chat-cap { font-size: var(--fs-13); line-height: 20px; color: var(--ink-2); }
+.suggest { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s1); margin-top: var(--s3); }
+.suggest .btn { height: 32px; font-size: var(--fs-13); font-weight: 400; color: var(--ink); background: var(--glass-row); box-shadow: var(--row-shadow); }
+.suggest .btn:hover { background: var(--field); }
+.inputrow { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }
+.pet { width: 22px; height: 16px; flex: none; fill: var(--pet); }
+.field {
+  flex: 1; min-width: 0; height: 40px;
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s1) 0 var(--s3);
+  border-radius: var(--r-block);
+  background: var(--field);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.field input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: var(--fs-14); color: var(--ink); }
+.field input::placeholder { color: var(--ink-3); }
+.field:focus-within { box-shadow: inset 0 0 0 1px var(--line-2), 0 0 0 2px var(--focus); }
+.field .btn.icon { width: 32px; height: 32px; }
+
+/* ------------------------------------------------------------------
+   Screen 3: review
+------------------------------------------------------------------- */
+.rhead { height: 64px; flex: none; display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s3); }
+.rhead .sep { width: 1px; height: 24px; background: var(--line-2); margin: 0 var(--s1); }
+.rhead .name { font-size: var(--fs-20); line-height: 28px; font-weight: 500; }
+.rhead .branch { font: 400 var(--fs-13)/20px var(--mono); color: var(--ink-2); }
+.rhead .grow { flex: 1; }
+.rbody { flex: 1; min-height: 0; display: flex; gap: var(--s4); }
+.sec { padding: var(--s5) var(--s6); }
+.sech { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s3); }
+.sech h3 { margin: 0; font-size: var(--fs-16); line-height: 24px; font-weight: 500; }
+.sech .meta { font-size: var(--fs-13); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tasks { list-style: none; margin: 0; padding: 0; }
+.tasks li { min-height: 28px; display: grid; grid-template-columns: 16px 1fr auto; column-gap: var(--s3); align-items: center; }
+.tasks li .i { color: var(--green); }
+.tasks li .rng { font-size: var(--fs-13); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.links { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+.links .btn .meta { color: var(--ink-3); font-weight: 400; }
+.gates { flex: 1; min-height: 0; overflow: auto; padding: var(--s5) 0 var(--s3); }
+.gates .sech { padding: 0 var(--s6); }
+.gate { min-height: 28px; display: grid; grid-template-columns: 16px 1fr auto; column-gap: var(--s3); align-items: center; padding: 0 var(--s6); }
+.gate .res { font-size: var(--fs-13); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.gate .ok { color: var(--green); }
+.gate .note { color: var(--ink-2); }
+.gate .open { color: var(--ink-3); }
+.gate.dim { color: var(--ink-2); }
+.gate.dim .res { color: var(--ink-3); }
+.council { margin: 0 var(--s6) var(--s2) calc(var(--s6) + 28px); display: grid; grid-template-columns: auto 1fr; column-gap: var(--s4); row-gap: 2px; font-size: var(--fs-13); line-height: 20px; }
+.council dt { color: var(--ink-3); }
+.council dd { margin: 0; color: var(--ink-2); }
+.checks { list-style: none; margin: 0; padding: 0; }
+.checks li { min-height: 28px; display: grid; grid-template-columns: 16px 1fr; column-gap: var(--s3); align-items: center; color: var(--ink-2); }
+.checks li .i { color: var(--green); }
+.checks li.note { align-items: start; padding-top: var(--s1); color: var(--ink); line-height: 20px; }
+.checks li.note .i { color: var(--ink-2); margin-top: 2px; }
+.advisor { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--s5) var(--s6) var(--s6); }
+.advisor .sech { margin-bottom: var(--s1); }
+.advisor .cap { font-size: var(--fs-13); color: var(--ink-3); margin-bottom: var(--s4); }
+.thread { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s3); overflow: auto; }
+.msg { font-size: var(--fs-14); line-height: 20px; color: var(--ink); }
+.msg.me { align-self: flex-end; max-width: 88%; padding: var(--s2) var(--s3); border-radius: var(--r-card); background: var(--island-2); }
+.msg.adv { color: var(--ink-2); }
+.msg.adv .who { display: block; font-size: var(--fs-12); line-height: 16px; color: var(--ink-3); margin-bottom: 2px; }
+.instr { margin-top: var(--s2); padding: var(--s3); border-radius: var(--r-block); background: var(--island-2); color: var(--ink); }
+.instr .lbl { font-size: var(--fs-12); line-height: 16px; color: var(--ink-3); margin-bottom: var(--s1); }
+.instr .btn { margin-top: var(--s3); }
+.advisor .field { flex: none; margin-top: var(--s4); background: var(--island-2); box-shadow: none; }
+
+/* PR draft */
+.prdraft { display: flex; flex-direction: column; overflow: hidden; }
+.prdraft .dhead { padding: var(--s4) var(--s5); }
+.prdraft .dbody { flex: 1; min-height: 0; gap: var(--s4); padding: var(--s5); }
+.flbl { font-size: var(--fs-13); color: var(--ink-3); margin-bottom: var(--s2); display: block; }
+.input {
+  height: 40px; display: flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s3);
+  border-radius: var(--r-control);
+  background: var(--island-2);
+  font-size: var(--fs-14); color: var(--ink);
+}
+.input.mono { font: 400 var(--fs-13)/20px var(--mono); }
+.input.wrap { height: auto; min-height: 40px; padding: 10px var(--s3); }
+.input .grow { flex: 1; }
+.input .i { color: var(--ink-3); }
+.prrow { display: flex; gap: var(--s4); align-items: flex-end; }
+.prrow > div:first-child { flex: 1; }
+.check { height: 40px; display: inline-flex; align-items: center; gap: var(--s2); cursor: pointer; color: var(--ink); }
+.check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.check .box { width: 18px; height: 18px; border-radius: var(--r-key); display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--ink-3); color: transparent; transition: background-color var(--t-fast) var(--ease); }
+.check input:checked + .box { background: var(--ink); box-shadow: none; color: var(--island); }
+.check input:focus-visible + .box { outline: 2px solid var(--focus); outline-offset: 2px; }
+.check .box .i { width: 14px; height: 14px; stroke-width: 2; }
+.desc { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.desc textarea {
+  flex: 1; min-height: 0; resize: none; border: 0; outline: 0;
+  padding: var(--s3);
+  border-radius: var(--r-control);
+  background: var(--island-2);
+  font: 400 var(--fs-13)/20px var(--mono); color: var(--ink);
+}
+.desc textarea:focus-visible { box-shadow: 0 0 0 2px var(--focus); }
+.prbtns { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.prbtns .primary { flex: 1 0 100%; justify-content: center; height: 40px; }
+.prbtns .btn:not(.primary) { flex: 1; justify-content: center; }
+.prnote { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-13); color: var(--ink-2); }
+.prnote .i { color: var(--ink-3); }
+
+/* ------------------------------------------------------------------
+   Screen 4: settings
+------------------------------------------------------------------- */
+.setnav { width: 220px; flex: none; padding: var(--s2); }
+.setnav h2 { margin: 0; padding: var(--s3) var(--s3) var(--s4); font-size: var(--fs-16); line-height: 24px; font-weight: 500; }
+.setnav .navrow { color: var(--ink-2); }
+.setnav .navrow.on { background: var(--glass-row); color: var(--ink); font-weight: 500; box-shadow: var(--row-shadow); }
+.setmain { flex: 1; min-width: 0; overflow: auto; padding: var(--s8); }
+.setmain h2 { margin: 0; font-size: var(--fs-20); line-height: 28px; font-weight: 500; }
+.setmain .lead { margin: var(--s1) 0 0; color: var(--ink-2); }
+.setmain h3 { margin: 0 0 var(--s1); font-size: var(--fs-16); line-height: 24px; font-weight: 500; }
+.setmain .cap { font-size: var(--fs-13); color: var(--ink-3); }
+.setrow { display: grid; grid-template-columns: 200px 1fr; column-gap: var(--s6); align-items: start; margin-top: var(--s6); }
+.setrow > .k { padding-top: var(--s2); color: var(--ink); }
+.setrow > .k .cap { display: block; margin-top: 2px; }
+.seg { justify-self: start; display: inline-flex; padding: var(--s1); gap: var(--s1); border-radius: var(--r-block); background: var(--island-2); }
+.seg button {
+  height: 32px; display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s3); border: 0; border-radius: var(--r-small);
+  background: transparent; color: var(--ink-2); font-size: var(--fs-14);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--island); color: var(--ink); font-weight: 500; box-shadow: var(--seg-shadow); }
+.variants { display: flex; gap: var(--s4); }
+.variant { width: 184px; border: 0; padding: 0; background: transparent; text-align: left; }
+.variant .pv { display: block; width: 184px; height: 104px; border-radius: var(--r-card); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow var(--t-fast) var(--ease); }
+.variant .pv svg { display: block; width: 100%; height: 100%; }
+.variant:hover .pv { box-shadow: inset 0 0 0 1px var(--line-2); }
+.variant.on .pv { box-shadow: 0 0 0 2px var(--ink); }
+.variant .vn { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); font-size: var(--fs-14); color: var(--ink); }
+.variant .vn .inuse { margin-left: auto; font-size: var(--fs-12); color: var(--ink-3); display: none; }
+.variant.on .vn .inuse { display: inline; }
+.applynote { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s4); font-size: var(--fs-13); color: var(--ink-2); }
+.applynote .i { color: var(--ink-3); }
+.divider { height: 1px; background: var(--line); margin: var(--s8) 0; }
+.twocol { display: grid; grid-template-columns: 340px 1fr; column-gap: var(--s12); }
+.meter { margin-top: var(--s5); }
+.meter .top { display: flex; justify-content: space-between; align-items: baseline; }
+.meter .top .v { font-weight: 500; font-variant-numeric: tabular-nums; }
+.meter .track { position: relative; height: 8px; margin-top: var(--s2); border-radius: var(--r-key); background: var(--track); }
+.meter .track > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-key); background: var(--ink-2); width: var(--v); }
+.meter .track > s { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: var(--r-tick); background: var(--ink-3); left: var(--at); }
+.meter .sub { margin-top: var(--s2); font-size: var(--fs-12); line-height: 16px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.thr { margin-top: var(--s6); }
+.thr .tr { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+.thr .tr + .tr { box-shadow: inset 0 1px 0 var(--line); }
+.stepper { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border-radius: var(--r-control); background: var(--island-2); }
+.stepper button { width: 28px; height: 28px; border: 0; border-radius: var(--r-small); background: transparent; color: var(--ink-2); display: grid; place-items: center; }
+.stepper button:hover { background: var(--island); color: var(--ink); }
+.stepper .v { min-width: 44px; text-align: center; font-weight: 500; font-variant-numeric: tabular-nums; }
+.models { width: 100%; border-collapse: collapse; margin-top: var(--s3); }
+.models th { text-align: left; font-weight: 400; font-size: var(--fs-13); color: var(--ink-3); height: 32px; padding: 0; }
+.models td { height: 40px; padding: 0; box-shadow: inset 0 1px 0 var(--line); vertical-align: middle; }
+.models td.role { color: var(--ink); padding-right: var(--s4); }
+.models .sel { display: inline-flex; align-items: center; gap: var(--s1); color: var(--ink); }
+.models .sel .i { color: var(--ink-3); width: 14px; height: 14px; }
+.models .ovr { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); line-height: 16px; color: var(--ink-2); padding-bottom: var(--s2); }
+.models .ovr .i { width: 14px; height: 14px; color: var(--ink-3); }
+.models td.role.hasovr { padding-top: var(--s2); }
+.ovrlegend { display: inline-flex; align-items: center; gap: 6px; }
+.ovrlegend .i { width: 14px; height: 14px; }
+
+/* ------------------------------------------------------------------
+   Control bar, outside the window frame
+------------------------------------------------------------------- */
+.ctrl {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--s1);
+  padding: var(--s1);
+  border-radius: var(--r-block);
+  background: var(--ctrl-bg);
+  box-shadow: var(--shadow-soft);
+  font-size: var(--fs-12);
+  color: var(--page-ink);
+  z-index: 10;
+}
+.ctrl button {
+  height: 28px; padding: 0 var(--s3); border: 0; border-radius: var(--r-small);
+  background: transparent; color: var(--page-ink); font-size: var(--fs-12);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.ctrl button:hover { color: var(--ink); }
+.ctrl button.on { background: var(--ctrl-on); color: var(--ink); font-weight: 500; }
+.ctrl .k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.ctrl .sep { width: 1px; height: 16px; background: var(--line-2); margin: 0 var(--s1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 0ms !important; }
+  .hold.holding .fill { transition: transform 1000ms linear !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- Icon set: Lucide-style strokes, 24 grid, 1.5 stroke -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="M3.3 7 12 12l8.7-5"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></symbol>
+  <symbol id="i-running" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.17-2.87L3 3"/><path d="m15 9 6-6"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 24 24"><path d="M12 3v14"/><path d="M5 10h14"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M14.54 21.69a.5.5 0 0 0 .94-.03l6.5-19a.5.5 0 0 0-.64-.63l-19 6.5a.5.5 0 0 0-.02.93l7.93 3.18a2 2 0 0 1 1.11 1.11z"/><path d="m21.85 2.15-10.94 10.94"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-pr" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-win-min" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-win-max" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+</svg>
+
+<div id="stage">
+<div id="win" data-sky="wait">
+
+  <!-- Landscape: background only. Low contrast, no detail near text. -->
+  <svg class="land" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" style="stop-color:var(--sky-top)"/>
+        <stop offset="1" style="stop-color:var(--sky-low)"/>
+      </linearGradient>
+      <linearGradient id="hz" x1="0" y1="0" x2="0" y2="1">
+        <stop class="hz-stop" offset="0" style="stop-color:var(--horizon);stop-opacity:0"/>
+        <stop class="hz-stop" offset="0.78" style="stop-color:var(--horizon);stop-opacity:var(--horizon-o)"/>
+        <stop class="hz-stop" offset="1" style="stop-color:var(--horizon);stop-opacity:var(--horizon-o)"/>
+      </linearGradient>
+      <linearGradient id="hzr" x1="0" y1="0" x2="0" y2="1">
+        <stop class="hz-stop" offset="0" style="stop-color:var(--horizon);stop-opacity:var(--horizon-o)"/>
+        <stop class="hz-stop" offset="1" style="stop-color:var(--horizon);stop-opacity:0"/>
+      </linearGradient>
+      <radialGradient id="orb" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0.55" style="stop-color:var(--orb);stop-opacity:var(--orb-o)"/>
+        <stop offset="1" style="stop-color:var(--orb);stop-opacity:0"/>
+      </radialGradient>
+    </defs>
+    <rect width="1440" height="900" fill="url(#sky)"/>
+    <g class="stars" fill="var(--star)">
+      <circle cx="96" cy="28" r="1"/><circle cx="212" cy="64" r="0.8"/><circle cx="318" cy="22" r="1.1"/>
+      <circle cx="402" cy="96" r="0.8"/><circle cx="488" cy="34" r="1"/><circle cx="566" cy="140" r="0.7"/>
+      <circle cx="640" cy="18" r="0.9"/><circle cx="724" cy="72" r="1.1"/><circle cx="812" cy="30" r="0.8"/>
+      <circle cx="884" cy="118" r="0.7"/><circle cx="952" cy="40" r="1"/><circle cx="1034" cy="84" r="0.8"/>
+      <circle cx="1108" cy="26" r="1.1"/><circle cx="1262" cy="58" r="0.9"/><circle cx="1336" cy="24" r="0.8"/>
+      <circle cx="1398" cy="112" r="1"/><circle cx="160" cy="180" r="0.7"/><circle cx="700" cy="220" r="0.7"/>
+      <circle cx="1210" cy="190" r="0.8"/><circle cx="40" cy="120" r="0.8"/>
+    </g>
+    <circle cx="1196" cy="360" r="70" fill="url(#orb)"/>
+    <g class="clouds" fill="var(--cloud)">
+      <ellipse cx="300" cy="22" rx="180" ry="10"/>
+      <ellipse cx="1000" cy="30" rx="240" ry="12"/>
+      <ellipse cx="640" cy="250" rx="160" ry="10"/>
+      <ellipse cx="1240" cy="300" rx="140" ry="8"/>
+    </g>
+    <rect x="0" y="180" width="1440" height="420" fill="url(#hz)"/>
+    <path fill="var(--far)" d="M0 548 C 120 524, 230 498, 350 508 S 570 552, 710 532 S 950 474, 1090 492 S 1320 536, 1440 518 L1440 900 L0 900 Z"/>
+    <path fill="var(--mid)" d="M0 642 C 160 604, 300 590, 460 612 S 760 664, 930 632 S 1210 584, 1440 612 L1440 900 L0 900 Z"/>
+    <rect x="0" y="700" width="1440" height="200" fill="var(--lake)"/>
+    <rect x="0" y="700" width="1440" height="56" fill="url(#hzr)" opacity="0.55"/>
+    <g stroke="var(--glint)" stroke-width="1.5" stroke-linecap="round" opacity="var(--glint-o)" style="opacity:var(--glint-o)">
+      <path d="M1150 718 h92"/><path d="M1168 730 h56"/><path d="M1180 742 h32"/>
+      <path d="M380 724 h48"/><path d="M640 736 h36"/>
+    </g>
+    <path fill="var(--near)" d="M0 772 C 180 744, 380 740, 560 766 S 880 818, 1050 800 S 1300 750, 1440 766 L1440 900 L0 900 Z"/>
+  </svg>
+
+  <header class="titlebar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12a7 7 0 0 1 14 0"/><path d="M5 12h14"/><path d="M6 12c0 3.5-1.5 5.5-3 7"/><path d="M10 12c0 3.5-.5 5.5-1.5 8"/><path d="M14 12c0 3.5.5 5.5 1.5 8"/><path d="M18 12c0 3.5 1.5 5.5 3 7"/></svg>
+      Orchtopus
+    </div>
+    <div class="grow"></div>
+    <div class="skynote" id="skynote" role="status"></div>
+    <button class="tb-icon" id="tb-settings" aria-label="Settings"><svg class="i"><use href="#i-settings"/></svg></button>
+    <div class="winctl" aria-hidden="true">
+      <span><svg class="i"><use href="#i-win-min"/></svg></span>
+      <span><svg class="i"><use href="#i-win-max"/></svg></span>
+      <span><svg class="i"><use href="#i-x"/></svg></span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="side glass" id="side" aria-label="Sessions"></aside>
+
+    <div class="screens">
+
+      <!-- ============ Screen 1: permission ============ -->
+      <section class="screen" data-screen="1">
+        <div class="col grow">
+          <div class="shead island">
+            <div class="stitle">
+              <span class="name">report-export</span>
+              <span class="branch"><svg class="i"><use href="#i-branch"/></svg>feat/report-export</span>
+            </div>
+            <span class="tag" style="--c:var(--amber);--c-tint:var(--amber-tint)"><span class="dot" style="--c:var(--amber)"></span>Needs you · permission</span>
+            <div class="grow"></div>
+            <div class="acts">
+              <button class="btn"><svg class="i"><use href="#i-pause"/></svg>Pause</button>
+              <button class="btn quiet"><svg class="i"><use href="#i-folder"/></svg>Explorer</button>
+              <button class="btn quiet"><svg class="i"><use href="#i-code"/></svg>VS Code</button>
+              <button class="btn quiet"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+            </div>
+          </div>
+
+          <div class="hint glass">
+            <span class="dot" style="--c:var(--green)"></span>
+            <span><b>image-resize</b> also waits: PR draft ready for review</span>
+            <div class="grow"></div>
+            <button class="btn quiet sm">Open<svg class="i"><use href="#i-arrow"/></svg></button>
+          </div>
+
+          <div class="decision island" style="--c:var(--amber);--c-tint:var(--amber-tint)">
+            <div class="dhead">
+              <div class="row1">
+                <span class="tag" style="background:transparent;padding:0"><span class="dot" style="--c:var(--amber)"></span>Permission</span>
+                <div class="grow"></div>
+                <span class="meta">Waiting 1 min · falls back to the terminal prompt in 9 min</span>
+              </div>
+              <h2 class="dtitle">Bash command needs permission</h2>
+            </div>
+            <div class="dbody">
+              <div class="cmd"><span class="ps">$</span><span>npm install csv-parse@5.6.0 --save</span><span class="grow"></span><button class="btn quiet icon" aria-label="Copy command"><svg class="i"><use href="#i-copy"/></svg></button></div>
+              <div class="what">
+                <div class="lbl">What it does</div>
+                <p>Downloads csv-parse 5.6.0 from the npm registry and adds it to <code>package.json</code>. The package can run install scripts. Only this worktree is affected.</p>
+              </div>
+              <div class="facts">
+                <span><svg class="i"><use href="#i-globe"/></svg>Network</span>
+                <span><svg class="i"><use href="#i-file"/></svg>Changes package.json</span>
+                <span><svg class="i"><use href="#i-package"/></svg>Install scripts</span>
+              </div>
+              <div class="actions">
+                <button class="btn primary">Allow once<span class="kbd">A</span></button>
+                <button class="btn">Always allow in this project</button>
+                <button class="btn">Deny<span class="kbd">X</span></button>
+                <div class="grow"></div>
+                <button class="btn quiet"><svg class="i"><use href="#i-message"/></svg>Ask the advisor</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="term island">
+            <div class="term-head"><svg class="i"><use href="#i-terminal"/></svg>Session terminal<span class="grow"></span><span>attached</span></div>
+<div class="term-body"><span class="t">● Skill(superpowers:subagent-driven-development)</span>
+<span class="r">  └ Loaded · plan has 15 tasks</span>
+<span class="t">● Task(implementer: Normalise date ranges)</span>
+<span class="r">  └ Subagent started · task 12 of 15</span>
+<span class="t">● Read(src/export/date-range.ts)</span>
+<span class="r">  └ Read 84 lines</span>
+<span class="t">● Bash(npm test -- export)</span>
+<span class="r">  └ 58 passed, 0 failed</span>
+<span class="t">● Bash(npm install csv-parse@5.6.0 --save)</span>
+<span class="w">  └ waiting for permission</span></div>
+          </div>
+        </div>
+
+        <aside class="panel glass" aria-label="Session info">
+          <section class="psec">
+            <div class="plabel">Progress</div>
+            <div class="pbig">Task 12 of 15</div>
+            <div class="psub">Normalise date ranges</div>
+            <div class="bar" style="--c:var(--blue)"><i style="--v:73%"></i></div>
+          </section>
+          <section class="psec">
+            <div class="plabel">Workflow</div>
+            <ol class="phases">
+              <li><span class="mk"><svg class="i"><use href="#i-check"/></svg></span>Brainstorm<span class="st">Done</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-check"/></svg></span>Spec<span class="st">Done</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-check"/></svg></span>Plan<span class="st">Done</span></li>
+              <li class="cur"><span class="mk" style="color:var(--blue)"><svg class="i"><use href="#i-running"/></svg></span>Execute<span class="st">Running</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-circle"/></svg></span>Review<span class="st">Open</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-circle"/></svg></span>Finish<span class="st">Open</span></li>
+            </ol>
+          </section>
+          <section class="psec">
+            <div class="plabel">Session</div>
+            <dl class="kv">
+              <dt>Subagents</dt><dd>1 active</dd>
+              <dt>Git</dt><dd>5 ahead, 0 behind <code>develop</code></dd>
+              <dt>Context</dt><dd>41 % used</dd>
+              <div class="bar"><i style="--v:41%"></i></div>
+            </dl>
+          </section>
+          <section class="psec chat">
+            <div class="plabel">Side chat</div>
+            <div class="chat-cap">Read-only helper for this session. It explains, it does not type into the terminal.</div>
+            <div class="suggest">
+              <button class="btn">Why does task 12 need csv-parse?</button>
+              <button class="btn">What changed since the plan?</button>
+            </div>
+            <div class="inputrow">
+              <svg class="pet" viewBox="0 0 11 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="0" width="5" height="1"/><rect x="2" y="1" width="7" height="1"/><rect x="1" y="2" width="9" height="1"/><rect x="1" y="3" width="2" height="1"/><rect x="4" y="3" width="3" height="1"/><rect x="8" y="3" width="2" height="1"/><rect x="1" y="4" width="9" height="2"/><rect x="1" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/><rect x="0" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/><rect x="10" y="7" width="1" height="1"/></svg>
+              <label class="field"><input placeholder="Ask about this session" aria-label="Ask about this session"><button class="btn quiet icon" aria-label="Send"><svg class="i"><use href="#i-send"/></svg></button></label>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <!-- ============ Screen 2: dangerous command ============ -->
+      <section class="screen" data-screen="2">
+        <div class="col grow">
+          <div class="shead island">
+            <div class="stitle">
+              <span class="name">i18n-de</span>
+              <span class="branch"><svg class="i"><use href="#i-branch"/></svg>chore/i18n-de</span>
+            </div>
+            <span class="tag" style="--c:var(--red);--c-tint:var(--red-tint)"><span class="dot" style="--c:var(--red)"></span>Needs you · danger</span>
+            <div class="grow"></div>
+            <div class="acts">
+              <button class="btn"><svg class="i"><use href="#i-pause"/></svg>Pause</button>
+              <button class="btn quiet"><svg class="i"><use href="#i-folder"/></svg>Explorer</button>
+              <button class="btn quiet"><svg class="i"><use href="#i-code"/></svg>VS Code</button>
+              <button class="btn quiet"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+            </div>
+          </div>
+
+          <div class="hint glass">
+            <span class="dot" style="--c:var(--green)"></span>
+            <span><b>image-resize</b> also waits: PR draft ready for review</span>
+            <div class="grow"></div>
+            <button class="btn quiet sm">Open<svg class="i"><use href="#i-arrow"/></svg></button>
+          </div>
+
+          <div class="decision island" style="--c:var(--red);--c-tint:var(--red-tint)">
+            <div class="dhead">
+              <div class="row1">
+                <span class="tag" style="background:transparent;padding:0"><svg class="i"><use href="#i-alert"/></svg>Danger</span>
+                <div class="grow"></div>
+                <span class="meta" id="danger-meta">Waiting 2 min</span>
+              </div>
+              <h2 class="dtitle">Dangerous command</h2>
+            </div>
+            <div class="dbody">
+              <div class="cmd"><span class="ps">$</span><span>git push --force origin chore/i18n-de</span><span class="grow"></span><button class="btn quiet icon" aria-label="Copy command"><svg class="i"><use href="#i-copy"/></svg></button></div>
+              <div class="what">
+                <div class="lbl">What it does</div>
+                <p>Replaces the remote branch with your local one. Commits that exist only on the remote are lost. <code>main</code> and <code>develop</code> are not touched.</p>
+              </div>
+              <div class="facts">
+                <span><svg class="i"><use href="#i-alert"/></svg>Force push</span>
+                <span><svg class="i"><use href="#i-branch"/></svg>Rewrites remote branch</span>
+              </div>
+              <div class="actions">
+                <button class="btn hold" id="hold" aria-describedby="holdhint"><span class="fill"></span><span class="hl">Hold to allow once</span><span class="secs">1 s</span></button>
+                <button class="btn">Deny<span class="kbd">X</span></button>
+                <button class="btn quiet"><svg class="i"><use href="#i-message"/></svg>Ask the advisor</button>
+                <div class="grow"></div>
+                <span class="lockhint" id="holdhint"><svg class="i"><use href="#i-lock"/></svg>Not available by hotkey or remote</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="term island">
+            <div class="term-head"><svg class="i"><use href="#i-terminal"/></svg>Session terminal<span class="grow"></span><span>attached</span></div>
+<div class="term-body"><span class="t">● Skill(superpowers:executing-plans)</span>
+<span class="r">  └ Loaded · plan has 6 tasks</span>
+<span class="t">● Task(implementer: Translate settings strings)</span>
+<span class="r">  └ Subagent started · task 2 of 6</span>
+<span class="t">● Bash(npm run i18n:check)</span>
+<span class="r">  └ 214 keys · 0 missing</span>
+<span class="t">● Bash(git rebase develop)</span>
+<span class="r">  └ Successfully rebased chore/i18n-de</span>
+<span class="t">● Bash(git push --force origin chore/i18n-de)</span>
+<span class="x">  └ waiting for permission · dangerous command</span></div>
+          </div>
+        </div>
+
+        <aside class="panel glass" aria-label="Session info">
+          <section class="psec">
+            <div class="plabel">Progress</div>
+            <div class="pbig">Task 2 of 6</div>
+            <div class="psub">Translate settings strings</div>
+            <div class="bar" style="--c:var(--blue)"><i style="--v:17%"></i></div>
+          </section>
+          <section class="psec">
+            <div class="plabel">Workflow</div>
+            <ol class="phases">
+              <li><span class="mk"><svg class="i"><use href="#i-check"/></svg></span>Brainstorm<span class="st">Done</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-check"/></svg></span>Spec<span class="st">Done</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-check"/></svg></span>Plan<span class="st">Done</span></li>
+              <li class="cur"><span class="mk" style="color:var(--blue)"><svg class="i"><use href="#i-running"/></svg></span>Execute<span class="st">Running</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-circle"/></svg></span>Review<span class="st">Open</span></li>
+              <li><span class="mk"><svg class="i"><use href="#i-circle"/></svg></span>Finish<span class="st">Open</span></li>
+            </ol>
+          </section>
+          <section class="psec">
+            <div class="plabel">Session</div>
+            <dl class="kv">
+              <dt>Subagents</dt><dd>1 active</dd>
+              <dt>Git</dt><dd>2 ahead, 0 behind <code>develop</code></dd>
+              <dt>Context</dt><dd>18 % used</dd>
+              <div class="bar"><i style="--v:18%"></i></div>
+            </dl>
+          </section>
+          <section class="psec chat">
+            <div class="plabel">Side chat</div>
+            <div class="chat-cap">Read-only helper for this session. It explains, it does not type into the terminal.</div>
+            <div class="suggest">
+              <button class="btn">Which commits exist only on the remote?</button>
+              <button class="btn">Why does it need a force push?</button>
+            </div>
+            <div class="inputrow">
+              <svg class="pet" viewBox="0 0 11 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="3" y="0" width="5" height="1"/><rect x="2" y="1" width="7" height="1"/><rect x="1" y="2" width="9" height="1"/><rect x="1" y="3" width="2" height="1"/><rect x="4" y="3" width="3" height="1"/><rect x="8" y="3" width="2" height="1"/><rect x="1" y="4" width="9" height="2"/><rect x="1" y="6" width="1" height="1"/><rect x="3" y="6" width="1" height="1"/><rect x="5" y="6" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/><rect x="0" y="7" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="6" y="7" width="1" height="1"/><rect x="10" y="7" width="1" height="1"/></svg>
+              <label class="field"><input placeholder="Ask about this session" aria-label="Ask about this session"><button class="btn quiet icon" aria-label="Send"><svg class="i"><use href="#i-send"/></svg></button></label>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <!-- ============ Screen 3: review with PR draft ============ -->
+      <section class="screen" data-screen="3" style="flex-direction:column">
+        <div class="rhead island">
+          <button class="btn quiet"><svg class="i"><use href="#i-back"/></svg>Back</button>
+          <span class="sep"></span>
+          <span class="name">report-export</span>
+          <span class="branch">feat/report-export → develop</span>
+          <span class="tag" style="--c:var(--green);--c-tint:var(--green-tint)"><span class="dot" style="--c:var(--green)"></span>Ready for review</span>
+          <div class="grow"></div>
+          <button class="btn quiet icon" aria-label="Close review"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+
+        <div class="rbody">
+          <!-- Left: what was done and gates -->
+          <div class="col" style="width:372px;flex:none">
+            <div class="island sec" style="flex:none">
+              <div class="sech"><h3>What was done</h3><span class="meta">15 of 15 tasks</span></div>
+              <ul class="tasks">
+                <li><svg class="i"><use href="#i-check"/></svg>Report model and exporter interface<span class="rng">1–4</span></li>
+                <li><svg class="i"><use href="#i-check"/></svg>CSV, Excel and JSON output<span class="rng">5–9</span></li>
+                <li><svg class="i"><use href="#i-check"/></svg>Date filters and normalised ranges<span class="rng">10–12</span></li>
+                <li><svg class="i"><use href="#i-check"/></svg>Export endpoint, dialog and docs<span class="rng">13–15</span></li>
+              </ul>
+              <div class="links">
+                <button class="btn sm"><svg class="i"><use href="#i-diff"/></svg>Diff<span class="meta">3 files</span></button>
+                <button class="btn sm"><svg class="i"><use href="#i-history"/></svg>Session history</button>
+                <button class="btn sm"><svg class="i"><use href="#i-code"/></svg>Open worktree in VS Code</button>
+              </div>
+            </div>
+
+            <div class="island gates">
+              <div class="sech"><h3>Gates</h3><span class="meta">7 passed · 1 note · 2 open</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Spec approved<span class="res">You</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Plan approved<span class="res">You</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Tests<span class="res">60 passed</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Lint and types<span class="res">Passed</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Secret scan<span class="res">Passed</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Dependency audit<span class="res">Passed</span></div>
+              <div class="gate"><svg class="i ok"><use href="#i-check"/></svg>Review council<span class="res">4 of 4</span></div>
+              <dl class="council">
+                <dt>Spec compliance</dt><dd>Pass</dd>
+                <dt>Code quality</dt><dd>Pass, 2 notes for the checklist</dd>
+                <dt>Tests</dt><dd>Pass</dd>
+                <dt>Security</dt><dd>Not needed, no sensitive paths</dd>
+              </dl>
+              <div class="gate"><svg class="i note"><use href="#i-info"/></svg>Git check<span class="res">1 note</span></div>
+              <div class="gate dim"><svg class="i open"><use href="#i-circle"/></svg>Release PR<span class="res">You, open</span></div>
+              <div class="gate dim"><svg class="i open"><use href="#i-circle"/></svg>CI<span class="res">After PR</span></div>
+            </div>
+          </div>
+
+          <!-- Middle: PR draft -->
+          <div class="island prdraft" style="width:432px;flex:none;--c:var(--green);--c-tint:var(--green-tint)">
+            <div class="dhead">
+              <div class="row1">
+                <span class="tag" style="background:transparent;padding:0"><svg class="i"><use href="#i-pr"/></svg>PR draft</span>
+                <div class="grow"></div>
+                <span class="meta">Not created yet</span>
+              </div>
+            </div>
+            <div class="dbody">
+              <div>
+                <span class="flbl">Title</span>
+                <div class="input mono wrap">feat(export): export reports with date filters</div>
+              </div>
+              <div class="prrow">
+                <div>
+                  <span class="flbl">Target branch</span>
+                  <div class="input mono">develop<span class="grow"></span><svg class="i"><use href="#i-chev"/></svg></div>
+                </div>
+                <label class="check"><input type="checkbox" checked><span class="box"><svg class="i"><use href="#i-check"/></svg></span>Draft PR</label>
+              </div>
+              <div class="desc">
+                <label class="flbl" for="prdesc">Description · written by Claude, edit freely</label>
+                <textarea id="prdesc" spellcheck="false">## What
+Reports export to CSV, Excel and JSON.
+Date filters pick the range.
+
+## Why
+Monthly reports need no manual cleanup.
+
+## Tests
+60 passed, incl. month end and leap year.
+
+## Checklist
+- [ ] Rename exportRows to buildRows
+- [ ] Comment the default time zone</textarea>
+              </div>
+              <div class="prbtns">
+                <button class="btn primary"><svg class="i"><use href="#i-pr"/></svg>Release and create PR</button>
+                <button class="btn sm"><svg class="i"><use href="#i-refresh"/></svg>Regenerate description</button>
+                <button class="btn sm"><svg class="i"><use href="#i-copy"/></svg>Copy</button>
+              </div>
+              <div class="prnote"><svg class="i"><use href="#i-info"/></svg>Orchtopus never merges. You merge on GitHub or GitLab.</div>
+            </div>
+          </div>
+
+          <!-- Right: git check and advisor -->
+          <div class="col grow">
+            <div class="island sec" style="flex:none">
+              <div class="sech"><h3>Git check</h3><span class="meta">1 note</span></div>
+              <ul class="checks">
+                <li><svg class="i"><use href="#i-check"/></svg><span>Branch name, commits, target <code>develop</code> ok</span></li>
+                <li class="note"><svg class="i"><use href="#i-info"/></svg>This PR mixes two topics. Consider splitting it.</li>
+              </ul>
+              <button class="btn sm" style="margin-top:12px"><svg class="i"><use href="#i-split"/></svg>Ask the advisor to draft a split</button>
+            </div>
+
+            <div class="island advisor">
+              <div class="sech"><h3>Advisor</h3><span class="meta">This change</span></div>
+              <div class="cap">Only what you send reaches the session.</div>
+              <div class="thread">
+                <div class="msg me">Which two topics?</div>
+                <div class="msg adv"><span class="who">Advisor</span>The export, and a rename in the upload helpers. The export does not need the rename.</div>
+                <div class="msg me">Draft the split.</div>
+                <div class="msg adv"><span class="who">Advisor · instruction for report-export</span>
+                  <div class="instr">
+                    Move the upload helper rename to <code>chore/upload-rename</code> and drop it from this branch.
+                    <div><button class="btn sm"><svg class="i"><use href="#i-send"/></svg>Send to session</button></div>
+                  </div>
+                </div>
+              </div>
+              <label class="field"><input placeholder="Ask, or write an instruction" aria-label="Ask, or write an instruction"><button class="btn quiet icon" aria-label="Send"><svg class="i"><use href="#i-send"/></svg></button></label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Screen 4: settings ============ -->
+      <section class="screen" data-screen="4">
+        <nav class="setnav glass" aria-label="Settings sections">
+          <h2>Settings</h2>
+          <div class="navrow">General</div>
+          <div class="navrow on">Appearance</div>
+          <div class="navrow">Models</div>
+          <div class="navrow">Usage</div>
+          <div class="navrow">Notifications</div>
+          <div class="navrow">Keyboard</div>
+          <div class="navrow">Privacy</div>
+          <div class="navrow">Projects</div>
+        </nav>
+
+        <div class="setmain island">
+          <h2>Appearance</h2>
+          <p class="lead">Global settings. <span class="ovrlegend"><svg class="i"><use href="#i-folder"/></svg>marks a per-project override.</span></p>
+
+          <div class="setrow">
+            <div class="k">Mode</div>
+            <div class="seg" role="radiogroup" aria-label="Mode">
+              <button data-setmode="light" role="radio"><svg class="i"><use href="#i-sun"/></svg>Light</button>
+              <button data-setmode="dark" role="radio"><svg class="i"><use href="#i-moon"/></svg>Dark</button>
+              <button data-setmode="system" role="radio"><svg class="i"><use href="#i-monitor"/></svg>Like Windows</button>
+            </div>
+          </div>
+
+          <div class="setrow">
+            <div class="k">Design variant<span class="cap">The landscape follows the mode: day in light, night in dark.</span></div>
+            <div>
+              <div class="variants">
+                <button class="variant on" aria-pressed="true">
+                  <span class="pv"><svg viewBox="0 0 184 104" preserveAspectRatio="none" aria-hidden="true">
+                    <rect width="184" height="104" fill="var(--pv-sky)"/>
+                    <path d="M0 70 C 40 60, 80 58, 120 66 S 170 62, 184 60 L184 104 L0 104Z" fill="var(--pv-hill)"/>
+                    <rect x="8" y="12" width="36" height="84" rx="5" fill="var(--pv-isl)" opacity="0.82"/>
+                    <rect x="50" y="12" width="88" height="40" rx="5" fill="var(--pv-isl)"/>
+                    <rect x="50" y="56" width="88" height="40" rx="5" fill="var(--pv-isl-2)"/>
+                    <rect x="144" y="12" width="32" height="84" rx="5" fill="var(--pv-isl)" opacity="0.82"/>
+                  </svg></span>
+                  <span class="vn">Island landscape<span class="inuse">In use</span></span>
+                </button>
+                <button class="variant" aria-pressed="false">
+                  <span class="pv"><svg viewBox="0 0 184 104" preserveAspectRatio="none" aria-hidden="true">
+                    <rect width="184" height="104" fill="var(--pv-graph)"/>
+                    <rect x="0" y="0" width="44" height="104" fill="var(--pv-graph-2)"/>
+                    <rect x="52" y="10" width="90" height="38" rx="3" fill="var(--pv-graph-2)"/>
+                    <rect x="52" y="54" width="90" height="42" rx="3" fill="var(--pv-graph-3)"/>
+                    <rect x="150" y="0" width="34" height="104" fill="var(--pv-graph-2)"/>
+                  </svg></span>
+                  <span class="vn">Quiet graphite<span class="inuse">In use</span></span>
+                </button>
+                <button class="variant" aria-pressed="false">
+                  <span class="pv"><svg viewBox="0 0 184 104" preserveAspectRatio="none" aria-hidden="true">
+                    <rect width="184" height="104" fill="var(--pv-paper)"/>
+                    <rect x="10" y="12" width="34" height="80" rx="2" fill="var(--pv-paper-2)"/>
+                    <rect x="52" y="12" width="122" height="34" rx="2" fill="var(--pv-paper-2)"/>
+                    <rect x="52" y="52" width="122" height="40" rx="2" fill="var(--pv-paper-3)"/>
+                  </svg></span>
+                  <span class="vn">Paper<span class="inuse">In use</span></span>
+                </button>
+              </div>
+              <div class="applynote"><svg class="i"><use href="#i-info"/></svg>Changes apply instantly</div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="twocol">
+            <div>
+              <h3>Usage</h3>
+              <div class="cap">Subscription limits. Marks show your thresholds.</div>
+              <div class="meter">
+                <div class="top"><span>5-hour window</span><span class="v">46 %</span></div>
+                <div class="track"><i style="--v:46%"></i><s style="--at:70%"></s><s style="--at:90%"></s></div>
+                <div class="sub">Resets 16:40</div>
+              </div>
+              <div class="meter">
+                <div class="top"><span>Weekly</span><span class="v">31 %</span></div>
+                <div class="track"><i style="--v:31%"></i><s style="--at:70%"></s><s style="--at:90%"></s></div>
+                <div class="sub">Resets Mon 09:00</div>
+              </div>
+              <div class="thr">
+                <div class="tr"><span>Pause background jobs at</span>
+                  <span class="stepper"><button aria-label="Lower"><svg class="i"><use href="#i-minus"/></svg></button><span class="v">70 %</span><button aria-label="Raise"><svg class="i"><use href="#i-plus"/></svg></button></span></div>
+                <div class="tr"><span>Ask before new sessions at</span>
+                  <span class="stepper"><button aria-label="Lower"><svg class="i"><use href="#i-minus"/></svg></button><span class="v">90 %</span><button aria-label="Raise"><svg class="i"><use href="#i-plus"/></svg></button></span></div>
+              </div>
+            </div>
+
+            <div>
+              <h3>Models per role</h3>
+              <div class="cap">Model and effort for each job Orchtopus starts.</div>
+              <table class="models">
+                <thead><tr><th>Role</th><th style="width:120px">Model</th><th style="width:110px">Effort</th></tr></thead>
+                <tbody>
+                  <tr><td class="role">Main session</td><td><span class="sel">Opus<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">High<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td class="role">Planning</td><td><span class="sel">Opus<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">High<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td class="role hasovr">Review council<div class="ovr"><svg class="i"><use href="#i-folder"/></svg>acme-app uses Opus · high</div></td><td><span class="sel">Sonnet<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">Medium<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td class="role">Security reviewer</td><td><span class="sel">Opus<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">High<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td class="role">Advisor and side chat</td><td><span class="sel">Sonnet<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">Medium<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td class="role">Wiki</td><td><span class="sel">Sonnet<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">Medium<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td class="role">Summaries</td><td><span class="sel">Haiku<svg class="i"><use href="#i-chev"/></svg></span></td><td><span class="sel">Low<svg class="i"><use href="#i-chev"/></svg></span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<nav class="ctrl" aria-label="Exploration controls">
+  <button data-go="1"><span class="k">1</span>Permission</button>
+  <button data-go="2"><span class="k">2</span>Danger</button>
+  <button data-go="3"><span class="k">3</span>Review</button>
+  <button data-go="4"><span class="k">4</span>Settings</button>
+  <span class="sep"></span>
+  <button data-mode="light">Light</button>
+  <button data-mode="dark">Dark</button>
+  <span class="k" style="padding:0 8px 0 4px">D</span>
+</nav>
+
+<script>
+(function () {
+  // Session states per screen. Inbox is 2 on every screen.
+  var C = {
+    amber: "var(--amber)", blue: "var(--blue)", green: "var(--green)",
+    red: "var(--red)", idle: "var(--ink-3)"
+  };
+  function rows(s) {
+    var re = { 1: ["Permission", C.amber, "Task 12 of 15"], 2: ["Running", C.blue, "Task 12 of 15"], 3: ["Review", C.green, "Ready for review · 15 of 15"], 4: ["Permission", C.amber, "Task 12 of 15"] }[s];
+    var i18 = s === 2 ? ["Danger", C.red, "Task 2 of 6"] : ["Running", C.blue, "Task 2 of 6"];
+    return [
+      { proj: "acme-app", items: [
+        { n: "report-export", st: re[0], c: re[1], sub: re[2] },
+        { n: "upload-fix", st: "Running", c: C.blue, sub: "Task 4 of 7" },
+        { n: "image-resize", st: "PR draft", c: C.green, sub: "Done · PR draft waiting" },
+        { n: "i18n-de", st: i18[0], c: i18[1], sub: i18[2] }
+      ]},
+      { proj: "docs-site", items: [
+        { n: "changelog", st: "Idle", c: C.idle, sub: "3 of 3", idle: true }
+      ]}
+    ];
+  }
+  var SELECTED = { 1: "report-export", 2: "i18n-de", 3: "report-export", 4: null };
+  var SKY = { 1: "wait", 2: "danger", 3: "calm", 4: "wait" };
+  var NOTE = {
+    1: ['var(--amber)', '<b>report-export</b> needs permission'],
+    2: ['var(--red)', '<b>i18n-de</b> waits on a dangerous command'],
+    3: ['var(--green)', 'Nothing blocked <span class="muted">· 2 ready for review</span>'],
+    4: ['var(--amber)', '<b>report-export</b> needs permission']
+  };
+
+  function renderSide(s) {
+    var html = '<div class="navrow"><svg class="i"><use href="#i-inbox"/></svg>Inbox<span class="count">2</span></div>';
+    rows(s).forEach(function (g) {
+      html += '<div class="group"><div class="glabel"><span>' + g.proj + '</span><span class="num">' + g.items.length + '</span></div>';
+      g.items.forEach(function (it) {
+        var on = SELECTED[s] === it.n ? " on" : "";
+        html += '<div class="srow' + on + '" style="--c:' + it.c + '"' + (on ? ' aria-current="true"' : '') + '>' +
+          '<span class="dot' + (it.idle ? ' ring' : '') + '"></span>' +
+          '<span class="sname">' + it.n + '</span>' +
+          '<span class="sstate">' + it.st + '</span>' +
+          '<span class="ssub">' + it.sub + '</span></div>';
+      });
+      html += '</div>';
+    });
+    html += '<div class="sfoot"><div class="line1"><span class="dot" style="--c:var(--green)"></span>Claude Code connected</div>5 sessions · Git updated 3 s ago</div>';
+    document.getElementById("side").innerHTML = html;
+  }
+
+  var state = { screen: 1, mode: "dark" };
+
+  function readHash() {
+    var p = new URLSearchParams(location.hash.replace(/^#/, ""));
+    var sc = parseInt(p.get("screen"), 10);
+    var md = p.get("mode");
+    state.screen = sc >= 1 && sc <= 4 ? sc : 1;
+    state.mode = md === "light" || md === "dark" ? md : "dark";
+  }
+  function writeHash() {
+    var h = "#screen=" + state.screen + "&mode=" + state.mode;
+    if (location.hash !== h) history.replaceState(null, "", h);
+  }
+
+  function apply() {
+    document.documentElement.dataset.mode = state.mode;
+    var win = document.getElementById("win");
+    win.dataset.sky = SKY[state.screen];
+    document.querySelectorAll(".screen").forEach(function (el) {
+      el.classList.toggle("on", +el.dataset.screen === state.screen);
+    });
+    renderSide(state.screen);
+    var n = NOTE[state.screen];
+    document.getElementById("skynote").innerHTML = '<span class="dot" style="--c:' + n[0] + '"></span><span>' + n[1] + '</span>';
+    document.getElementById("tb-settings").classList.toggle("on", state.screen === 4);
+    document.querySelectorAll(".ctrl [data-go]").forEach(function (b) { b.classList.toggle("on", +b.dataset.go === state.screen); });
+    document.querySelectorAll(".ctrl [data-mode]").forEach(function (b) { b.classList.toggle("on", b.dataset.mode === state.mode); });
+    document.querySelectorAll("[data-setmode]").forEach(function (b) {
+      var on = b.dataset.setmode === state.mode;
+      b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false");
+    });
+    writeHash();
+  }
+
+  function go(s) { state.screen = s; apply(); }
+  function setMode(m) { state.mode = m; apply(); }
+
+  document.querySelectorAll(".ctrl [data-go]").forEach(function (b) { b.addEventListener("click", function () { go(+b.dataset.go); }); });
+  document.querySelectorAll(".ctrl [data-mode]").forEach(function (b) { b.addEventListener("click", function () { setMode(b.dataset.mode); }); });
+  document.getElementById("tb-settings").addEventListener("click", function () { go(4); });
+  document.querySelectorAll("[data-setmode]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var m = b.dataset.setmode;
+      if (m === "system") m = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      setMode(m);
+    });
+  });
+  document.querySelectorAll(".variant").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".variant").forEach(function (v) { v.classList.remove("on"); v.setAttribute("aria-pressed", "false"); });
+      b.classList.add("on"); b.setAttribute("aria-pressed", "true");
+    });
+  });
+
+  document.addEventListener("keydown", function (e) {
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key >= "1" && e.key <= "4") { go(+e.key); }
+    else if (e.key === "d" || e.key === "D") { setMode(state.mode === "dark" ? "light" : "dark"); }
+  });
+  window.addEventListener("hashchange", function () { readHash(); apply(); });
+
+  // Hold to allow once: pointer only, one second. Keyboard activation is blocked on purpose.
+  var hold = document.getElementById("hold");
+  var timer = null;
+  function cancel() {
+    if (hold.classList.contains("done")) return;
+    clearTimeout(timer); hold.classList.remove("holding");
+  }
+  hold.addEventListener("pointerdown", function (e) {
+    if (hold.classList.contains("done") || e.button !== 0) return;
+    hold.setPointerCapture(e.pointerId);
+    hold.classList.add("holding");
+    timer = setTimeout(function () {
+      hold.classList.remove("holding"); hold.classList.add("done");
+      hold.querySelector(".hl").textContent = "Allowed once";
+      hold.querySelector(".secs").textContent = "";
+      document.getElementById("danger-meta").textContent = "Allowed once · the session continues";
+    }, 1000);
+  });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(function (ev) { hold.addEventListener(ev, cancel); });
+  hold.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") e.preventDefault(); });
+  hold.addEventListener("click", function (e) { e.preventDefault(); });
+
+  // Fit the 1440 x 900 frame into the viewport, never upscale.
+  function fit() {
+    var s = Math.min(1, (innerWidth - 32) / 1440, (innerHeight - 80) / 900);
+    document.getElementById("stage").style.setProperty("--scale", Math.max(0.2, s).toFixed(4));
+  }
+  window.addEventListener("resize", fit);
+
+  readHash(); apply(); fit();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchtopus design explorations</title>
+<style>
+  :root {
+    --page: #f4f4f2; --ink: #1b1c1f; --muted: #5d6068; --line: #d9d9d4; --card: #ffffff; --accent: #1d5fd0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page: #141518; --ink: #eceef2; --muted: #a3a7b0; --line: #2c2e34; --card: #1b1c21; --accent: #8ab4ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: var(--page); border-bottom: 1px solid var(--line); padding: 16px 32px; display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  .group { display: flex; align-items: center; gap: 8px; }
+  .group span { color: var(--muted); font-size: 13px; }
+  button { font: inherit; font-size: 13px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  main { padding: 24px 32px 64px; display: grid; gap: 32px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+  article { min-width: 0; }
+  article h2 { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+  article p { margin: 0 0 12px; color: var(--muted); font-size: 14px; max-width: 68ch; }
+  .frame { position: relative; aspect-ratio: 1440 / 940; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .meta { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; }
+  a { color: var(--accent); }
+  .missing { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Orchtopus design explorations</h1>
+  <div class="group" id="screens"><span>Screen</span></div>
+  <div class="group" id="modes"><span>Mode</span></div>
+  <div class="group" id="cols"><span>Columns</span></div>
+</header>
+<main id="grid"></main>
+<script>
+  const directions = [
+    ["01-stellwerk", "01 · Stellwerk", "Calm baseline. Cool graphite, hairlines, colour only where a decision waits. Classic three columns."],
+    ["02-island-landscape", "02 · Island landscape", "Floating rounded panels over an illustrated landscape, day in light and night in dark."],
+    ["03-tinted-glass", "03 · Tinted glass", "Frosted, tinted panels over a soft backdrop. Layered Windows 11 material feeling."],
+    ["04-deep-sea", "04 · Deep sea", "Grows from the name: one head, many arms. Sessions as arms of one organism, pixel octopus."],
+    ["05-editorial-paper", "05 · Editorial paper", "Light-first and typographic. Almost no chrome, decisions read like headlines."],
+    ["06-terminal-native", "06 · Terminal native", "Keyboard-first and dense. Panes on one grid, every action shows its key."],
+    ["07-focus", "07 · Focus", "One thing at a time. Sessions as a top rail, the decision as the single dominant element."],
+    ["08-control-room", "08 · Control room", "Everything at once. A wall of live mini-terminals next to the selected session."]
+  ];
+  const screens = [["1", "Permission"], ["2", "Dangerous command"], ["3", "Review and PR draft"], ["4", "Settings"]];
+  const modes = [["dark", "Dark"], ["light", "Light"]];
+  const state = { screen: "1", mode: "dark", cols: "2" };
+  location.hash.slice(1).split("&").forEach(function (pair) {
+    const kv = pair.split("=");
+    if (kv[0] in state && kv[1]) state[kv[0]] = kv[1];
+  });
+
+  function buttons(hostId, key, options) {
+    const host = document.getElementById(hostId);
+    options.forEach(function (option) {
+      const button = document.createElement("button");
+      button.textContent = option[1];
+      button.dataset.value = option[0];
+      button.addEventListener("click", function () { state[key] = option[0]; render(); });
+      host.appendChild(button);
+    });
+  }
+
+  function render() {
+    location.hash = "screen=" + state.screen + "&mode=" + state.mode + "&cols=" + state.cols;
+    [["screens", "screen"], ["modes", "mode"], ["cols", "cols"]].forEach(function (pair) {
+      document.querySelectorAll("#" + pair[0] + " button").forEach(function (button) {
+        button.setAttribute("aria-pressed", String(button.dataset.value === state[pair[1]]));
+      });
+    });
+    const grid = document.getElementById("grid");
+    grid.style.setProperty("--cols", state.cols);
+    grid.textContent = "";
+    directions.forEach(function (direction) {
+      const url = direction[0] + ".html#screen=" + state.screen + "&mode=" + state.mode;
+      const article = document.createElement("article");
+      const title = document.createElement("h2");
+      title.textContent = direction[1];
+      const text = document.createElement("p");
+      text.textContent = direction[2];
+      const frame = document.createElement("div");
+      frame.className = "frame";
+      const iframe = document.createElement("iframe");
+      iframe.src = url;
+      iframe.title = direction[1];
+      iframe.loading = "lazy";
+      frame.appendChild(iframe);
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Open full size";
+      meta.appendChild(link);
+      article.append(title, text, frame, meta);
+      grid.appendChild(article);
+    });
+  }
+
+  buttons("screens", "screen", screens);
+  buttons("modes", "mode", modes);
+  buttons("cols", "cols", [["1", "1"], ["2", "2"], ["3", "3"]]);
+  render();
+</script>
+</body>
+</html>

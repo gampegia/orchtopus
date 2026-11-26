@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchtopus · 03 Tinted glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------- Tokens shared by both modes ---------- */
+:root{
+  --font-ui:"Segoe UI Variable Text","Segoe UI Variable","Segoe UI","IBM Plex Sans",system-ui,sans-serif;
+  --font-mono:"Cascadia Mono","IBM Plex Mono",ui-monospace,Consolas,monospace;
+
+  --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-20:20px;
+  --lh-12:16px; --lh-13:20px; --lh-14:20px; --lh-body:22px; --lh-16:24px; --lh-20:28px;
+  --fw-r:400; --fw-m:500; --fw-s:600;
+
+  --sp-h:2px; --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px;
+
+  --r-px:2px; --r-xs:4px; --r-sm:6px; --r-ctl:8px; --r-field:10px; --r-card:12px; --r-win:10px;
+
+  --side-w:272px; --aside-w:340px; --tb-h:44px; --status-h:28px;
+
+  --blur:40px;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --t-fast:140ms; --t-mid:200ms; --t-enter:320ms; --t-hold:1000ms;
+
+  /* Variant previews in settings: literal swatches of other directions */
+  --pv-glass-a:#0e2a2d; --pv-glass-b:#1d2f2c; --pv-glass-warm:#5a4a36;
+  --pv-glass-pane:rgba(10,24,28,.62); --pv-glass-card:#11181c;
+  --pv-graphite-a:#141415; --pv-graphite-b:#1c1c1e; --pv-graphite-card:#232325;
+  --pv-paper-a:#f4f1ea; --pv-paper-b:#ebe6dc; --pv-paper-card:#fffdf8;
+  --pv-line-dark:rgba(237,237,237,.22); --pv-line-light:rgba(31,27,22,.22);
+}
+
+/* ---------- Dark: deep teal water, ink, a brass sandbar ---------- */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --wall-a:#09151b; --wall-b:#0e2c30; --wall-c:#16403b; --wall-d:#1c2f2c;
+  --wall-warm:rgba(201,156,104,.28); --wall-line:rgba(190,226,218,.07);
+
+  --mat-title:rgba(8,18,22,.58);
+  --mat-side:rgba(11,40,42,.62);
+  --mat-main:rgba(12,18,22,.74);
+  --mat-aside:rgba(40,33,24,.70);
+  --mat-status:rgba(8,18,22,.70);
+  --mat-title-solid:#0b171b; --mat-side-solid:#0d1f21; --mat-main-solid:#0e1418; --mat-aside-solid:#1b1915; --mat-status-solid:#0b161a;
+
+  --win-edge:rgba(220,240,236,.12);
+  --win-shadow:0 32px 80px rgba(0,0,0,.50),0 2px 8px rgba(0,0,0,.30);
+
+  --solid:#11181c; --inset:#0b1114; --term:#0a1013; --field:rgba(0,0,0,.22); --field-solid:#0d1417;
+  --raise:rgba(226,240,236,.06); --raise-2:rgba(226,240,236,.10);
+  --hair:rgba(226,240,236,.09); --hair-2:rgba(226,240,236,.16);
+  --hi:inset 0 1px 0 rgba(255,255,255,.06);
+  --card-shadow:0 8px 24px rgba(0,0,0,.28);
+  --seg-shadow:0 1px 2px rgba(0,0,0,.30);
+
+  --ink-1:#e8efed; --ink-2:#b6c3c0; --ink-3:#97a5a2;
+
+  --btn-bg:rgba(226,240,236,.07); --btn-bg-h:rgba(226,240,236,.12);
+  --btn-p-bg:#e8efed; --btn-p-ink:#0d1517; --btn-p-h:#ffffff;
+  --focus:#9fd0c8;
+  --tick-done:rgba(232,239,237,.46); --tick-open:rgba(232,239,237,.13);
+  --meter-fill:#b4c1be; --meter-mark:#e8efed;
+  --toggle-on:#e8efed; --toggle-knob-on:#0d1517; --toggle-knob:#b4c1be;
+  --pet-body:#8fbcb4; --pet-eye:#0b1114;
+  --ctl-bg:rgba(9,18,22,.80);
+
+  --amber:#e3a64a;  --amber-ink:#e9b25e;  --amber-wash:rgba(227,166,74,.12);  --amber-edge:rgba(227,166,74,.42);  --amber-fill:#e3a64a;  --amber-on:#1c1305;
+  --red:#f27474;    --red-ink:#f48282;    --red-wash:rgba(242,116,116,.12);   --red-edge:rgba(242,116,116,.46);   --red-fill:#f27474;    --red-on:#210808;
+  --green:#5cc690;  --green-ink:#6bcf9b;  --green-wash:rgba(92,198,144,.11);  --green-edge:rgba(92,198,144,.40);  --green-fill:#5cc690;  --green-on:#07180f;
+  --blue:#6aa6f2;   --blue-ink:#7cb2f4;   --blue-wash:rgba(106,166,242,.11);  --blue-edge:rgba(106,166,242,.40);  --blue-fill:#6aa6f2;   --blue-on:#06121f;
+  --violet:#a99af0; --violet-ink:#b4a7f3; --violet-wash:rgba(169,154,240,.11);--violet-edge:rgba(169,154,240,.40);--violet-fill:#a99af0; --violet-on:#120c26;
+  --orange:#ec8a4a; --orange-ink:#f09a60; --orange-wash:rgba(236,138,74,.11); --orange-edge:rgba(236,138,74,.40); --orange-fill:#ec8a4a; --orange-on:#1f0e03;
+}
+
+/* ---------- Light: pale mineral, sea glass, limestone ---------- */
+:root[data-theme="light"]{
+  color-scheme:light;
+  --wall-a:#e6e9e5; --wall-b:#d3dfda; --wall-c:#c4d5d0; --wall-d:#dce1db;
+  --wall-warm:rgba(205,172,128,.32); --wall-line:rgba(30,60,56,.08);
+
+  --mat-title:rgba(246,248,245,.60);
+  --mat-side:rgba(225,236,232,.66);
+  --mat-main:rgba(251,251,249,.78);
+  --mat-aside:rgba(245,240,231,.70);
+  --mat-status:rgba(240,243,240,.72);
+  --mat-title-solid:#eef1ee; --mat-side-solid:#dfe9e5; --mat-main-solid:#f9faf8; --mat-aside-solid:#f2ede4; --mat-status-solid:#ebefeb;
+
+  --win-edge:rgba(20,40,36,.16);
+  --win-shadow:0 24px 64px rgba(20,40,36,.18),0 2px 6px rgba(20,40,36,.08);
+
+  --solid:#fdfdfb; --inset:#f2f4f1; --term:#fbfcfa; --field:rgba(255,255,255,.72); --field-solid:#ffffff;
+  --raise:rgba(16,40,36,.05); --raise-2:rgba(16,40,36,.09);
+  --hair:rgba(16,36,32,.11); --hair-2:rgba(16,36,32,.19);
+  --hi:inset 0 1px 0 rgba(255,255,255,.65);
+  --card-shadow:0 1px 2px rgba(20,40,36,.06),0 8px 24px rgba(20,40,36,.07);
+  --seg-shadow:0 1px 2px rgba(20,40,36,.12);
+
+  --ink-1:#111e1c; --ink-2:#384744; --ink-3:#4f5e5b;
+
+  --btn-bg:rgba(255,255,255,.58); --btn-bg-h:rgba(255,255,255,.90);
+  --btn-p-bg:#14211f; --btn-p-ink:#f6f8f6; --btn-p-h:#24342f;
+  --focus:#2d6f66;
+  --tick-done:rgba(17,30,28,.48); --tick-open:rgba(17,30,28,.12);
+  --meter-fill:#384744; --meter-mark:#111e1c;
+  --toggle-on:#14211f; --toggle-knob-on:#ffffff; --toggle-knob:#4f5e5b;
+  --pet-body:#3f736b; --pet-eye:#f6f8f6;
+  --ctl-bg:rgba(246,248,245,.86);
+
+  --amber:#c98a22;  --amber-ink:#7a4f00;  --amber-wash:rgba(214,150,40,.13);  --amber-edge:rgba(170,112,10,.46);  --amber-fill:#e0a13a;  --amber-on:#1c1305;
+  --red:#c93a3a;    --red-ink:#a32424;    --red-wash:rgba(201,58,58,.09);     --red-edge:rgba(170,36,36,.42);     --red-fill:#c93a3a;    --red-on:#ffffff;
+  --green:#2a8a57;  --green-ink:#17673c;  --green-wash:rgba(42,138,87,.10);   --green-edge:rgba(23,103,60,.40);   --green-fill:#1f7448;  --green-on:#ffffff;
+  --blue:#2f6fcc;   --blue-ink:#1b56ad;   --blue-wash:rgba(47,111,204,.09);   --blue-edge:rgba(27,86,173,.40);    --blue-fill:#1f5fbf;   --blue-on:#ffffff;
+  --violet:#6b55d0; --violet-ink:#5a46c0; --violet-wash:rgba(107,85,208,.09); --violet-edge:rgba(90,70,192,.40);  --violet-fill:#5a46c0; --violet-on:#ffffff;
+  --orange:#c0601c; --orange-ink:#93430c; --orange-wash:rgba(192,96,28,.10);  --orange-edge:rgba(147,67,12,.40);  --orange-fill:#a8531a; --orange-on:#ffffff;
+}
+
+/* One signal per component: set data-sig and everything inside follows */
+[data-sig="amber"]{--sig:var(--amber);--sig-ink:var(--amber-ink);--sig-wash:var(--amber-wash);--sig-edge:var(--amber-edge);--sig-fill:var(--amber-fill);--sig-on:var(--amber-on)}
+[data-sig="red"]{--sig:var(--red);--sig-ink:var(--red-ink);--sig-wash:var(--red-wash);--sig-edge:var(--red-edge);--sig-fill:var(--red-fill);--sig-on:var(--red-on)}
+[data-sig="green"]{--sig:var(--green);--sig-ink:var(--green-ink);--sig-wash:var(--green-wash);--sig-edge:var(--green-edge);--sig-fill:var(--green-fill);--sig-on:var(--green-on)}
+[data-sig="blue"]{--sig:var(--blue);--sig-ink:var(--blue-ink);--sig-wash:var(--blue-wash);--sig-edge:var(--blue-edge);--sig-fill:var(--blue-fill);--sig-on:var(--blue-on)}
+[data-sig="violet"]{--sig:var(--violet);--sig-ink:var(--violet-ink);--sig-wash:var(--violet-wash);--sig-edge:var(--violet-edge);--sig-fill:var(--violet-fill);--sig-on:var(--violet-on)}
+[data-sig="orange"]{--sig:var(--orange);--sig-ink:var(--orange-ink);--sig-wash:var(--orange-wash);--sig-edge:var(--orange-edge);--sig-fill:var(--orange-fill);--sig-on:var(--orange-on)}
+[data-sig="none"]{--sig:var(--ink-3);--sig-ink:var(--ink-3)}
+
+/* ---------- Base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--wall-a);color:var(--ink-1);font-family:var(--font-ui);font-size:var(--fs-14);line-height:var(--lh-14);overflow:hidden;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:default}
+h1,h2,h3,p,ul,ol{margin:0;padding:0}
+ul,ol{list-style:none}
+code,.mono{font-family:var(--font-mono);font-size:0.93em}
+[hidden]{display:none!important}
+.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sp{flex:1}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ---------- Desktop wallpaper (what the materials sample) ---------- */
+.wall{position:fixed;inset:0;
+  background:
+    linear-gradient(166deg,transparent 0 54%,var(--wall-warm) 60%,var(--wall-warm) 64%,transparent 71%),
+    linear-gradient(166deg,var(--wall-a) 0%,var(--wall-b) 38%,var(--wall-c) 58%,var(--wall-d) 76%,var(--wall-a) 100%)}
+.wall svg{position:absolute;inset:0;width:100%;height:100%}
+.wall path{fill:none;stroke:var(--wall-line);stroke-width:1}
+
+/* ---------- Window ---------- */
+.win{position:absolute;left:50%;top:calc(50% - 24px);width:1440px;height:900px;transform:translate(-50%,-50%) scale(var(--scale,1));
+  border-radius:var(--r-win);overflow:hidden;box-shadow:var(--win-shadow),0 0 0 1px var(--win-edge);display:flex;flex-direction:column}
+.glass{backdrop-filter:blur(var(--blur)) saturate(1.15);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.15)}
+html[data-glass="off"] .glass{backdrop-filter:none;-webkit-backdrop-filter:none}
+html[data-glass="off"] .tb{background:var(--mat-title-solid)}
+html[data-glass="off"] .side{background:var(--mat-side-solid)}
+html[data-glass="off"] .main{background:var(--mat-main-solid)}
+html[data-glass="off"] .aside{background:var(--mat-aside-solid)}
+html[data-glass="off"] .status{background:var(--mat-status-solid)}
+@media (prefers-reduced-transparency:reduce){
+  .glass{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .tb{background:var(--mat-title-solid)!important}.side{background:var(--mat-side-solid)!important}
+  .main{background:var(--mat-main-solid)!important}.aside{background:var(--mat-aside-solid)!important}.status{background:var(--mat-status-solid)!important}
+}
+
+/* Title bar */
+.tb{height:var(--tb-h);flex:none;display:flex;align-items:center;gap:var(--sp-2);padding-left:var(--sp-4);background:var(--mat-title);border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-13);font-weight:var(--fw-s);margin-right:var(--sp-4)}
+.brand .i{width:18px;height:18px}
+.tab{height:32px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);border-radius:var(--r-ctl);border:0;background:transparent;color:var(--ink-2);font-size:var(--fs-13);transition:background-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.tab:hover{background:var(--raise);color:var(--ink-1)}
+.tab.on{background:var(--raise-2);color:var(--ink-1);box-shadow:var(--hi)}
+.tab .i{color:var(--ink-3)}.tab.on .i{color:var(--ink-2)}
+.count{min-width:20px;height:20px;padding:0 var(--sp-1);border-radius:var(--r-xs);background:var(--raise-2);color:var(--ink-1);font-size:var(--fs-12);line-height:20px;text-align:center}
+.search{width:280px;height:32px;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-1) 0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--hair);background:var(--field);color:var(--ink-3);font-size:var(--fs-13)}
+.search .sp{flex:1}
+.kc{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 var(--sp-1);border-radius:var(--r-xs);border:1px solid var(--hair-2);border-bottom-width:2px;color:var(--ink-3);font-size:var(--fs-12);line-height:16px;font-weight:var(--fw-m)}
+.wctl{display:flex;margin-left:var(--sp-2)}
+.wctl span{width:46px;height:var(--tb-h);display:grid;place-items:center;color:var(--ink-2)}
+.wctl svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:1}
+
+/* Body regions */
+.body{flex:1;display:flex;min-height:0}
+.side{width:var(--side-w);flex:none;display:flex;flex-direction:column;padding:var(--sp-3);background:var(--mat-side);border-right:1px solid var(--hair);overflow:hidden}
+.screen{flex:1;min-width:0;display:flex}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mat-main)}
+.aside{width:var(--aside-w);flex:none;display:flex;flex-direction:column;background:var(--mat-aside);border-left:1px solid var(--hair)}
+.status{height:var(--status-h);flex:none;display:flex;align-items:center;gap:var(--sp-4);padding:0 var(--sp-4);background:var(--mat-status);border-top:1px solid var(--hair);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-2)}
+.status span{display:inline-flex;align-items:center;gap:var(--sp-2)}
+
+/* ---------- Sidebar: sessions ---------- */
+.side-h{display:flex;align-items:center;height:32px;padding:0 var(--sp-1) 0 var(--sp-3);font-size:var(--fs-14);font-weight:var(--fw-m)}
+.side-h .sp{flex:1}
+.icon-btn{width:32px;height:32px;display:grid;place-items:center;border-radius:var(--r-ctl);border:0;background:transparent;color:var(--ink-2);transition:background-color var(--t-fast) var(--ease)}
+.icon-btn:hover{background:var(--raise)}
+.grp{margin-top:var(--sp-6)}
+.grp-nav{margin-top:var(--sp-3)}
+.grp-l{display:flex;justify-content:space-between;padding:0 var(--sp-3);margin-bottom:var(--sp-2);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.ses{display:block;width:100%;text-align:left;padding:var(--sp-2) var(--sp-3);border-radius:var(--r-ctl);border:0;background:transparent;transition:background-color var(--t-fast) var(--ease)}
+.ses+.ses{margin-top:var(--sp-h)}
+.ses:hover{background:var(--raise)}
+.ses.on{background:var(--raise-2);box-shadow:var(--hi),inset 0 0 0 1px var(--hair)}
+.ses-1{display:flex;align-items:baseline;gap:var(--sp-2);height:20px}
+.ses-n{font-size:var(--fs-14);color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ses.on .ses-n{font-weight:var(--fw-m)}
+.sw{margin-left:auto;font-size:var(--fs-13);color:var(--sig-ink);white-space:nowrap}
+.ses-2{display:flex;align-items:center;gap:var(--sp-3);height:16px;margin-top:var(--sp-1)}
+.ses-c{min-width:36px;text-align:right;font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.side-f{margin-top:auto;padding-top:var(--sp-3);border-top:1px solid var(--hair)}
+.side-f .btn{width:100%;justify-content:flex-start}
+.side-f .btn .kc{margin-left:auto}
+.side-f .btn .kc-2{margin-left:var(--sp-1)}
+
+/* Signature: task ticks, one segment per task */
+.ticks{flex:1;display:flex;gap:var(--sp-h);height:4px}
+.ticks i{flex:1;border-radius:var(--r-px);background:var(--tick-open)}
+.ticks i.d{background:var(--tick-done)}
+.ticks i.c{background:var(--sig)}
+.ticks.lg{height:6px;gap:var(--sp-1)}
+.ticks.lg i{border-radius:var(--r-px)}
+.ticks.done i.d{background:var(--sig)}
+
+/* Settings navigation (screen 4) */
+.nav{display:flex;align-items:center;gap:var(--sp-3);width:100%;height:36px;padding:0 var(--sp-3);border-radius:var(--r-ctl);border:0;background:transparent;font-size:var(--fs-14);color:var(--ink-2);text-align:left;transition:background-color var(--t-fast) var(--ease)}
+.nav+.nav{margin-top:var(--sp-h)}
+.nav:hover{background:var(--raise)}
+.nav .i{color:var(--ink-3)}
+.nav.on{background:var(--raise-2);color:var(--ink-1);box-shadow:var(--hi),inset 0 0 0 1px var(--hair)}
+.nav.on .i{color:var(--ink-2)}
+
+/* ---------- Buttons ---------- */
+.btn{height:32px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--hair);background:var(--btn-bg);color:var(--ink-1);font-size:var(--fs-13);line-height:var(--lh-13);font-weight:var(--fw-m);white-space:nowrap;box-shadow:var(--hi);
+  transition:background-color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.btn:hover{background:var(--btn-bg-h)}
+.btn:active{transform:scale(.98)}
+.btn .i{color:var(--ink-2)}
+.btn.lg{height:36px;padding:0 var(--sp-4);font-size:var(--fs-14)}
+.btn.q{background:transparent;border-color:transparent;box-shadow:none;color:var(--ink-2)}
+.btn.q:hover{background:var(--raise);color:var(--ink-1)}
+.btn.p{background:var(--btn-p-bg);border-color:transparent;color:var(--btn-p-ink)}
+.btn.p:hover{background:var(--btn-p-h)}
+.btn.p .i{color:inherit}
+.btn.sig{background:var(--sig-fill);border-color:transparent;color:var(--sig-on);box-shadow:none}
+.btn.sig:hover{filter:brightness(1.06)}
+.btn.sig .i{color:inherit}
+.btn.sig .kc{border-color:currentColor;color:inherit;opacity:.7}
+
+/* ---------- Session header ---------- */
+.sh{display:flex;align-items:center;gap:var(--sp-4);height:72px;flex:none;padding:0 var(--sp-6);border-bottom:1px solid var(--hair)}
+.sh-l{display:flex;flex-direction:column;gap:var(--sp-1);min-width:0}
+.sh-t{display:flex;align-items:center;gap:var(--sp-3)}
+.sh-t h1{font-size:var(--fs-20);line-height:var(--lh-20);font-weight:var(--fw-m)}
+.sh-m{display:flex;align-items:center;gap:var(--sp-4);font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-2)}
+.sh-m span{display:inline-flex;align-items:center;gap:var(--sp-2)}
+.sh-m .i{color:var(--ink-3)}
+.sh-a{margin-left:auto;display:flex;gap:var(--sp-2)}
+.state{display:inline-flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-13);line-height:var(--lh-13);font-weight:var(--fw-m);color:var(--sig-ink)}
+
+.pad{flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4) var(--sp-6) var(--sp-6)}
+.also{display:flex;align-items:center;gap:var(--sp-2);height:36px;padding:0 var(--sp-1) 0 var(--sp-3);border-radius:var(--r-ctl);background:var(--raise);font-size:var(--fs-13);color:var(--ink-2)}
+.also .i{color:var(--ink-3)}
+.also b{font-weight:var(--fw-m);color:var(--ink-1)}
+.also .btn{margin-left:auto;height:28px}
+
+/* ---------- Decision cards: opaque, each with its own signal ---------- */
+.dec{flex:none;background:var(--solid);border:1px solid var(--sig-edge);border-radius:var(--r-card);overflow:hidden;box-shadow:var(--card-shadow)}
+.dec-h{display:flex;align-items:center;gap:var(--sp-3);min-height:48px;padding:var(--sp-3) var(--sp-5);background:var(--sig-wash);border-bottom:1px solid var(--sig-edge)}
+.dec-k{display:inline-flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-13);line-height:var(--lh-13);font-weight:var(--fw-m);color:var(--sig-ink)}
+.dec-t{font-size:var(--fs-16);line-height:var(--lh-16);font-weight:var(--fw-m);color:var(--ink-1)}
+.dec-time{margin-left:auto;font-size:var(--fs-13);color:var(--ink-2)}
+.dec-b{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4) var(--sp-5) var(--sp-5)}
+.cmd{display:flex;align-items:center;gap:var(--sp-3);height:40px;padding:0 var(--sp-1) 0 var(--sp-3);border-radius:var(--r-ctl);background:var(--inset);border:1px solid var(--hair);font-family:var(--font-mono);font-size:var(--fs-14);color:var(--ink-1)}
+.cmd .prompt{color:var(--ink-3)}
+.cmd .icon-btn{margin-left:auto;width:32px;height:32px}
+.what{font-size:var(--fs-14);line-height:var(--lh-body);color:var(--ink-2);max-width:720px}
+.what code{color:var(--ink-1)}
+.facts{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.facts li{display:inline-flex;align-items:center;height:24px;padding:0 var(--sp-2);border-radius:var(--r-sm);border:1px solid var(--hair-2);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-2)}
+.dec-a{display:flex;align-items:center;gap:var(--sp-2);padding-top:var(--sp-1)}
+.dec-a .push{margin-left:auto}
+.hint{display:inline-flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+
+/* Hold to allow once */
+.hold{position:relative;overflow:hidden;height:36px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-4);border-radius:var(--r-ctl);border:1px solid var(--sig-edge);background:var(--sig-wash);color:var(--sig-ink);font-size:var(--fs-14);font-weight:var(--fw-m);user-select:none;-webkit-user-select:none;touch-action:none}
+.hold .fill{position:absolute;inset:0;background:var(--sig-fill);opacity:.30;transform:scaleX(0);transform-origin:left center;transition:transform var(--t-fast) var(--ease)}
+.hold.pressing .fill{transform:scaleX(1);transition:transform var(--t-hold) linear}
+.hold.done .fill{transform:scaleX(1);transition:none}
+.hold>span,.hold>svg{position:relative}
+.hold small{font-size:var(--fs-12);font-weight:var(--fw-r);color:var(--ink-2)}
+
+/* ---------- Terminal: opaque ---------- */
+.term{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--term);border:1px solid var(--hair);border-radius:var(--r-card);overflow:hidden}
+.term-h{height:36px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2) 0 var(--sp-4);border-bottom:1px solid var(--hair);font-size:var(--fs-13);color:var(--ink-2)}
+.term-h .i{color:var(--ink-3)}
+.term-h code{color:var(--ink-3);font-size:var(--fs-12)}
+.term-b{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--sp-3) var(--sp-4);overflow:hidden;font-family:var(--font-mono);font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-2);white-space:pre}
+.term-b .x{color:var(--ink-1)}
+.term-b .d{color:var(--ink-3)}
+.term-b .w{color:var(--sig-ink)}
+.term-b .cur{display:inline-block;width:8px;height:16px;vertical-align:-3px;background:var(--ink-2)}
+
+/* ---------- Aside: session context ---------- */
+.as-sec{padding:var(--sp-4) var(--sp-5);border-bottom:1px solid var(--hair)}
+.as-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp-2);font-size:var(--fs-13);line-height:var(--lh-13);font-weight:var(--fw-m);color:var(--ink-2)}
+.as-h small{font-size:var(--fs-12);font-weight:var(--fw-r);color:var(--ink-3)}
+.big{font-size:var(--fs-20);line-height:var(--lh-20);font-weight:var(--fw-m)}
+.sub{font-size:var(--fs-14);color:var(--ink-2)}
+.as-sec .ticks{margin-top:var(--sp-3)}
+.ph{display:flex;align-items:center;gap:var(--sp-2);height:28px;font-size:var(--fs-13);color:var(--ink-2)}
+.ph .i{color:var(--ink-3)}
+.ph .r{margin-left:auto;font-size:var(--fs-12);color:var(--ink-3)}
+.ph.run{color:var(--ink-1)}
+.ph.run .i,.ph.run .r{color:var(--sig-ink)}
+.kv{display:flex;align-items:center;gap:var(--sp-2);height:28px;font-size:var(--fs-13)}
+.kv .k{width:80px;flex:none;color:var(--ink-3)}
+.kv .v{color:var(--ink-1)}
+.kv code{color:var(--ink-2)}
+.meter{position:relative;height:4px;border-radius:2px;background:var(--tick-open)}
+.meter>i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--meter-fill)}
+.kv .meter{width:72px;margin-left:auto}
+
+.chat{flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4) var(--sp-5)}
+.chat .as-h{margin-bottom:0}
+.msgs{display:flex;flex-direction:column;gap:var(--sp-3);overflow:hidden}
+.msg{font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-1)}
+.msg.me{align-self:flex-end;max-width:85%;padding:var(--sp-2) var(--sp-3);border-radius:var(--r-field);background:var(--raise-2)}
+.msg code{color:var(--ink-1)}
+.chat-in{margin-top:auto;display:flex;align-items:center;gap:var(--sp-3)}
+.field{flex:1;min-width:0;height:40px;padding:0 var(--sp-3);border-radius:var(--r-field);border:1px solid var(--hair-2);background:var(--field);font-size:var(--fs-13);color:var(--ink-1)}
+.field::placeholder{color:var(--ink-3)}
+.pet{width:32px;height:28px;flex:none;image-rendering:pixelated}
+.pet .b{fill:var(--pet-body)}.pet .e{fill:var(--pet-eye)}
+
+/* ---------- Screen 3: review ---------- */
+.rv{flex:1;min-height:0;display:grid;grid-template-columns:296px 352px 1fr;gap:var(--sp-5);padding:var(--sp-5) var(--sp-6) var(--sp-6)}
+.col{display:flex;flex-direction:column;gap:var(--sp-5);min-height:0;min-width:0}
+.vdiv{width:1px;height:20px;background:var(--hair-2);margin:0 var(--sp-1)}
+.sh-a{align-items:center}
+.blk-h{display:flex;align-items:baseline;gap:var(--sp-2);margin-bottom:var(--sp-2);font-size:var(--fs-14);line-height:var(--lh-14);font-weight:var(--fw-m)}
+.blk-h small{font-size:var(--fs-12);font-weight:var(--fw-r);color:var(--ink-3)}
+.blk-h .r{margin-left:auto}
+.lead{font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-2);margin-top:var(--sp-3)}
+.tg{display:grid;grid-template-columns:64px 1fr;gap:var(--sp-2) var(--sp-3);margin-top:var(--sp-3);font-size:var(--fs-13);line-height:var(--lh-13)}
+.tg dt{color:var(--ink-1)}
+.tg dt small{display:block;font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.tg dd{margin:0;color:var(--ink-2)}
+.row{display:flex;align-items:center;gap:var(--sp-2);min-height:28px;font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-1)}
+.row .i{color:var(--ink-2)}
+.row .r{margin-left:auto;font-size:var(--fs-12);color:var(--ink-3);white-space:nowrap}
+.row.open .i{color:var(--ink-3)}
+.row.open{color:var(--ink-2)}
+.row[data-sig] .i,.row[data-sig] .r{color:var(--sig-ink)}
+.row .two{display:flex;flex-direction:column}
+.row .two small{font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.row.tall{align-items:flex-start;padding:var(--sp-1) 0}
+.row.tall .i{margin-top:2px}
+.note{display:flex;gap:var(--sp-2);margin-top:var(--sp-2);padding:var(--sp-2) var(--sp-3);border-radius:var(--r-ctl);background:var(--raise);font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-1)}
+.note .i{color:var(--ink-2);margin-top:2px}
+.blk .btn.full{margin-top:var(--sp-2)}
+.adv{flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-3);border-radius:var(--r-card);background:var(--mat-aside);border:1px solid var(--hair)}
+.adv .blk-h{margin-bottom:0}
+.adv .msgs{gap:var(--sp-2)}
+.adv-in{margin-top:auto;display:flex;gap:var(--sp-2)}
+.adv-in .field,.adv-in .btn{height:36px;border-radius:var(--r-ctl)}
+
+/* PR draft card */
+.pr{display:flex;flex-direction:column;min-height:0}
+.pr .dec-b{flex:1;min-height:0}
+.fl{display:flex;flex-direction:column;gap:var(--sp-1)}
+.fl>label,.fl>span.lbl{font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.in{height:36px;display:flex;align-items:center;padding:0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--hair-2);background:var(--field-solid);font-size:var(--fs-13);color:var(--ink-1);width:100%}
+.in.mono{font-family:var(--font-mono)}
+.pr-row{display:flex;align-items:flex-end;gap:var(--sp-4)}
+.pick{display:inline-flex;align-items:center;gap:var(--sp-2);height:36px;padding:0 var(--sp-2) 0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--hair-2);background:var(--field-solid);font-family:var(--font-mono);font-size:var(--fs-13);color:var(--ink-1)}
+.pick .i{color:var(--ink-3)}
+.cbx{display:inline-flex;align-items:center;gap:var(--sp-2);height:36px;font-size:var(--fs-13);color:var(--ink-1)}
+.cbx i{width:16px;height:16px;display:grid;place-items:center;border-radius:var(--r-xs);background:var(--ink-1);color:var(--solid)}
+.cbx i .i{width:12px;height:12px;stroke-width:3}
+.ta{flex:1;min-height:0;width:100%;resize:none;padding:var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--hair-2);background:var(--field-solid);font-size:var(--fs-13);line-height:var(--lh-13);color:var(--ink-1)}
+.ta:focus{outline:2px solid var(--focus);outline-offset:1px}
+.pr .fl.grow{flex:1;min-height:0}
+
+/* ---------- Screen 4: settings ---------- */
+.st-h{display:flex;align-items:center;gap:var(--sp-4);height:72px;flex:none;padding:0 var(--sp-8);border-bottom:1px solid var(--hair)}
+.st-h h1{font-size:var(--fs-20);line-height:var(--lh-20);font-weight:var(--fw-m)}
+.st-h p{font-size:var(--fs-13);color:var(--ink-2)}
+.st-h .legend{margin-left:auto;display:inline-flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-12);color:var(--ink-3)}
+.st{flex:1;min-height:0;display:grid;grid-template-columns:1fr 420px;grid-template-rows:auto 1fr;gap:var(--sp-6) var(--sp-8);padding:var(--sp-5) var(--sp-8) var(--sp-6)}
+.st .models{grid-column:1 / -1}
+.sec-h{display:flex;align-items:baseline;gap:var(--sp-3);margin-bottom:var(--sp-1);font-size:var(--fs-16);line-height:var(--lh-16);font-weight:var(--fw-m)}
+.sec-h small{font-size:var(--fs-13);font-weight:var(--fw-r);color:var(--ink-3)}
+.srow{display:flex;align-items:center;gap:var(--sp-6);min-height:52px;border-bottom:1px solid var(--hair)}
+.srow .lb{display:flex;flex-direction:column}
+.srow .lb b{font-weight:var(--fw-r);font-size:var(--fs-14);color:var(--ink-1)}
+.srow .lb small{font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.srow>:last-child{margin-left:auto}
+.seg{display:inline-flex;padding:var(--sp-h);border-radius:var(--r-ctl);background:var(--raise);border:1px solid var(--hair)}
+.seg button{height:28px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);border:0;border-radius:var(--r-sm);background:transparent;font-size:var(--fs-13);color:var(--ink-2);transition:background-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.seg button .i{color:var(--ink-3)}
+.seg button.on{background:var(--solid);color:var(--ink-1);box-shadow:var(--hi),var(--seg-shadow)}
+.seg button.on .i{color:var(--ink-2)}
+.tog{width:40px;height:20px;padding:var(--sp-h);border-radius:var(--r-field);border:1px solid var(--hair-2);background:var(--raise);display:inline-flex;transition:background-color var(--t-fast) var(--ease)}
+.tog i{width:14px;height:14px;border-radius:50%;background:var(--toggle-knob);transition:transform var(--t-mid) var(--ease)}
+.tog.on{background:var(--toggle-on);border-color:transparent}
+.tog.on i{background:var(--toggle-knob-on);transform:translateX(20px)}
+.tog-w{display:inline-flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-13);color:var(--ink-2)}
+.vars{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-4);margin-top:var(--sp-3)}
+.var{padding:var(--sp-2);border-radius:var(--r-card);border:1px solid var(--hair);background:var(--raise);text-align:left;transition:border-color var(--t-fast) var(--ease)}
+.var:hover{border-color:var(--hair-2)}
+.var.on{border-color:var(--ink-1);box-shadow:inset 0 0 0 1px var(--ink-1)}
+.vp{position:relative;height:88px;border-radius:var(--r-xs);overflow:hidden;display:flex;gap:var(--sp-1);padding:var(--sp-1)}
+.vp>i{display:block;border-radius:var(--r-px)}
+.vp .a{width:26%}
+.vp .b{flex:1;display:flex;flex-direction:column;gap:var(--sp-1);background:transparent!important}
+.vp .b>i{display:block;border-radius:var(--r-px)}
+.vp .b .c{height:42%}
+.vp .b .t{flex:1}
+.vp.glass{background:linear-gradient(166deg,var(--pv-glass-a) 0 46%,var(--pv-glass-warm) 62%,var(--pv-glass-b) 80%)}
+.vp.glass .a,.vp.glass .b .t{background:var(--pv-glass-pane);box-shadow:inset 0 0 0 1px var(--pv-line-dark)}
+.vp.glass .b .c{background:var(--pv-glass-card);box-shadow:inset 0 0 0 1px var(--amber-edge)}
+.vp.graphite{background:var(--pv-graphite-a)}
+.vp.graphite .a{background:var(--pv-graphite-b)}
+.vp.graphite .b .c,.vp.graphite .b .t{background:var(--pv-graphite-card);box-shadow:inset 0 0 0 1px var(--pv-line-dark)}
+.vp.paper{background:var(--pv-paper-a)}
+.vp.paper .a{background:var(--pv-paper-b)}
+.vp.paper .b .c,.vp.paper .b .t{background:var(--pv-paper-card);box-shadow:inset 0 0 0 1px var(--pv-line-light)}
+.var-l{display:flex;align-items:center;gap:var(--sp-2);height:28px;margin-top:var(--sp-2);padding:0 var(--sp-1);font-size:var(--fs-13);color:var(--ink-1)}
+.var-l small{margin-left:auto;display:inline-flex;align-items:center;gap:var(--sp-1);font-size:var(--fs-12);color:var(--ink-2)}
+.instant{display:flex;align-items:center;gap:var(--sp-2);margin-top:var(--sp-3);font-size:var(--fs-12);color:var(--ink-3)}
+.use{padding:var(--sp-3) 0 var(--sp-4);border-bottom:1px solid var(--hair)}
+.use-t{display:flex;align-items:baseline;gap:var(--sp-2);font-size:var(--fs-14)}
+.use-t .big{margin-left:auto}
+.use .meter{height:8px;border-radius:4px;margin-top:var(--sp-2)}
+.use .meter>i{border-radius:4px}
+.use .meter b{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;border-radius:1px;background:var(--meter-mark);opacity:.55}
+.marks{position:relative;height:16px;margin-top:var(--sp-1);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.marks span{position:absolute;transform:translateX(-50%)}
+.marks span:first-child{transform:none;left:0}
+.step{display:inline-flex;align-items:center;height:32px;border-radius:var(--r-ctl);border:1px solid var(--hair-2);background:var(--field);overflow:hidden}
+.step span{min-width:56px;text-align:center;font-size:var(--fs-13);color:var(--ink-1)}
+.step button{width:28px;height:30px;border:0;background:transparent;color:var(--ink-2);display:grid;place-items:center}
+.step button:hover{background:var(--raise)}
+.step .i{width:14px;height:14px}
+.use-note{margin-top:var(--sp-3);font-size:var(--fs-12);line-height:var(--lh-12);color:var(--ink-3)}
+.tbl{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--sp-8);margin-top:var(--sp-2)}
+.tbl-c{display:grid;grid-template-columns:1fr 152px 128px;column-gap:var(--sp-3);align-content:start}
+.tbl-c>.th{height:28px;display:flex;align-items:center;font-size:var(--fs-12);color:var(--ink-3);border-bottom:1px solid var(--hair)}
+.tbl-c>.td{height:44px;display:flex;align-items:center;gap:var(--sp-2);border-bottom:1px solid var(--hair);font-size:var(--fs-14);color:var(--ink-1);min-width:0}
+.tbl-c>.td small{font-size:var(--fs-12);color:var(--ink-3);display:inline-flex;align-items:center;gap:var(--sp-1)}
+.tbl-c .td.role{flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
+.dd{width:100%;height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 var(--sp-2) 0 var(--sp-3);border-radius:var(--r-ctl);border:1px solid var(--hair);background:var(--btn-bg);font-size:var(--fs-13);color:var(--ink-1)}
+.dd .i{color:var(--ink-3)}
+
+/* ---------- Comparison control bar (outside the window) ---------- */
+.ctl{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:center;gap:var(--sp-1);padding:var(--sp-1);border-radius:var(--r-field);background:var(--ctl-bg);border:1px solid var(--hair);box-shadow:var(--card-shadow);font-size:var(--fs-12);color:var(--ink-2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.ctl .lbl{padding:0 var(--sp-2) 0 var(--sp-3);color:var(--ink-3)}
+.ctl button{height:28px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2);border:0;border-radius:var(--r-sm);background:transparent;font-size:var(--fs-12);color:var(--ink-2);transition:background-color var(--t-fast) var(--ease)}
+.ctl button:hover{background:var(--raise)}
+.ctl button.on{background:var(--raise-2);color:var(--ink-1)}
+.ctl .kc{min-width:18px;height:18px;font-size:var(--fs-12)}
+.ctl .div{width:1px;height:16px;background:var(--hair-2);margin:0 var(--sp-1)}
+
+/* ---------- Motion: one entrance per screen switch ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.enter{animation:rise var(--t-enter) var(--ease) both}
+.enter-2{animation:rise var(--t-enter) var(--ease) 60ms both}
+@media (prefers-reduced-motion:reduce){.enter,.enter-2{animation:none}.hold.pressing .fill{transition-duration:var(--t-hold)}}
+</style>
+</head>
+<body>
+
+<!-- Icon set: Lucide-style, 24 grid, one stroke -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mark" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M7 14.5v5"/><path d="M10.5 15v6"/><path d="M13.5 15v6"/><path d="M17 14.5v5"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="i-shield-plain" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-pr" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-check-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></symbol>
+  <symbol id="i-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-minus-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M9 10h6"/><path d="M12 7v6"/><path d="M9 17h6"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 17a5 5 0 0 0 0-10z"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/><path d="M7 16h10"/></symbol>
+  <symbol id="w-min" viewBox="0 0 10 10"><path d="M0 5.5h10"/></symbol>
+  <symbol id="w-max" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.5"/></symbol>
+  <symbol id="w-close" viewBox="0 0 10 10"><path d="m.5.5 9 9M9.5.5l-9 9"/></symbol>
+</svg>
+
+<div class="wall" aria-hidden="true"><svg id="contours" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice"></svg></div>
+
+<div class="win" id="win" aria-label="Orchtopus window">
+
+  <!-- Title bar: Mica -->
+  <header class="tb glass">
+    <div class="brand"><svg class="i"><use href="#i-mark"/></svg>Orchtopus</div>
+    <button class="tab" data-tab="sessions" data-go="1"><svg class="i"><use href="#i-layers"/></svg>Sessions</button>
+    <button class="tab" data-tab="inbox"><svg class="i"><use href="#i-inbox"/></svg>Inbox<span class="count">2</span></button>
+    <button class="tab" data-tab="settings" data-go="4"><svg class="i"><use href="#i-sliders"/></svg>Settings</button>
+    <span class="sp"></span>
+    <div class="search"><svg class="i"><use href="#i-search"/></svg><span>Search sessions</span><span class="sp"></span><span class="kc">Ctrl</span><span class="kc">K</span></div>
+    <div class="wctl" aria-hidden="true">
+      <span><svg><use href="#w-min"/></svg></span><span><svg><use href="#w-max"/></svg></span><span><svg><use href="#w-close"/></svg></span>
+    </div>
+  </header>
+
+  <div class="body">
+    <nav class="side glass" id="side" aria-label="Sessions"></nav>
+
+    <!-- ============ Screen 1: permission request ============ -->
+    <section class="screen" data-screen="1">
+      <div class="main glass">
+        <div class="sh">
+          <div class="sh-l">
+            <div class="sh-t"><h1>report-export</h1><span class="state" data-sig="amber"><svg class="i"><use href="#i-shield"/></svg>Needs you · permission</span></div>
+            <div class="sh-m"><span><svg class="i"><use href="#i-branch"/></svg><code>feat/report-export</code></span><span><svg class="i"><use href="#i-folder"/></svg>acme-app</span></div>
+          </div>
+          <div class="sh-a">
+            <button class="btn"><svg class="i"><use href="#i-pause"/></svg>Pause</button>
+            <button class="btn"><svg class="i"><use href="#i-folder-open"/></svg>Explorer</button>
+            <button class="btn"><svg class="i"><use href="#i-code"/></svg>VS Code</button>
+            <button class="btn"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+          </div>
+        </div>
+        <div class="pad enter">
+          <div class="also"><svg class="i"><use href="#i-inbox"/></svg>Also waiting<b>image-resize</b><span class="state" data-sig="green">PR draft</span><button class="btn q">Open</button></div>
+
+          <article class="dec" data-sig="amber" aria-label="Permission request">
+            <header class="dec-h">
+              <span class="dec-k"><svg class="i"><use href="#i-shield"/></svg>Permission</span>
+              <h2 class="dec-t">Bash command needs permission</h2>
+              <span class="dec-time">Waiting 1 min · falls back to the terminal prompt in 9 min</span>
+            </header>
+            <div class="dec-b">
+              <div class="cmd"><span class="prompt">$</span>npm install csv-parse@5.6.0 --save<button class="icon-btn" aria-label="Copy command"><svg class="i"><use href="#i-copy"/></svg></button></div>
+              <p class="what">Downloads csv-parse 5.6.0 from the npm registry and adds it to <code>package.json</code>. The package can run install scripts. Only this worktree is affected.</p>
+              <ul class="facts"><li>Network</li><li>Changes package.json</li><li>Install scripts</li></ul>
+              <div class="dec-a">
+                <button class="btn lg sig"><svg class="i"><use href="#i-check"/></svg>Allow once</button>
+                <button class="btn lg">Always allow in this project</button>
+                <button class="btn lg">Deny</button>
+                <button class="btn lg q push"><svg class="i"><use href="#i-msg"/></svg>Ask the advisor</button>
+              </div>
+            </div>
+          </article>
+
+          <div class="term" data-sig="amber">
+            <div class="term-h"><svg class="i"><use href="#i-terminal"/></svg>Terminal<code>claude · report-export</code><span class="sp"></span><button class="btn q">Open in Terminal</button></div>
+            <div class="term-b"><span><span class="x">● Update</span>(src/export/labels.ts)</span>
+<span class="d">  └ +12 −4 · formatRangeLabel() uses the project locale</span>
+<span><span class="x">● Bash</span>(npm test -- labels)</span>
+<span class="d">  └ 9 passed</span>
+<span class="d">  └ Task 11 of 15 done · Format range labels</span>
+<span><span class="x">● Skill</span>(superpowers:executing-plans)</span>
+<span class="d">  └ Continuing with task 12 of 15</span>
+<span><span class="x">● Read</span>(src/export/range.ts)</span>
+<span class="d">  └ 84 lines</span>
+<span><span class="x">● Task</span>(range-tests) subagent started</span>
+<span class="d">  └ Writing tests/export/range.spec.ts</span>
+<span><span class="x">● Update</span>(src/export/range.ts)</span>
+<span class="d">  └ +18 −6 · normaliseRange() clamps to whole days</span>
+<span><span class="x">● Bash</span>(npm install csv-parse@5.6.0 --save)</span>
+<span class="w">  └ Waiting for permission</span>
+<span class="cur"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="aside glass" aria-label="Session context">
+        <div class="as-sec enter-2">
+          <div class="as-h">Progress<small>Execute phase</small></div>
+          <div class="big">Task 12 of 15</div>
+          <div class="sub">Normalise date ranges</div>
+          <div class="ticks lg" data-sig="amber" data-ticks="12/15"></div>
+        </div>
+        <div class="as-sec">
+          <div class="as-h">Workflow</div>
+          <div class="ph"><svg class="i"><use href="#i-check-c"/></svg>Brainstorm<span class="r">Done</span></div>
+          <div class="ph"><svg class="i"><use href="#i-check-c"/></svg>Spec<span class="r">Done</span></div>
+          <div class="ph"><svg class="i"><use href="#i-check-c"/></svg>Plan<span class="r">Done</span></div>
+          <div class="ph run" data-sig="blue"><svg class="i"><use href="#i-circle-dot"/></svg>Execute<span class="r">Running</span></div>
+          <div class="ph"><svg class="i"><use href="#i-circle"/></svg>Review<span class="r">Open</span></div>
+          <div class="ph"><svg class="i"><use href="#i-circle"/></svg>Finish<span class="r">Open</span></div>
+        </div>
+        <div class="as-sec">
+          <div class="as-h">Session</div>
+          <div class="kv"><span class="k">Subagents</span><span class="v">1 active</span></div>
+          <div class="kv"><span class="k">Git</span><span class="v">5 ahead, 0 behind <code>develop</code></span></div>
+          <div class="kv"><span class="k">Context</span><span class="v">41 % used</span><span class="meter"><i style="width:41%"></i></span></div>
+        </div>
+        <div class="chat">
+          <div class="as-h">Side chat<small>Read-only helper</small></div>
+          <div class="msgs">
+            <p class="msg me">Why does it need csv-parse?</p>
+            <p class="msg">For quoted fields. The CSV export splits rows on commas, so a label like "1 Mar, 2026" breaks a row. csv-parse handles quoting.</p>
+          </div>
+          <div class="chat-in"><svg class="pet" data-pet viewBox="0 0 32 28" aria-label="Orchtopus pet"></svg><input class="field" placeholder="Ask about this session"></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ============ Screen 2: dangerous command ============ -->
+    <section class="screen" data-screen="2" hidden>
+      <div class="main glass">
+        <div class="sh">
+          <div class="sh-l">
+            <div class="sh-t"><h1>i18n-de</h1><span class="state" data-sig="red"><svg class="i"><use href="#i-alert"/></svg>Needs you · dangerous command</span></div>
+            <div class="sh-m"><span><svg class="i"><use href="#i-branch"/></svg><code>chore/i18n-de</code></span><span><svg class="i"><use href="#i-folder"/></svg>acme-app</span></div>
+          </div>
+          <div class="sh-a">
+            <button class="btn"><svg class="i"><use href="#i-pause"/></svg>Pause</button>
+            <button class="btn"><svg class="i"><use href="#i-folder-open"/></svg>Explorer</button>
+            <button class="btn"><svg class="i"><use href="#i-code"/></svg>VS Code</button>
+            <button class="btn"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+          </div>
+        </div>
+        <div class="pad enter">
+          <div class="also"><svg class="i"><use href="#i-inbox"/></svg>Also waiting<b>image-resize</b><span class="state" data-sig="green">PR draft</span><button class="btn q">Open</button></div>
+
+          <article class="dec" data-sig="red" aria-label="Dangerous command">
+            <header class="dec-h">
+              <span class="dec-k"><svg class="i"><use href="#i-alert"/></svg>Danger</span>
+              <h2 class="dec-t">Dangerous command</h2>
+            </header>
+            <div class="dec-b">
+              <div class="cmd"><span class="prompt">$</span>git push --force origin chore/i18n-de<button class="icon-btn" aria-label="Copy command"><svg class="i"><use href="#i-copy"/></svg></button></div>
+              <p class="what">Replaces the remote branch with your local one. Commits that exist only on the remote are lost. <code>main</code> and <code>develop</code> are not touched.</p>
+              <ul class="facts"><li>Force push</li><li>Rewrites remote branch</li></ul>
+              <div class="dec-a">
+                <button class="hold" id="hold" aria-describedby="hold-hint"><span class="fill"></span><span class="hold-l">Hold to allow once</span><small>Press 1 s</small></button>
+                <button class="btn lg">Deny</button>
+                <span class="hint" id="hold-hint"><svg class="i"><use href="#i-lock"/></svg>Not available by hotkey or remote</span>
+                <button class="btn lg q push"><svg class="i"><use href="#i-msg"/></svg>Ask the advisor</button>
+              </div>
+            </div>
+          </article>
+
+          <div class="term" data-sig="red">
+            <div class="term-h"><svg class="i"><use href="#i-terminal"/></svg>Terminal<code>claude · i18n-de</code><span class="sp"></span><button class="btn q">Open in Terminal</button></div>
+            <div class="term-b"><span><span class="x">● Write</span>(locales/de/export.json)</span>
+<span class="d">  └ 212 keys · 38 new</span>
+<span><span class="x">● Bash</span>(npm run i18n:check)</span>
+<span class="d">  └ No missing keys</span>
+<span class="d">  └ Task 1 of 6 done · Extract strings to locales/de</span>
+<span><span class="x">● Skill</span>(superpowers:executing-plans)</span>
+<span class="d">  └ Continuing with task 2 of 6</span>
+<span><span class="x">● Bash</span>(git fetch origin)</span>
+<span class="d">  └ Up to date with origin/develop</span>
+<span><span class="x">● Bash</span>(git rebase develop)</span>
+<span class="d">  └ Successfully rebased and updated refs/heads/chore/i18n-de</span>
+<span><span class="x">● Read</span>(locales/de/export.json)</span>
+<span class="d">  └ 212 keys</span>
+<span><span class="x">● Bash</span>(git push --force origin chore/i18n-de)</span>
+<span class="w">  └ Waiting for permission · dangerous command</span>
+<span class="cur"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="aside glass" aria-label="Session context">
+        <div class="as-sec enter-2">
+          <div class="as-h">Progress<small>Execute phase</small></div>
+          <div class="big">Task 2 of 6</div>
+          <div class="sub">Rebase on develop and push</div>
+          <div class="ticks lg" data-sig="red" data-ticks="2/6"></div>
+        </div>
+        <div class="as-sec">
+          <div class="as-h">Workflow</div>
+          <div class="ph"><svg class="i"><use href="#i-check-c"/></svg>Brainstorm<span class="r">Done</span></div>
+          <div class="ph"><svg class="i"><use href="#i-check-c"/></svg>Spec<span class="r">Done</span></div>
+          <div class="ph"><svg class="i"><use href="#i-check-c"/></svg>Plan<span class="r">Done</span></div>
+          <div class="ph run" data-sig="blue"><svg class="i"><use href="#i-circle-dot"/></svg>Execute<span class="r">Running</span></div>
+          <div class="ph"><svg class="i"><use href="#i-circle"/></svg>Review<span class="r">Open</span></div>
+          <div class="ph"><svg class="i"><use href="#i-circle"/></svg>Finish<span class="r">Open</span></div>
+        </div>
+        <div class="as-sec">
+          <div class="as-h">Session</div>
+          <div class="kv"><span class="k">Subagents</span><span class="v">None active</span></div>
+          <div class="kv"><span class="k">Git</span><span class="v">3 ahead, 0 behind <code>develop</code></span></div>
+          <div class="kv"><span class="k">Context</span><span class="v">18 % used</span><span class="meter"><i style="width:18%"></i></span></div>
+        </div>
+        <div class="chat">
+          <div class="as-h">Side chat<small>Read-only helper</small></div>
+          <div class="msgs">
+            <p class="msg me">What would the force push lose?</p>
+            <p class="msg">One commit that exists only on the remote: a typo fix in <code>locales/de/common.json</code>. Ask the advisor to pick it into your branch before you allow.</p>
+          </div>
+          <div class="chat-in"><svg class="pet" data-pet viewBox="0 0 32 28" aria-label="Orchtopus pet"></svg><input class="field" placeholder="Ask about this session"></div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ============ Screen 3: review detail with PR draft ============ -->
+    <section class="screen" data-screen="3" hidden>
+      <div class="main glass">
+        <div class="sh">
+          <button class="btn q" data-go="1"><svg class="i"><use href="#i-back"/></svg>Session</button>
+          <div class="sh-l">
+            <div class="sh-t"><h1>report-export is ready for review</h1></div>
+            <div class="sh-m"><span><svg class="i"><use href="#i-branch"/></svg><code>feat/report-export → develop</code></span><span><svg class="i"><use href="#i-folder"/></svg>acme-app</span></div>
+          </div>
+          <div class="sh-a">
+            <button class="btn"><svg class="i"><use href="#i-diff"/></svg>Diff (3 files)</button>
+            <button class="btn"><svg class="i"><use href="#i-history"/></svg>Session history</button>
+            <button class="btn"><svg class="i"><use href="#i-code"/></svg>Open worktree in VS Code</button>
+            <span class="vdiv"></span>
+            <button class="icon-btn" aria-label="Close review" data-go="1"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+
+        <div class="rv enter">
+          <!-- Column A: what was done, gates -->
+          <div class="col">
+            <section class="blk">
+              <div class="blk-h">What was done<small>15 of 15 tasks</small></div>
+              <div class="ticks lg done" data-sig="green" data-ticks="15/15/all"></div>
+              <p class="lead">Reports export to CSV and PDF with a date range filter. Large reports stream instead of loading at once.</p>
+              <dl class="tg">
+                <dt>Filters<small>1–5</small></dt><dd>Date range type, query parser, time zone handling, validation messages, filter controls</dd>
+                <dt>Export<small>6–12</small></dt><dd>CSV writer, PDF layout, streaming for large reports, column mapping, file names, progress events, normalise date ranges</dd>
+                <dt>Checks<small>13–15</small></dt><dd>Unit tests, export end-to-end test, API docs</dd>
+              </dl>
+            </section>
+            <section class="blk">
+              <div class="blk-h">Gates<small class="r">7 passed · 1 note · 2 open</small></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Spec<span class="r">Approved by you</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Plan<span class="r">Approved by you</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Tests<span class="r">60 passed</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Lint and types<span class="r">Passed</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Secret scan<span class="r">Passed</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Dependency audit<span class="r">Passed</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Review council<span class="r">4 of 4</span></div>
+              <div class="row"><svg class="i"><use href="#i-info"/></svg>Git check<span class="r">1 note</span></div>
+              <div class="row" data-sig="green"><svg class="i"><use href="#i-pr"/></svg>Release PR<span class="r">Open · you</span></div>
+              <div class="row open"><svg class="i"><use href="#i-circle"/></svg>CI<span class="r">After PR</span></div>
+            </section>
+          </div>
+
+          <!-- Column B: council, git check, advisor -->
+          <div class="col">
+            <section class="blk">
+              <div class="blk-h">Review council<small>4 of 4</small></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Spec compliance<span class="r">Pass</span></div>
+              <div class="row tall"><svg class="i"><use href="#i-check-c"/></svg><span class="two">Code quality<small>2 notes added to the checklist</small></span><span class="r">Pass</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Tests<span class="r">Pass</span></div>
+              <div class="row tall open"><svg class="i"><use href="#i-minus-c"/></svg><span class="two">Security<small>No sensitive paths changed</small></span><span class="r">Not needed</span></div>
+            </section>
+            <section class="blk">
+              <div class="blk-h">Git check<small>1 note</small></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Branch name<span class="r">ok</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Commits<span class="r">ok</span></div>
+              <div class="row"><svg class="i"><use href="#i-check-c"/></svg>Target <code>develop</code><span class="r">ok</span></div>
+              <div class="note"><svg class="i"><use href="#i-info"/></svg><span>This PR mixes two topics: CSV filters and PDF layout. Consider splitting.</span></div>
+              <button class="btn full"><svg class="i"><use href="#i-msg"/></svg>Ask the advisor to draft a split</button>
+            </section>
+            <section class="adv">
+              <div class="blk-h">Advisor<small>For this change</small></div>
+              <div class="msgs">
+                <p class="msg me">Why does the Git check want a split?</p>
+                <p class="msg">PDF layout and CSV filters are separate topics. Two PRs are easier to review and revert.</p>
+                <p class="msg me">Which tests cover the date filter?</p>
+                <p class="msg"><code>range.spec.ts</code> and <code>export.e2e.ts</code>, 18 tests. Both ran in the tests gate.</p>
+              </div>
+              <div class="adv-in"><input class="field" placeholder="Ask, or write an instruction"><button class="btn">Send to session</button></div>
+            </section>
+          </div>
+
+          <!-- Column C: PR draft -->
+          <article class="dec pr" data-sig="green" aria-label="PR draft">
+            <header class="dec-h">
+              <span class="dec-k"><svg class="i"><use href="#i-pr"/></svg>PR draft</span>
+              <span class="dec-time">Not created yet</span>
+            </header>
+            <div class="dec-b">
+              <div class="fl"><label for="pr-title">Title</label><input id="pr-title" class="in mono" value="feat(export): export reports with date filters"></div>
+              <div class="pr-row">
+                <div class="fl"><span class="lbl">Target branch</span><span class="pick">develop<svg class="i"><use href="#i-down"/></svg></span></div>
+                <span class="cbx"><i><svg class="i"><use href="#i-check"/></svg></i>Draft PR</span>
+              </div>
+              <div class="fl grow"><label for="pr-desc">Description · written by Claude, editable</label>
+<textarea id="pr-desc" class="ta" spellcheck="false">What
+Reports export to CSV and PDF with a date range filter. Ranges are normalised to whole days in the project time zone.
+
+Why
+Exports always covered the full history, so large reports timed out and had to be trimmed by hand.
+
+Tests
+60 tests pass, 18 of them new for ranges and export. Lint, types, secret scan and dependency audit pass.
+
+Checklist
+[x] Spec and plan approved
+[x] No secrets in the diff
+[ ] Rename RangeInput to DateRangeInput
+[ ] Add a range example to the API docs</textarea></div>
+              <div class="dec-a">
+                <button class="btn lg sig"><svg class="i"><use href="#i-pr"/></svg>Release and create PR</button>
+                <button class="btn"><svg class="i"><use href="#i-refresh"/></svg>Regenerate</button>
+                <button class="btn q"><svg class="i"><use href="#i-copy"/></svg>Copy</button>
+              </div>
+              <p class="hint"><svg class="i"><use href="#i-info"/></svg>Orchtopus never merges. You merge on GitHub or GitLab.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Screen 4: settings ============ -->
+    <section class="screen" data-screen="4" hidden>
+      <div class="main glass">
+        <div class="st-h">
+          <div>
+            <h1>Settings</h1>
+            <p>Global for all projects</p>
+          </div>
+          <span class="legend"><svg class="i"><use href="#i-folder"/></svg>Overridden in a project</span>
+        </div>
+        <div class="st enter">
+          <section>
+            <div class="sec-h">Appearance</div>
+            <div class="srow">
+              <div class="lb"><b>Mode</b><small>Light, dark or the Windows setting</small></div>
+              <div class="seg" id="mode-seg">
+                <button data-mode="light"><svg class="i"><use href="#i-sun"/></svg>Light</button>
+                <button data-mode="dark"><svg class="i"><use href="#i-moon"/></svg>Dark</button>
+                <button data-mode="system"><svg class="i"><use href="#i-monitor"/></svg>Like Windows</button>
+              </div>
+            </div>
+            <div class="srow">
+              <div class="lb"><b>Transparency</b><small>Off makes every panel opaque</small></div>
+              <span class="tog-w"><span id="glass-l">On</span><button class="tog on" id="glass-tog" role="switch" aria-checked="true" aria-label="Transparency"><i></i></button></span>
+            </div>
+            <div class="vars" role="radiogroup" aria-label="Design variant">
+              <button class="var on" role="radio" aria-checked="true"><div class="vp glass"><i class="a"></i><span class="b"><i class="c"></i><i class="t"></i></span></div><div class="var-l">Tinted glass<small><svg class="i"><use href="#i-check"/></svg>Current</small></div></button>
+              <button class="var" role="radio" aria-checked="false"><div class="vp graphite"><i class="a"></i><span class="b"><i class="c"></i><i class="t"></i></span></div><div class="var-l">Solid graphite</div></button>
+              <button class="var" role="radio" aria-checked="false"><div class="vp paper"><i class="a"></i><span class="b"><i class="c"></i><i class="t"></i></span></div><div class="var-l">Paper</div></button>
+            </div>
+            <p class="instant"><svg class="i"><use href="#i-info"/></svg>Changes apply instantly</p>
+          </section>
+
+          <section>
+            <div class="sec-h">Usage<small>Subscription limits</small></div>
+            <div class="use">
+              <div class="use-t">5-hour window<span class="big">46 %</span></div>
+              <div class="meter"><i style="width:46%"></i><b style="left:70%"></b><b style="left:90%"></b></div>
+              <div class="marks"><span>Resets 16:40</span><span style="left:70%">70</span><span style="left:90%">90</span></div>
+            </div>
+            <div class="use">
+              <div class="use-t">Weekly<span class="big">31 %</span></div>
+              <div class="meter"><i style="width:31%"></i><b style="left:70%"></b><b style="left:90%"></b></div>
+              <div class="marks"><span>Resets Mon 09:00</span><span style="left:70%">70</span><span style="left:90%">90</span></div>
+            </div>
+            <div class="srow">
+              <div class="lb"><b>Pause background jobs at</b></div>
+              <span class="step"><button aria-label="Lower"><svg class="i"><use href="#i-minus"/></svg></button><span>70 %</span><button aria-label="Raise"><svg class="i"><use href="#i-plus"/></svg></button></span>
+            </div>
+            <div class="srow">
+              <div class="lb"><b>Ask before new sessions at</b></div>
+              <span class="step"><button aria-label="Lower"><svg class="i"><use href="#i-minus"/></svg></button><span>90 %</span><button aria-label="Raise"><svg class="i"><use href="#i-plus"/></svg></button></span>
+            </div>
+            <p class="use-note">Orchtopus warns and asks. It does not cap usage.</p>
+          </section>
+
+          <section class="models">
+            <div class="sec-h">Models per role<small>Model and effort</small></div>
+            <div class="tbl">
+              <div class="tbl-c">
+                <div class="th">Role</div><div class="th">Model</div><div class="th">Effort</div>
+                <div class="td">Main session</div><div class="td"><span class="dd">Opus<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">High<svg class="i"><use href="#i-down"/></svg></span></div>
+                <div class="td">Planning</div><div class="td"><span class="dd">Opus<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">High<svg class="i"><use href="#i-down"/></svg></span></div>
+                <div class="td role">Review council<small><svg class="i"><use href="#i-folder"/></svg>acme-app uses Opus · high</small></div><div class="td"><span class="dd">Sonnet<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">Medium<svg class="i"><use href="#i-down"/></svg></span></div>
+                <div class="td">Security reviewer</div><div class="td"><span class="dd">Opus<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">High<svg class="i"><use href="#i-down"/></svg></span></div>
+              </div>
+              <div class="tbl-c">
+                <div class="th">Role</div><div class="th">Model</div><div class="th">Effort</div>
+                <div class="td">Advisor and side chat</div><div class="td"><span class="dd">Sonnet<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">Medium<svg class="i"><use href="#i-down"/></svg></span></div>
+                <div class="td">Wiki</div><div class="td"><span class="dd">Sonnet<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">Medium<svg class="i"><use href="#i-down"/></svg></span></div>
+                <div class="td">Summaries</div><div class="td"><span class="dd">Haiku<svg class="i"><use href="#i-down"/></svg></span></div><div class="td"><span class="dd">Low<svg class="i"><use href="#i-down"/></svg></span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="status glass">
+    <span><i class="dot"></i>Claude Code connected</span>
+    <span>5 sessions</span>
+    <span>Git updated 3 s ago</span>
+    <span class="sp"></span>
+    <span>5-hour window 46 % · resets 16:40</span>
+  </footer>
+</div>
+
+<!-- Comparison controls, outside the window -->
+<div class="ctl" id="ctl" aria-label="Exploration controls">
+  <span class="lbl">03 Tinted glass</span>
+  <button data-go="1"><span class="kc">1</span>Permission</button>
+  <button data-go="2"><span class="kc">2</span>Danger</button>
+  <button data-go="3"><span class="kc">3</span>Review</button>
+  <button data-go="4"><span class="kc">4</span>Settings</button>
+  <span class="div"></span>
+  <button id="mode-btn"><span class="kc">D</span><span id="mode-l">Dark</span></button>
+</div>
+
+<script>
+(function(){
+  const html=document.documentElement;
+  const state={screen:1,mode:'dark'};
+  const ico=id=>`<svg class="i"><use href="#${id}"/></svg>`;
+
+  /* Session list per screen. [signal, state word, current task, total] */
+  const PROJECTS=[{p:'acme-app',s:['report-export','upload-fix','image-resize','i18n-de']},{p:'docs-site',s:['changelog']}];
+  const ROWS={
+    1:{sel:'report-export',
+       'report-export':['amber','Needs you',12,15],'upload-fix':['blue','Running',4,7],
+       'image-resize':['green','PR draft',0,0],'i18n-de':['blue','Running',2,6],'changelog':['none','Idle',3,3,'idle']},
+    2:{sel:'i18n-de',
+       'report-export':['blue','Running',13,15],'upload-fix':['blue','Running',4,7],
+       'image-resize':['green','PR draft',0,0],'i18n-de':['red','Danger',2,6],'changelog':['none','Idle',3,3,'idle']},
+    3:{sel:'report-export',
+       'report-export':['green','Review ready',15,15,'idle'],'upload-fix':['blue','Running',5,7],
+       'image-resize':['green','PR draft',0,0],'i18n-de':['blue','Running',2,6],'changelog':['none','Idle',3,3,'idle']}
+  };
+  const SET_NAV=[['General','i-sliders'],['Appearance','i-contrast'],['Models','i-cpu'],['Usage','i-gauge'],['Notifications','i-bell'],['Keyboard','i-keyboard'],['Privacy','i-shield-plain'],['Projects','i-folder']];
+
+  function ticks(cur,total,mode){
+    if(!total) return '<i class="d"></i>';
+    let h='';
+    for(let k=1;k<=total;k++){
+      if(mode==='idle'||mode==='all'||k<cur) h+='<i class="d"></i>';
+      else if(k===cur) h+='<i class="c"></i>';
+      else h+='<i></i>';
+    }
+    return h;
+  }
+
+  function renderSide(){
+    const side=document.getElementById('side');
+    if(state.screen===4){
+      side.setAttribute('aria-label','Settings');
+      side.innerHTML='<div class="side-h">Settings</div><div class="grp grp-nav">'+
+        SET_NAV.map(([n,i])=>`<button class="nav${n==='Appearance'?' on':''}">${ico(i)}${n}</button>`).join('')+'</div>';
+      return;
+    }
+    side.setAttribute('aria-label','Sessions');
+    const R=ROWS[state.screen];
+    let h=`<div class="side-h">Sessions<span class="sp"></span><button class="icon-btn" aria-label="New session">${ico('i-plus')}</button></div>`;
+    PROJECTS.forEach(g=>{
+      h+=`<div class="grp"><div class="grp-l"><span>${g.p}</span><span>${g.s.length}</span></div>`;
+      g.s.forEach(n=>{
+        const [sig,word,cur,total,mode]=R[n];
+        const go=n==='report-export'?(state.screen===3?3:1):n==='i18n-de'&&state.screen===2?2:'';
+        const count=total?`${cur}/${total}`:'Done';
+        h+=`<button class="ses${R.sel===n?' on':''}" data-sig="${sig}" ${go?`data-go="${go}"`:''}>
+          <span class="ses-1"><span class="ses-n">${n}</span><span class="sw">${word}</span></span>
+          <span class="ses-2"><span class="ticks">${ticks(cur,total,mode)}</span><span class="ses-c">${count}</span></span></button>`;
+      });
+      h+='</div>';
+    });
+    h+=`<div class="side-f"><button class="btn q">${ico('i-plus')}New session<span class="kc">Ctrl</span><span class="kc kc-2">N</span></button></div>`;
+    side.innerHTML=h;
+  }
+
+  function renderTicks(){
+    document.querySelectorAll('[data-ticks]').forEach(el=>{
+      const [c,t,m]=el.dataset.ticks.split('/');
+      el.innerHTML=ticks(+c,+t,m);
+    });
+  }
+
+  function renderPets(){
+    const g=['..XXXX..','.XXXXXX.','.XoXXoX.','.XXXXXX.','XXXXXXXX','X.X..X.X','.X.XX.X.'];
+    let r='';
+    g.forEach((row,y)=>[...row].forEach((c,x)=>{
+      if(c==='X') r+=`<rect class="b" x="${x*4}" y="${y*4}" width="4" height="4"/>`;
+      if(c==='o') r+=`<rect class="e" x="${x*4}" y="${y*4}" width="4" height="4"/>`;
+    }));
+    document.querySelectorAll('[data-pet]').forEach(s=>s.innerHTML=r);
+  }
+
+  function renderContours(){
+    let d='';
+    for(let k=0;k<18;k++){
+      const y=40+k*60, a=36+(k%5)*12, b=a*.7;
+      d+=`<path d="M-100 ${y} C 280 ${y-a}, 620 ${y+a}, 960 ${y+8} S 1560 ${y-b}, 2040 ${y+12}"/>`;
+    }
+    document.getElementById('contours').innerHTML=d;
+  }
+
+  function readHash(){
+    const p=new URLSearchParams(location.hash.slice(1));
+    const s=parseInt(p.get('screen'),10);
+    state.screen=[1,2,3,4].includes(s)?s:1;
+    const m=p.get('mode');
+    state.mode=(m==='light'||m==='dark')?m:'dark';
+  }
+  function writeHash(){
+    const h=`#screen=${state.screen}&mode=${state.mode}`;
+    if(location.hash!==h) history.replaceState(null,'',h);
+  }
+
+  function render(){
+    html.dataset.theme=state.mode;
+    document.querySelectorAll('.screen').forEach(el=>{el.hidden=+el.dataset.screen!==state.screen});
+    renderSide();
+    document.querySelectorAll('.tb .tab').forEach(t=>{
+      const on=(t.dataset.tab==='settings'&&state.screen===4)||(t.dataset.tab==='sessions'&&state.screen!==4);
+      t.classList.toggle('on',on);
+    });
+    document.querySelectorAll('#ctl [data-go]').forEach(b=>b.classList.toggle('on',+b.dataset.go===state.screen));
+    document.getElementById('mode-l').textContent=state.mode==='dark'?'Dark':'Light';
+    document.querySelectorAll('#mode-seg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===state.mode));
+    writeHash();
+  }
+
+  function go(n){state.screen=n;render()}
+  function setMode(m){state.mode=m;render()}
+
+  document.addEventListener('click',e=>{
+    const g=e.target.closest('[data-go]');
+    if(g){go(+g.dataset.go);return}
+    if(e.target.closest('#mode-btn')){setMode(state.mode==='dark'?'light':'dark');return}
+    const ms=e.target.closest('#mode-seg button');
+    if(ms){const m=ms.dataset.mode;setMode(m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m);return}
+    const gt=e.target.closest('#glass-tog');
+    if(gt){const on=!gt.classList.contains('on');gt.classList.toggle('on',on);gt.setAttribute('aria-checked',on);html.dataset.glass=on?'on':'off';document.getElementById('glass-l').textContent=on?'On':'Off';return}
+    const v=e.target.closest('.var');
+    if(v){document.querySelectorAll('.var').forEach(x=>{const on=x===v;x.classList.toggle('on',on);x.setAttribute('aria-checked',on)})}
+  });
+
+  document.addEventListener('keydown',e=>{
+    const t=e.target;
+    if(t.closest&&t.closest('input,textarea,[contenteditable]'))return;
+    if(e.ctrlKey||e.metaKey||e.altKey)return;
+    if(['1','2','3','4'].includes(e.key)){go(+e.key);e.preventDefault()}
+    else if(e.key==='d'||e.key==='D'){setMode(state.mode==='dark'?'light':'dark');e.preventDefault()}
+  });
+  window.addEventListener('hashchange',()=>{readHash();render()});
+
+  /* Hold to allow once: pointer only, one second, never by key */
+  const hold=document.getElementById('hold');
+  const label=hold.querySelector('.hold-l'), sub=hold.querySelector('small');
+  let timer=null;
+  const start=e=>{
+    if(e.button!==0||hold.classList.contains('done'))return;
+    hold.setPointerCapture(e.pointerId);
+    hold.classList.add('pressing');
+    timer=setTimeout(()=>{
+      hold.classList.remove('pressing');hold.classList.add('done');
+      label.textContent='Allowed once';sub.textContent='Logged';
+      setTimeout(()=>{hold.classList.remove('done');label.textContent='Hold to allow once';sub.textContent='Press 1 s'},2400);
+    },1000);
+  };
+  const stop=()=>{clearTimeout(timer);hold.classList.remove('pressing')};
+  hold.addEventListener('pointerdown',start);
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>hold.addEventListener(ev,stop));
+  hold.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();e.stopPropagation()}});
+  hold.addEventListener('click',e=>e.preventDefault());
+
+  /* Scale the 1440 x 900 frame to fit, leaving room for the control bar */
+  const win=document.getElementById('win');
+  function fit(){
+    const s=Math.min(1,(innerWidth-32)/1440,(innerHeight-80)/900);
+    win.style.setProperty('--scale',s.toFixed(4));
+  }
+  window.addEventListener('resize',fit);
+
+  renderContours();renderPets();renderTicks();readHash();fit();render();
+})();
+</script>
+</body>
+</html>
