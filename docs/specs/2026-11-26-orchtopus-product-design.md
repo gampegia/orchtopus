@@ -104,9 +104,9 @@ Sketch of the session view:
 
 - superpowers runs the workflow inside the session. Orchtopus shows the phase and stops at three human gates: spec, plan, release of the PR. For spec and plan the stop is the one superpowers already makes: the session waits in its chat for approval, Orchtopus shows the gate as a card and sends the approval or the change request as a message. No extra hook blocks edits before plan approval.
 - **Enforcement is light** (user chose this over a strict mode). Three hard blocks through a `PreToolUse` hook, each with a reason Claude can read: force push, push to the main branch, and any creation of a PR or MR by a session. Orchtopus is the only path to a PR or MR: the release button checks that required gates are green, pushes the branch if needed and creates it. A session may push its own feature branch. Everything else that looks skipped (for example a commit without a test run) becomes a hint in the inbox, not a block. There is no automatic "go back and do it" loop for skipped steps.
-- **Gates are configurable commands.** Shipped and on: tests, lint, types. Shipped and off by default: dependency audit, static analysis, diff budget, test locally.
+- **Gates are configurable commands.** Shipped and on: tests, lint, types, secret scan, dependency and CVE audit. Shipped and off by default: static analysis, diff budget, test locally.
 - A red automatic gate triggers an automatic fix round, at most 2 by default (configurable). After that the case goes to the inbox with a summary of what was tried.
-- **Review council** with four roles: spec compliance first (blocking), then code quality (includes leanness), test quality, and security only when sensitive paths are touched; then a synthesizer that verifies, de-duplicates and ranks findings. The list is editable per project. Where a well-tested skill or plugin from a trusted source does the job, Orchtopus uses it instead of its own reviewer (see section 8).
+- **Review council** with four roles: spec compliance first (blocking), then code quality (includes leanness), test quality, and security only when sensitive paths are touched; then a synthesizer that verifies, de-duplicates and ranks findings. The list is editable per project, and a project can add its own reviewers for special concerns (for example accessibility, database migrations, translations) as agent files in the data folder. Review depth scales with the size of the change: a small diff gets a light pass, a large one the full council. Where a well-tested skill or plugin from a trusted source does the job, Orchtopus uses it instead of its own reviewer (see section 8).
 - **Where checks run:** Orchtopus runs gate commands itself as processes in the worktree. Review council members run as separate headless Claude Code processes that Orchtopus starts, each with a fresh context, so results survive a crash and do not fill the session's context. A fix round goes back to the session as a normal message with the findings. The exact signal for "ready for review" is defined in the M4 spec.
 - **Git and PR check without an agent:** branch name, commit format and target branch are checked by fixed rules. A suggestion to split a PR comes from the advisor on request.
 - A change request resets the gates from lint onwards; spec and plan stay approved (F41). Small tasks may use the short form for spec and plan.
@@ -202,16 +202,17 @@ Principle: prefer well-tested, popular skills and tools from trusted sources ove
 **Changes to the concept that follow from current practice**
 
 - The synthesizer does more than de-duplicate. It first verifies each finding against the code and drops what it cannot confirm, then de-duplicates and ranks by severity. This mirrors the find, verify, rank pipeline of Anthropic's own code review.
-- Findings are routed by severity. Only critical and important findings and spec failures enter the automatic fix loop. Minor findings go into the PR description as a checklist and never trigger a fix round.
+- Findings are routed by kind, not only by severity. Every confirmed defect enters the automatic fix loop, however small: bugs, spec failures, security issues, missing or wrong tests. Only findings that are not defects (style, naming, optional refactoring, matters of taste) go into the PR description as a checklist. The review detail offers a button to have the session work through that checklist as well. No known bug is left in on purpose.
 - Reviewers get a fresh context and only read; runtime checks belong in the automatic gates.
+- A CVE finding in a dependency that the change did not touch is reported as a hint with an offer to start a dependency-update session; it does not block the current PR.
 - The fix cap stays at 2 by default (superpowers itself allows up to 5 with escalation to a stronger model). It is configurable, and after the cap the case goes to the user.
 
-**Optional gates, shipped off by default unless noted**
+**Further gates**
 
 | Gate | Tool | Licence |
 |---|---|---|
-| Secret scan (proposed: on by default, because it is fast and cheap) | gitleaks | MIT |
-| Dependency audit | `npm audit` for JavaScript projects, osv-scanner for others | Apache-2.0 (osv-scanner) |
+| Secret scan (on by default) | gitleaks | MIT |
+| Dependency and CVE audit (on by default) | `npm audit` for JavaScript projects, osv-scanner for other lockfiles | Apache-2.0 (osv-scanner) |
 | Static analysis | Semgrep CLI (rules carry their own licences) or trivy | LGPL-2.1, Apache-2.0 |
 | Diff budget | Own check. No sourced recommendation for a line limit exists; the default of 400 net lines from the concept stays and is configurable. | this repository |
 
