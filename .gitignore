@@ -1,0 +1,38 @@
+# Dependencies and build output
+node_modules/
+dist/
+out/
+build/
+release/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Claude Code local files
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+.worktrees/
+
+# Orchtopus user data never belongs in this repo
+.orchtopus/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# OS and editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
