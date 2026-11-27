@@ -1,10 +1,16 @@
 import type { Session, WebContents } from 'electron';
 import { describe, expect, it, vi } from 'vitest';
+import { APP_ORIGIN } from '../shared/app-origin';
+import { BUILT_RENDERER_URL } from './load-renderer';
 import { CONTENT_SECURITY_POLICY, denyAllPermissions, hardenWebContents } from './security';
 
-type Listener = (event: { preventDefault: () => void }, ...args: unknown[]) => void;
+type Listener = (event: { preventDefault: () => void; url?: string }, ...args: unknown[]) => void;
 
-function fakeContents() {
+const builtPage = BUILT_RENDERER_URL;
+const builtPolicy = { startupUrl: BUILT_RENDERER_URL, allowReloadNavigation: false };
+const devPolicy = { startupUrl: 'http://localhost:5173/', allowReloadNavigation: true };
+
+function fakeContents(currentUrl = builtPage) {
   const listeners = new Map<string, Listener>();
   let openHandler: ((details: { url: string }) => unknown) | undefined;
   const contents = {
@@ -12,6 +18,7 @@ function fakeContents() {
       listeners.set(name, listener);
       return contents;
     },
+    getURL: () => currentUrl,
     setWindowOpenHandler(handler: (details: { url: string }) => unknown) {
       openHandler = handler;
     },
@@ -57,19 +64,91 @@ describe('CONTENT_SECURITY_POLICY', () => {
 });
 
 describe('hardenWebContents', () => {
-  it.each(['will-navigate', 'will-redirect', 'will-attach-webview'])('prevents %s', (name) => {
-    const fake = fakeContents();
-    hardenWebContents(fake.contents);
+  function fire(name: string, url: string, policy = builtPolicy, current = builtPage) {
+    const fake = fakeContents(current);
+    hardenWebContents(fake.contents, policy, vi.fn());
     const preventDefault = vi.fn();
     const listener = fake.listeners.get(name);
     expect(listener, name).toBeDefined();
-    listener?.({ preventDefault });
-    expect(preventDefault).toHaveBeenCalledOnce();
+    listener?.({ preventDefault, url });
+    return preventDefault;
+  }
+
+  it('prevents will-attach-webview', () => {
+    expect(fire('will-attach-webview', builtPage)).toHaveBeenCalledOnce();
+  });
+
+  it('prevents will-navigate to another page', () => {
+    expect(fire('will-navigate', `${APP_ORIGIN}/?navigated`)).toHaveBeenCalledOnce();
+    expect(fire('will-navigate', 'https://example.com/')).toHaveBeenCalledOnce();
+  });
+
+  it('prevents will-navigate to the current page outside the dev server', () => {
+    expect(fire('will-navigate', builtPage)).toHaveBeenCalledOnce();
+  });
+
+  it('lets the dev server reload the current page', () => {
+    const devPage = 'http://localhost:5173/';
+    expect(fire('will-navigate', devPage, devPolicy, devPage)).not.toHaveBeenCalled();
+    expect(fire('will-navigate', 'https://example.com/', devPolicy, devPage)).toHaveBeenCalled();
+  });
+
+  // history.pushState changes getURL() without a navigation; the exception must not follow it.
+  it('compares a dev reload against the startup URL, not the current URL', () => {
+    const pushed = 'http://localhost:5173/other.html';
+    expect(fire('will-navigate', pushed, devPolicy, pushed)).toHaveBeenCalledOnce();
+    expect(
+      fire('will-navigate', 'http://localhost:5173/', devPolicy, pushed),
+    ).not.toHaveBeenCalled();
+  });
+
+  it('allows will-redirect to the startup origin only', () => {
+    expect(fire('will-redirect', BUILT_RENDERER_URL)).not.toHaveBeenCalled();
+    expect(fire('will-redirect', 'https://example.com/')).toHaveBeenCalledOnce();
+    expect(fire('will-redirect', 'http://localhost:5173/', devPolicy)).not.toHaveBeenCalled();
+    expect(fire('will-redirect', 'http://localhost:5174/', devPolicy)).toHaveBeenCalledOnce();
+  });
+
+  it('logs a refused navigation or redirect', () => {
+    const fake = fakeContents();
+    const log = vi.fn();
+    hardenWebContents(fake.contents, builtPolicy, log);
+    const url = 'https://example.com/';
+    fake.listeners.get('will-navigate')?.({ preventDefault: vi.fn(), url });
+    fake.listeners.get('will-redirect')?.({ preventDefault: vi.fn(), url });
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs only the origin and path of a refused URL', () => {
+    const fake = fakeContents();
+    const log = vi.fn();
+    hardenWebContents(fake.contents, builtPolicy, log);
+    const url = 'https://example.com/report-export/a?token=acme-secret#section-two';
+    fake.listeners.get('will-navigate')?.({ preventDefault: vi.fn(), url });
+    fake.listeners.get('will-redirect')?.({ preventDefault: vi.fn(), url });
+    expect(log).toHaveBeenCalledTimes(2);
+    for (const [message] of log.mock.calls as [string][]) {
+      expect(message).toContain('https://example.com/report-export/a');
+      expect(message).not.toMatch(/token|acme-secret|section-two|[?#]/);
+    }
+  });
+
+  it('logs no content for a URL without a host', () => {
+    const fake = fakeContents();
+    const log = vi.fn();
+    hardenWebContents(fake.contents, builtPolicy, log);
+    for (const url of ['data:text/html,acme-secret', 'not a url acme-secret']) {
+      fake.listeners.get('will-navigate')?.({ preventDefault: vi.fn(), url });
+    }
+    expect(log).toHaveBeenCalledTimes(2);
+    for (const [message] of log.mock.calls as [string][]) {
+      expect(message).not.toContain('acme-secret');
+    }
   });
 
   it('prevents will-frame-navigate in subframes', () => {
     const fake = fakeContents();
-    hardenWebContents(fake.contents);
+    hardenWebContents(fake.contents, builtPolicy, vi.fn());
     const preventDefault = vi.fn();
     fake.listeners.get('will-frame-navigate')?.({ preventDefault, isMainFrame: false } as never);
     expect(preventDefault).toHaveBeenCalledOnce();
@@ -78,7 +157,7 @@ describe('hardenWebContents', () => {
   // The main frame is guarded by will-navigate; will-frame-navigate also fires for reloads there.
   it('leaves main-frame will-frame-navigate to will-navigate', () => {
     const fake = fakeContents();
-    hardenWebContents(fake.contents);
+    hardenWebContents(fake.contents, builtPolicy, vi.fn());
     const preventDefault = vi.fn();
     fake.listeners.get('will-frame-navigate')?.({ preventDefault, isMainFrame: true } as never);
     expect(preventDefault).not.toHaveBeenCalled();
@@ -86,7 +165,7 @@ describe('hardenWebContents', () => {
 
   it('cancels Bluetooth device selection instead of picking the first device', () => {
     const fake = fakeContents();
-    hardenWebContents(fake.contents);
+    hardenWebContents(fake.contents, builtPolicy, vi.fn());
     const preventDefault = vi.fn();
     const callback = vi.fn();
     const listener = fake.listeners.get('select-bluetooth-device');
@@ -98,7 +177,7 @@ describe('hardenWebContents', () => {
 
   it('denies every new window', () => {
     const fake = fakeContents();
-    hardenWebContents(fake.contents);
+    hardenWebContents(fake.contents, builtPolicy, vi.fn());
     expect(fake.open()?.({ url: 'https://example.com/' })).toEqual({ action: 'deny' });
   });
 });

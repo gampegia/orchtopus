@@ -20,11 +20,6 @@ Last update: 2026-11-27 (M1 spike done on branch `spike/m1-claude-code-internals
 - Final review: code, security, spec, UI and privacy reviewers on the whole branch, one fix wave (`ee061de` to `fcdd9ea`), re-review approved with no blocking finding.
 - The repository has a local git identity with the GitHub noreply address, so commits do not carry a personal e-mail.
 - Left for later PRs (none blocks M0):
-  - Check once by hand that a Vite full reload works in `npm run dev` (edit `index.html` or a `.tsx` file). `will-navigate` is denied for every navigation; if a reload is blocked, allow navigation to the current URL in unpackaged dev only.
-  - `will-redirect` is denied for every load, and `loadRenderer` ignores `ERR_ABORTED`. A dev server or protocol handler that redirects would give a blank window. Allow redirects to the startup origin or log ignored aborts.
-  - Pass the parsed URL (`new URL(value).href`) to `loadURL`, so the checked and the loaded value are the same.
-  - CI: a pending run on `main` can still be replaced by a newer one; give `main` runs their own concurrency group. Correct the comment in `ci.yml`.
-  - Custom `app://` protocol instead of `file://`, before M1 grows the renderer (CSP `self` under `file://` is broad).
   - Electron fuses, before any release milestone.
   - `npm` `allowScripts` policy. npm 11 skips the install scripts of node-pty and better-sqlite3; the prebuilds load and `smoke:native` guards it in CI.
   - Packaged build e2e in CI.
@@ -81,7 +76,7 @@ Agents used in session 1: mockup and prototype analysis 2× Sonnet; concept tran
 
 **M1 spec is next** (brainstorming, then spec, then plan). The M1 spike is done; read its findings first. M0 is done. Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md`.
 
-Before M1 code: go through "Left for later PRs" under the M0 entry and do the small ones (dev reload check, redirect handling, CI concurrency) in one PR.
+The M0 leftovers PR (branch `fix/m0-leftovers`) does the dev reload, redirect handling, parsed `loadURL` value, CI concurrency and the `app://` protocol. The built renderer loads from `APP_ORIGIN` (`app://orchtopus`, `src/shared/app-origin.ts`); M1 Tasks 3 and 12 import it. `location.reload()` fires `will-navigate` in Electron 45, so a reload by the page works with the dev server only; `e2e/dev-reload.spec.ts` checks it against a local http server that stands in for Vite.
 
 The M1 spec must settle the points under "Open decisions" that the spike raised. Start the next lead session with the folder `orchtopus` as working directory so the project agents in `.claude/agents/` load.
 
