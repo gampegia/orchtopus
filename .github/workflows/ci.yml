@@ -8,9 +8,12 @@ on:
 permissions:
   contents: read
 
+# A group holds one running and one pending run; a newer run replaces the pending one even
+# without cancel-in-progress. Each pull request has its own group (github.ref is
+# refs/pull/<n>/merge), so a new push to it cancels the older run. Every other run (pushes to
+# main) gets a group of its own, so each one runs to the end.
 concurrency:
-  group: ci-${{ github.ref }}
-  # Cancel superseded pull request runs only; every push to main keeps its result.
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

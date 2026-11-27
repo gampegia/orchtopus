@@ -1,14 +1,33 @@
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { app, BrowserWindow, nativeTheme, session } from 'electron';
-import { loadRenderer } from './load-renderer';
+import { app, BrowserWindow, nativeTheme, protocol, session } from 'electron';
+import { APP_SCHEME } from '../shared/app-origin';
+import { APP_SCHEME_PRIVILEGES, createAppProtocolHandler } from './app-protocol';
+import { loadRenderer, resolveRendererTarget } from './load-renderer';
 import { denyAllPermissions, hardenWebContents } from './security';
 import { showMainWindow } from './show-window';
 import { createMainWindowOptions, pageBackgroundColor } from './window-options';
 
+const warn = (message: string): void => {
+  console.warn(message);
+};
+
 app.enableSandbox();
+// Must run before the app is ready.
+protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
+
+const renderer = resolveRendererTarget({
+  packaged: app.isPackaged,
+  rendererUrl: process.env['ELECTRON_RENDERER_URL'],
+  warn,
+});
 
 app.on('web-contents-created', (_event, contents) => {
-  hardenWebContents(contents);
+  hardenWebContents(
+    contents,
+    { startupUrl: renderer.url, allowReloadNavigation: renderer.devServer },
+    warn,
+  );
 });
 
 function createMainWindow(): void {
@@ -32,14 +51,7 @@ function createMainWindow(): void {
     nativeTheme.off('updated', updateBackground);
   });
 
-  loadRenderer(window, {
-    packaged: app.isPackaged,
-    rendererUrl: process.env['ELECTRON_RENDERER_URL'],
-    indexPath: join(__dirname, '../renderer/index.html'),
-    warn: (message) => {
-      console.warn(message);
-    },
-  }).catch((error: unknown) => {
+  loadRenderer(window, renderer.url, warn).catch((error: unknown) => {
     console.error('Failed to load the renderer:', error);
     app.exit(1);
   });
@@ -49,6 +61,10 @@ app
   .whenReady()
   .then(() => {
     denyAllPermissions(session.defaultSession);
+    protocol.handle(
+      APP_SCHEME,
+      createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path), warn),
+    );
     createMainWindow();
   })
   .catch((error: unknown) => {

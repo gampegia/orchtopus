@@ -1,8 +1,10 @@
 import type { Session, WebContents } from 'electron';
+import { isAllowedNavigation, isAllowedRedirect, type NavigationPolicy } from './navigation';
 
 /**
  * The renderer's Content Security Policy. It has no `frame-ancestors`: a `<meta>` CSP ignores
- * that directive and logs a console error.
+ * that directive and logs a console error. The app protocol adds it in the header it sends with
+ * HTML pages (see `DOCUMENT_CONTENT_SECURITY_POLICY`).
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
@@ -17,12 +19,35 @@ export const CONTENT_SECURITY_POLICY = [
 ].join('; ');
 
 /**
- * Blocks navigation (main frame, subframes and redirects), webview attachment, Bluetooth device
- * selection and new windows for a web contents.
+ * A URL as it may appear in a log line: origin and path only. The query and fragment can carry
+ * tokens, and a URL without a host (data:, javascript:) is reduced to its scheme. The path is
+ * kept, so a token inside a path (for example `/reset/<token>`) still reaches the log.
  */
-export function hardenWebContents(contents: WebContents): void {
+export function urlForLog(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return '(invalid URL)';
+  }
+  return url.host === '' ? url.protocol : `${url.protocol}//${url.host}${url.pathname}`;
+}
+
+/**
+ * Blocks navigation (main frame and subframes), redirects off the startup origin, webview
+ * attachment, Bluetooth device selection and new windows for a web contents. The only allowed
+ * navigation is a dev server reload of the startup page (see `isAllowedNavigation`).
+ */
+export function hardenWebContents(
+  contents: WebContents,
+  policy: NavigationPolicy,
+  log: (message: string) => void,
+): void {
   contents.on('will-navigate', (event) => {
+    const { url } = event;
+    if (isAllowedNavigation(url, policy)) return;
     event.preventDefault();
+    log(`Blocked navigation to ${urlForLog(url)}`);
   });
   // Subframes only: will-navigate guards the main frame, and will-frame-navigate also fires
   // for main-frame reloads, which must keep working.
@@ -30,7 +55,10 @@ export function hardenWebContents(contents: WebContents): void {
     if (!event.isMainFrame) event.preventDefault();
   });
   contents.on('will-redirect', (event) => {
+    const { url } = event;
+    if (isAllowedRedirect(url, policy)) return;
     event.preventDefault();
+    log(`Blocked redirect to ${urlForLog(url)}`);
   });
   contents.on('will-attach-webview', (event) => {
     event.preventDefault();
