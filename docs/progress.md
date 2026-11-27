@@ -27,6 +27,8 @@ Things the plan leaves to find out during M0: whether Electron exposes `node:sql
 
 After M0: M1 starts with a spike on background sessions, hooks and status line on Windows (see the table of assumptions in the product spec, section 10).
 
+Known gap after M0: CI does not build or start the packaged app (`npm run package`); it is checked locally only. Add a packaged-app check to CI when an installer is introduced.
+
 Backlog ideas live in `docs/backlog.md` (first entry: Logitech MX Master 4 integration).
 
 Step 3 is done: the product design spec is merged (`docs/specs/2026-11-26-orchtopus-product-design.md`).
