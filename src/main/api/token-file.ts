@@ -3,10 +3,18 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
+/**
+ * Absolute path of a Windows system tool. A PATH lookup could find GNU coreutils from Git for
+ * Windows (a different whoami) or a planted exe, and libuv also searches the cwd first.
+ */
+function systemTool(name: string): string {
+  return join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', name);
+}
+
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
 async function readToken(file: string): Promise<string | null> {
@@ -49,7 +57,9 @@ export function renewToken(file: string): Promise<string> {
 
 /** The current user's SID from `whoami /user /fo csv /nh` (`"host\user","S-1-5-..."`). */
 async function currentUserSid(): Promise<string> {
-  const { stdout } = await run('whoami', ['/user', '/fo', 'csv', '/nh'], { windowsHide: true });
+  const { stdout } = await run(systemTool('whoami.exe'), ['/user', '/fo', 'csv', '/nh'], {
+    windowsHide: true,
+  });
   const sid = /"(S-1-[0-9-]+)"/.exec(stdout)?.[1];
   if (sid === undefined) throw new Error('could not read the current user SID');
   return sid;
@@ -62,5 +72,7 @@ async function currentUserSid(): Promise<string> {
 export async function restrictToCurrentUser(file: string): Promise<void> {
   if (process.platform !== 'win32') return;
   const sid = await currentUserSid();
-  await run('icacls', [file, '/inheritance:r', '/grant:r', `*${sid}:F`], { windowsHide: true });
+  await run(systemTool('icacls.exe'), [file, '/inheritance:r', '/grant:r', `*${sid}:F`], {
+    windowsHide: true,
+  });
 }
