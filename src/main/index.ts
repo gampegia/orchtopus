@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, nativeTheme, session } from 'electron';
 import { denyAllPermissions, hardenWebContents } from './security';
+import { showMainWindow } from './show-window';
 import { createMainWindowOptions } from './window-options';
 
 app.enableSandbox();
@@ -17,7 +18,7 @@ function createMainWindow(): void {
     }),
   );
   window.once('ready-to-show', () => {
-    window.show();
+    showMainWindow(window, process.env);
   });
 
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'];

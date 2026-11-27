@@ -26,11 +26,15 @@ function rgb(mode: Mode, token: string): string {
 
 function launchEnv(): Record<string, string> {
   const blocked = new Set(['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL']);
-  return Object.fromEntries(
-    Object.entries(process.env).filter(
-      (entry): entry is [string, string] => entry[1] !== undefined && !blocked.has(entry[0]),
+  return {
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        (entry): entry is [string, string] => entry[1] !== undefined && !blocked.has(entry[0]),
+      ),
     ),
-  );
+    // BACKGROUND_WINDOW_ENV in src/main/show-window.ts: show the window without taking focus.
+    ORCHTOPUS_BACKGROUND_WINDOW: '1',
+  };
 }
 
 let app: ElectronApplication;
