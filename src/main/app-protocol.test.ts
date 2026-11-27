@@ -102,7 +102,14 @@ describe('createAppProtocolHandler', () => {
       }
       return Promise.resolve(Buffer.from(content));
     });
-    return { handle: createAppProtocolHandler(root, readFile), readFile };
+    const log = vi.fn();
+    return { handle: createAppProtocolHandler(root, readFile, log), readFile, log };
+  }
+
+  function failingHandler(code: string) {
+    const readFile = vi.fn(() => Promise.reject(Object.assign(new Error(code), { code })));
+    const log = vi.fn();
+    return { handle: createAppProtocolHandler(root, readFile, log), log };
   }
 
   it('serves a file from the root with its type and nosniff', async () => {
@@ -128,10 +135,20 @@ describe('createAppProtocolHandler', () => {
     expect(script.headers.get('content-security-policy')).toBeNull();
   });
 
-  it('answers 404 for a missing file', async () => {
-    const { handle } = handlerWith({});
+  it.each(['ENOENT', 'EISDIR'])('answers 404 without a log line for %s', async (code) => {
+    const { handle, log } = failingHandler(code);
     const response = await handle(new Request('app://orchtopus/missing.js'));
     expect(response.status).toBe(404);
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  it('logs any other read error before answering 404', async () => {
+    const { handle, log } = failingHandler('EACCES');
+    const response = await handle(new Request('app://orchtopus/main.js'));
+    expect(response.status).toBe(404);
+    expect(log).toHaveBeenCalledOnce();
+    expect(log.mock.calls[0]?.[0]).toContain('EACCES');
+    expect(log.mock.calls[0]?.[0]).toContain('main.js');
   });
 
   it('answers 404 for a path outside the root without reading it', async () => {

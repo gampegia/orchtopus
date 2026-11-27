@@ -63,7 +63,7 @@ app
     denyAllPermissions(session.defaultSession);
     protocol.handle(
       APP_SCHEME,
-      createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path)),
+      createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path), warn),
     );
     createMainWindow();
   })

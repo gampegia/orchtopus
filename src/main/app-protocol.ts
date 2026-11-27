@@ -106,10 +106,30 @@ function plainResponse(status: number): Response {
   return new Response(null, { status, headers: { 'X-Content-Type-Options': 'nosniff' } });
 }
 
-/** A `protocol.handle` handler that serves GET requests for files in `root` (405 otherwise). */
+/** A missing file or a folder is an expected 404; anything else is worth a log line. */
+function isExpectedReadError(error: unknown): boolean {
+  const code =
+    typeof error === 'object' && error !== null ? (error as { code?: unknown }).code : '';
+  return code === 'ENOENT' || code === 'EISDIR';
+}
+
+function describeError(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const { code, message } = error as { code?: unknown; message?: unknown };
+    if (typeof code === 'string') return code;
+    if (typeof message === 'string') return message;
+  }
+  return String(error);
+}
+
+/**
+ * A `protocol.handle` handler that serves GET requests for files in `root` (405 otherwise).
+ * A file that cannot be read is a 404; read errors other than ENOENT and EISDIR are logged.
+ */
 export function createAppProtocolHandler(
   root: string,
   readFile: ReadFile,
+  log: (message: string) => void,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
     if (request.method !== 'GET') return plainResponse(405);
@@ -118,7 +138,10 @@ export function createAppProtocolHandler(
     let body: Uint8Array;
     try {
       body = await readFile(file);
-    } catch {
+    } catch (error) {
+      if (!isExpectedReadError(error)) {
+        log(`App protocol could not read ${file}: ${describeError(error)}`);
+      }
       return plainResponse(404);
     }
     const contentType = contentTypeFor(file);
