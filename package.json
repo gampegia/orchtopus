@@ -1,0 +1,20 @@
+{
+  "name": "orchtopus",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Windows desktop app that runs and supervises several Claude Code sessions.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.4",
+    "typescript": "6.0.3",
+    "vite": "8.4.0",
+    "vitest": "5.1.2"
+  }
+}
