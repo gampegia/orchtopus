@@ -108,6 +108,7 @@ Agents for step 4: 8x Opus (high) for round 1, 3x Opus (high) for round 2, 1x Op
 - Since 2026-11-27 the lead merges every PR of this repository itself after a review by a suitable agent with no open blocking findings.
 - The octopus is an animated, customisable character with styles and accessories; interactions get a motion pass.
 - Messages to the user end with a clear line: what is needed from the user, or that it is for information only.
+- 2026-11-27, after the M1 spike: the `.claude` folder inside a project repository may hold what Claude Code or Orchtopus create there (for example the worktrees of background sessions). Orchtopus content such as the wiki stays outside the repository folder. For anything in `.claude`, Orchtopus checks whether it would be pushed (tracked or git-ignored). This is the lead's reading of a short message; confirm the details in the M1 spec.
 
 ## Findings: Claude Code internals
 
@@ -151,7 +152,7 @@ Installed: Claude Code 2.1.332 (updated by the user on 2026-11-27; this section 
 
 - **Addendum on Claude Code best practices** (`docs/specs/2026-11-27-claude-code-best-practices-addendum.md`): approved by the user on 2026-11-27 with the merge of pull request 6. It overrides the product spec where they differ (auto mode by default, minimum Claude Code 2.1.302, Stop hook check, simpler context management, extended learnings). It adds five questions to the M1 spike. D1 (auto mode) still depends on the spike. Read it before the M1 spec.
 - From the spike, to settle in the M1 spec:
-  - Background sessions, per the docs, move into `.claude/worktrees/` inside the repository and commit, push and open a draft PR when they finish. Decide whether to pass `worktree.bgIsolation: "none"` plus a workflow instruction, and test it before code depends on it.
+  - Background sessions, per the docs, move into `.claude/worktrees/` inside the repository and commit, push and open a draft PR when they finish. The user allows the worktrees in `.claude/` (see "Decisions by the user"), so `worktree.bgIsolation` can stay at its default if the folder is not pushed. The automatic commit, push and draft PR still collide with the release gate: block them with a workflow instruction and the hard-block hooks, and test it before code depends on it.
   - A rule for stale `working` / `idle` in `claude agents --json` (after Esc on a prompt and after a `Stop` hook continuation). The same value appears briefly at process start, so the rule needs a time or hook condition. `blocked` / `idle` is not a reliable "asked a question"; `stopped` appears after `claude stop`.
   - The terminal permission prompt is live while the `PermissionRequest` hook waits: the card must close when the terminal answers first.
   - The classifier inbox (`PermissionDenied`), the "auto mode paused" state and the effect of `autoMode.environment` rest on the docs only. Build them so they degrade to nothing if the hook never fires. D1 stands provisionally until a classifier decision is observed.
