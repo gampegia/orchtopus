@@ -6,7 +6,7 @@ Last update: 2026-11-26 (session 1, lead: Fable)
 
 - Handover pack read in full (concept, implementation guide, templates, mockups, prototype).
 - Repository created locally with `main`. Handover pack copied to `docs/handover/`, renamed from the working title to Orchtopus, concept translated to English (`docs/handover/docs/concept.md`).
-- `CLAUDE.md`, agents in `.claude/agents/`, `.gitignore`, `LICENSE` (MIT, to be confirmed), `README.md`.
+- `CLAUDE.md`, agents in `.claude/agents/`, `.gitignore`, `LICENSE` (MIT), `README.md`.
 - Skills: unslop installed at project scope (`.claude/settings.json`), `pick-ui-library` installed to `.claude/skills/`. superpowers and i-have-adhd already exist at user scope.
 - Claude Code internals checked against the current docs (see below).
 
@@ -14,10 +14,11 @@ Agents used in this session: mockup and prototype analysis 2× Sonnet; concept t
 
 ## Next
 
-1. User confirms the licence and the first push (public repo on GitHub).
-2. Step 3: brainstorm the whole concept with the user (cut, simplify, defer), confirm stack and milestones. Result: spec in `docs/specs/`.
-3. Step 4: design exploration (UI library choice with `pick-ui-library`, at least six directions in `docs/design/explorations/`, comparison page, then `DESIGN.md`).
-4. M0, then M1.
+1. Step 4, design exploration: choose the UI library with `pick-ui-library`, produce the mockup directions in `docs/design/explorations/`, compare, iterate, then write `DESIGN.md`.
+2. M0 (tooling, CI) can run in parallel with the design step.
+3. M1 starts with a spike on background sessions, hooks and status line on Windows.
+
+Step 3 is done: the product design spec is in `docs/specs/2026-11-26-orchtopus-product-design.md` (approved by the user on 2026-11-26). Agents for step 3: research 1x Sonnet (medium), builder check 1x Opus (high), article summary 1x web-fetch.
 
 ## Decisions by the user (session 1)
 
@@ -68,11 +69,8 @@ Installed: Claude Code 2.1.292 (docs changelog is at 2.1.331). Items marked *tes
 
 ## Open decisions
 
-- Licence: MIT proposed.
-- Session lifecycle, side chat and enforcement: recommendations above, to be confirmed in the step 3 brainstorming and verified by a spike in M1.
-- Data folder: default `%APPDATA%\Orchtopus\`, selectable in settings; optional sync through a private Git repo or a synced folder.
+- Session lifecycle, side chat and enforcement follow the spec; the M1 spike verifies the items marked *test*.
 - Local API token: per app start or per installation.
-- Priorities: almost every requirement from F55 on is marked Must, but several sit in M7 and M8.
 
 ## Gotchas
 

@@ -13,9 +13,10 @@ Windows desktop app (Electron, TypeScript) that runs and supervises several Clau
 
 ## Workflow
 - superpowers for every milestone: brainstorming → spec → writing-plans → subagent-driven-development (TDD, worktrees, two-stage review) → review by the agents → finish as a PR.
-- The user approves spec and plan. Never merge; never push to `main` after the initial commit. The user merges.
+- The user approves spec and plan. Never push to `main` directly; every change goes through a PR.
+- The lead merges a PR itself after a review by a suitable review agent has no open blocking findings (user decision, 2026-11-27). The privacy review still runs before every push. This is about this repository; the product rule that Orchtopus never merges the user's project PRs is unchanged.
 - Conventional Commits. Small commits.
-- Parallel work only after the walking skeleton (M1) exists.
+- Parallel implementation work only after the walking skeleton (M1) exists. The design step and M0 are the exception.
 - Before building on Claude Code internals (hooks, status line fields, resume, background sessions, agent teams), check the current documentation and the installed version, and tell the user what you found.
 - At the end of each session the lead updates `docs/progress.md`: done, next, open decisions, gotchas.
 
