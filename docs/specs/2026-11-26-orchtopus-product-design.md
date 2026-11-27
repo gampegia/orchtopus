@@ -96,7 +96,7 @@ Sketch of the session view:
 ### 5.3 Permissions
 
 - A `PermissionRequest` hook reports to the local API and waits for the user's decision. The card shows the command, what it does, risk hints, and the buttons Allow once, Always allow in this project, Deny, Ask the advisor (F52).
-- **Waiting time:** default 10 minutes, configurable (the concept's 60 seconds came from the bridge-mod design). After that, and whenever the app is not reachable, the normal prompt appears in the session's terminal and waits there. The card stays and says "answer in the terminal". Nothing is ever allowed by timeout or error.
+- **Waiting time:** default 10 minutes, configurable (the concept's 60 seconds came from the bridge-mod design). After that, and whenever the app is not reachable, the normal prompt appears in the session's terminal and waits there (except for dangerous commands, see below). The card stays and says "answer in the terminal". Nothing is ever allowed by timeout or error.
 - "Always allow in this project" is stored in Orchtopus' own rule store for that project in the data folder and passed to every session of the project through `--settings`. This keeps the rule out of the repository and makes it valid in all worktrees.
 - Dangerous commands: only "Hold to allow once" for one second in the app. No rule, no hotkey, no remote client. The list of dangerous patterns is a versioned file.
 - Dangerous commands get their own check in a `PreToolUse` hook, which runs for every tool call and before any permission rule applies. A match always leads to the hold card, even if a rule or the session's permission mode would have allowed the command. If no decision arrives in time or the app is not reachable, the command is denied with a reason Claude can read. It never falls through to the terminal prompt, where a single key would allow it. "Always allow" rules are rejected if they would match a dangerous pattern.
@@ -243,7 +243,7 @@ External tools are called as installed binaries and are never bundled. What happ
 | `--settings`, `--append-system-prompt-file`, `--agents` and `--plugin-dir` work together with `--bg` | Child-process adapter with the same flags, or a per-worktree local settings file that Orchtopus removes again |
 | Skill use is visible to hooks with the skill name | Derive the phase from spec and plan files only; a skill the user types as a slash command is never visible to hooks |
 | A session can be forked for the side chat while it is in the middle of a turn | Fresh call with a condensed context |
-| A `PreToolUse` hook can hold a dangerous command until the user decides, and deny on timeout | Deny dangerous commands at once with the instruction to ask the user, who then allows the exact command for one run from the app |
+| A `PreToolUse` hook can hold a dangerous command until the user decides, and deny on timeout | Deny dangerous commands at once with the instruction to ask the user, who then allows it with "Hold to allow once" in the app |
 
 **Other open points**
 
