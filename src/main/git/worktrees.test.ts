@@ -280,4 +280,22 @@ describe('removeWorktree', () => {
     expect(git(r.root, ['branch', '--list', 'orch/upload-fix'])).toContain('orch/upload-fix');
     expect(await removeWorktree(r.root, path)).toBe('removed');
   });
+
+  it('finishes a partial remove when the folder is gone but the worktree is still registered', async () => {
+    const r = await repo();
+    await ensureWorktreesExcluded(r.root);
+    const { path } = await createWorktree({
+      root: r.root,
+      task: 'report-export',
+      branch: 'orch/report-export',
+      base: 'main',
+    });
+    rmSync(path, { recursive: true, force: true });
+    expect(git(r.root, ['worktree', 'list', '--porcelain'])).toContain('report-export');
+
+    expect(await removeWorktree(r.root, path)).toBe('removed');
+    expect(git(r.root, ['worktree', 'list', '--porcelain'])).not.toContain('report-export');
+    expect(git(r.root, ['branch', '--list', 'orch/report-export'])).toContain('orch/report-export');
+    expect(await removeWorktree(r.root, path)).toBe('removed');
+  });
 });

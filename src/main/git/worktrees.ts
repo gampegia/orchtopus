@@ -229,6 +229,12 @@ export async function removeWorktree(
     if (!existsSync(path)) return 'removed';
     return { refused: 'This folder is not a worktree of the repository.' };
   }
+  if (!existsSync(path)) {
+    // Partial remove (crash, or the folder was deleted by hand): drop the stale metadata.
+    const res = await runGit(['worktree', 'prune'], { cwd: root });
+    if (res.code === 0) return 'removed';
+    return { refused: `git worktree prune failed: ${redactUrls(res.stderr.trim())}` };
+  }
   if (!(await worktreeIsClean(path))) {
     return {
       refused:
