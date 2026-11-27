@@ -109,6 +109,33 @@ describe('hardenWebContents', () => {
     expect(log).toHaveBeenCalledTimes(2);
   });
 
+  it('logs only the origin and path of a refused URL', () => {
+    const fake = fakeContents();
+    const log = vi.fn();
+    hardenWebContents(fake.contents, builtPolicy, log);
+    const url = 'https://example.com/report-export/a?token=acme-secret#section-two';
+    fake.listeners.get('will-navigate')?.({ preventDefault: vi.fn(), url });
+    fake.listeners.get('will-redirect')?.({ preventDefault: vi.fn(), url });
+    expect(log).toHaveBeenCalledTimes(2);
+    for (const [message] of log.mock.calls as [string][]) {
+      expect(message).toContain('https://example.com/report-export/a');
+      expect(message).not.toMatch(/token|acme-secret|section-two|[?#]/);
+    }
+  });
+
+  it('logs no content for a URL without a host', () => {
+    const fake = fakeContents();
+    const log = vi.fn();
+    hardenWebContents(fake.contents, builtPolicy, log);
+    for (const url of ['data:text/html,acme-secret', 'not a url acme-secret']) {
+      fake.listeners.get('will-navigate')?.({ preventDefault: vi.fn(), url });
+    }
+    expect(log).toHaveBeenCalledTimes(2);
+    for (const [message] of log.mock.calls as [string][]) {
+      expect(message).not.toContain('acme-secret');
+    }
+  });
+
   it('prevents will-frame-navigate in subframes', () => {
     const fake = fakeContents();
     hardenWebContents(fake.contents, builtPolicy, vi.fn());
