@@ -21,7 +21,7 @@ Confounds:
 | Q | Question | Verdict | Consequence |
 |---|---|---|---|
 | 1 | `--bg` lifecycle, parent death, reattach, `agents --json` | confirmed (parent death: one run, plain Node parent) | Background adapter holds; read state from `agents --json` plus hooks and time, not `state` alone |
-| 2 | Flags with `--bg`, after attach, resume, respawn | confirmed (R1), `--session-id` ignored | Base setup through flags works and survives a resume without flags; take the session id from `agents --json`, not from `--session-id` |
+| 2 | Flags with `--bg`, after attach, resume, respawn | confirmed (R1), `--session-id` ignored | Base setup through flags works and survives a resume without flags (`--agents` and `--name` after such a resume are only shown by the resume note); take the session id from `agents --json`, not from `--session-id` |
 | 3 | Two attached clients | fails | The app is the only PTY owner of a session; other clients go through the local API |
 | 4 | Sending input | partly | Input only through the attached PTY; `claude --resume <id> "<msg>"` is refused for a running session |
 | 5 | Status line in background sessions | confirmed | Assumption holds; limits are "unknown" until the first API response of each process |
@@ -96,7 +96,7 @@ R1: a `--bg` session with `--append-system-prompt-file`, `--append-system-prompt
 note: woke session <id> with its saved options (--settings, --effort, --permission-mode, --append-system-prompt-file, --append-system-prompt, --agents, --plugin-dir, --model).
 ```
 
-`SessionStart` fired with `source: "resume"`. Only then the session was asked for both markers and the skill: it called `Skill` (`orch-spike:orch-probe`) and answered `ORCH_SYSPROMPT_INLINE_OK` and `ORCH_SYSPROMPT_FILE_OK`. After `claude respawn <id>` (`SessionStart` `source: "resume"` again) it answered a reworded question with both markers and called the skill again.
+`SessionStart` fired with `source: "resume"`. Only then the session was asked for both markers and the skill: it called `Skill` (`orch-spike:orch-probe`) and answered only `ORCH_SKILL_OK`; on the next prompt it answered `ORCH_SYSPROMPT_INLINE_OK` and `ORCH_SYSPROMPT_FILE_OK`. After `claude respawn <id>` (`SessionStart` `source: "resume"` again) it answered a reworded question with both markers and called the skill again.
 
 Two documented mechanisms can carry the system prompt across resume: the saved options in the note above, and the system-prompt snapshot (`--system-prompt-snapshot`, on by default; per `--help` it records the prompt on the first request and resends it as-is on every request and resume until compaction). R1 does not tell them apart. The plugin is proven live after resume and respawn by the `Skill` call.
 
