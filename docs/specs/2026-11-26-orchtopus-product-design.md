@@ -136,7 +136,8 @@ Sketch of the session view:
 
 - The mockups in the handover pack are inspiration only. Before any UI is built, the design is explored: a UI library is chosen with the user, then at least six directions are produced as HTML mockups (light and dark, the same core screens each), compared on one page and iterated until the user picks one. The result is recorded in `DESIGN.md` with tokens and theme structure.
 - Components use design tokens only, from M1 on. Themes are folders (E27).
-- The pet is a pixel-art octopus that reacts to the session state and can be switched off (M6). Loading own figures, levels and experience points are not planned for now.
+- The pet is an animated pixel-art octopus that reacts to the session state and can be switched off (M6). It is a small customisable character: several styles and accessories with some humour, selectable in settings, and built data-driven as a versioned building block so that a new style or accessory is a small change. Levels and experience points are not planned.
+- Interactions get a motion pass with the design skills so that clicks and state changes feel smooth; motion stays calm and respects the Windows "reduce motion" setting.
 - "Orch"-themed naming may be used where it fits and stays clear.
 
 ### 5.9 Smaller simplifications
