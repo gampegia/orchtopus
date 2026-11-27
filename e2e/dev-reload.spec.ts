@@ -1,0 +1,117 @@
+import { readFile } from 'node:fs/promises';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { extname, join } from 'node:path';
+import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+
+// Stands in for the Vite dev server: serves the built renderer over http on 127.0.0.1 and is
+// passed to the app as ELECTRON_RENDERER_URL, so the main process takes its dev server path.
+const rendererRoot = join(__dirname, '../out/renderer');
+const types: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+};
+
+let server: Server | undefined;
+let app: ElectronApplication | undefined;
+let devUrl = '';
+
+function electronApp(): ElectronApplication {
+  if (app === undefined) throw new Error('Electron did not launch');
+  return app;
+}
+
+test.describe.configure({ mode: 'serial' });
+
+test.beforeAll(async () => {
+  const started = createServer((request, response) => {
+    const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
+    const name = path === '/' ? 'index.html' : path.slice(1);
+    // Test fixture only: the built output has no nested user paths, refuse anything unusual.
+    if (!/^[\w./-]+$/.test(name) || name.includes('..')) {
+      response.writeHead(404).end();
+      return;
+    }
+    readFile(join(rendererRoot, name)).then(
+      (body) => {
+        response
+          .writeHead(200, { 'Content-Type': types[extname(name)] ?? 'application/octet-stream' })
+          .end(body);
+      },
+      () => {
+        response.writeHead(404).end();
+      },
+    );
+  });
+  await new Promise<void>((resolve) => started.listen(0, '127.0.0.1', resolve));
+  server = started;
+  devUrl = `http://127.0.0.1:${String((started.address() as AddressInfo).port)}/`;
+
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] =>
+        entry[1] !== undefined && entry[0] !== 'ELECTRON_RUN_AS_NODE',
+    ),
+  );
+  app = await electron.launch({
+    args: ['.'],
+    env: { ...env, ELECTRON_RENDERER_URL: devUrl, ORCHTOPUS_BACKGROUND_WINDOW: '1' },
+    timeout: 60_000,
+  });
+  const page = await app.firstWindow();
+  await page.waitForLoadState('load');
+});
+
+test.afterAll(async () => {
+  if (app !== undefined) await app.close();
+  const running = server;
+  if (running !== undefined) {
+    await new Promise<void>((resolve) => {
+      running.close(() => {
+        resolve();
+      });
+    });
+  }
+});
+
+/** Runs `script` in the page and reports whether a main-frame navigation committed. */
+function navigateBy(script: string) {
+  return electronApp().evaluate(
+    ({ BrowserWindow }, source) =>
+      new Promise<{ before: string; after: string; committed: boolean }>((resolve, reject) => {
+        const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+        if (!contents) throw new Error('No window');
+        const before = contents.getURL();
+        let committed = false;
+        contents.once('did-navigate', () => {
+          committed = true;
+        });
+        contents.once('did-stop-loading', () => {
+          resolve({ before, after: contents.getURL(), committed });
+        });
+        contents.executeJavaScript(source).catch(reject);
+      }),
+    script,
+  );
+}
+
+test('loads the dev server URL', async () => {
+  const url = await electronApp().evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]?.webContents.getURL(),
+  );
+  expect(url).toBe(devUrl);
+});
+
+// Vite's full reload calls location.reload(), which Electron reports as will-navigate.
+test('a page reload works with the dev server', async () => {
+  const outcome = await navigateBy('location.reload()');
+  expect(outcome.committed).toBe(true);
+  expect(outcome.after).toBe(devUrl);
+});
+
+test('navigation to another page stays denied with the dev server', async () => {
+  const outcome = await navigateBy(`location.href = ${JSON.stringify(`${devUrl}?navigated`)}`);
+  expect(outcome.committed).toBe(false);
+  expect(outcome.after).toBe(outcome.before);
+});
