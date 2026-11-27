@@ -1,13 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  _electron as electron,
-  expect,
-  test,
-  type ElectronApplication,
-  type Page,
-} from '@playwright/test';
+import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import type { WebContents, WebPreferences } from 'electron';
+import type { PreloadApi } from '../src/shared/preload-api';
+import { launchApp } from './launch';
 
 /** `getLastWebPreferences` exists at runtime but is missing from Electron's public types. */
 type InspectableWebContents = WebContents & { getLastWebPreferences(): WebPreferences | null };
@@ -24,21 +20,9 @@ function rgb(mode: Mode, token: string): string {
   return `rgb(${channels.join(', ')})`;
 }
 
-function launchEnv(): Record<string, string> {
-  const blocked = new Set(['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL']);
-  return {
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(
-        (entry): entry is [string, string] => entry[1] !== undefined && !blocked.has(entry[0]),
-      ),
-    ),
-    // BACKGROUND_WINDOW_ENV in src/main/show-window.ts: show the window without taking focus.
-    ORCHTOPUS_BACKGROUND_WINDOW: '1',
-  };
-}
-
 let app: ElectronApplication | undefined;
 let page: Page;
+let dataDir = '';
 
 function electronApp(): ElectronApplication {
   if (app === undefined) throw new Error('Electron did not launch');
@@ -49,15 +33,10 @@ const consoleErrors: string[] = [];
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  const executablePath = process.env['E2E_EXECUTABLE'];
-  // Playwright emulates prefers-color-scheme: light by default; null lets nativeTheme decide.
-  const launched = await electron.launch(
-    executablePath
-      ? { executablePath, env: launchEnv(), colorScheme: null, timeout: 60_000 }
-      : { args: ['.'], env: launchEnv(), colorScheme: null, timeout: 60_000 },
-  );
-  app = launched;
-  page = await launched.firstWindow();
+  const launched = await launchApp();
+  app = launched.app;
+  page = launched.page;
+  dataDir = launched.dataDir;
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
@@ -144,22 +123,69 @@ for (const mode of ['light', 'dark'] as const) {
 
 // Guards nodeIntegration and preload leaks only: app.enableSandbox() keeps Node out of the
 // renderer even with sandbox or contextIsolation off, so the next test checks those flags.
-test('renderer has no Node.js access and the preload exposes nothing', async () => {
+test('renderer has no Node.js access and the preload exposes only window.orchtopus', async () => {
   const globals = await page.evaluate(() => {
     const scope = globalThis as unknown as Record<string, unknown>;
+    const bridge = scope['orchtopus'];
     return {
       require: typeof scope['require'],
       process: typeof scope['process'],
       module: typeof scope['module'],
-      exposed: Object.keys(scope).filter((key) => /electron|ipc/i.test(key)),
+      exposed: Object.keys(scope).filter((key) => /electron|ipc|orchtopus/i.test(key)),
+      bridge: typeof bridge === 'object' && bridge !== null ? Object.keys(bridge).sort() : null,
     };
   });
   expect(globals).toEqual({
     require: 'undefined',
     process: 'undefined',
     module: 'undefined',
-    exposed: [],
+    exposed: ['orchtopus'],
+    bridge: ['connection', 'pickFolder'],
   });
+});
+
+test('the renderer reaches the local API and the event stream with the token', async () => {
+  const result = await page.evaluate(async () => {
+    const bridge = (window as unknown as { orchtopus: PreloadApi }).orchtopus;
+    const { baseUrl, token } = await bridge.connection();
+    const health = await fetch(`${baseUrl}/v1/health`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const withoutToken = await fetch(`${baseUrl}/v1/health`);
+    const first = await new Promise<unknown>((resolve, reject) => {
+      const socket = new WebSocket(`${baseUrl.replace('http:', 'ws:')}/v1/events`, [
+        'orchtopus.v1',
+        `orchtopus.token.${token}`,
+      ]);
+      socket.onmessage = (event: MessageEvent<string>) => {
+        socket.close();
+        resolve(JSON.parse(event.data));
+      };
+      socket.onerror = () => {
+        reject(new Error('event stream failed'));
+      };
+    });
+    return {
+      baseUrl,
+      health: (await health.json()) as unknown,
+      withoutToken: withoutToken.status,
+      first,
+    };
+  });
+  expect(result.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+  expect(result.health).toMatchObject({ apiVersion: 1 });
+  expect(result.withoutToken).toBe(401);
+  expect(result.first).toMatchObject({ v: 1, kind: 'snapshot', snapshot: { ready: false } });
+});
+
+test('keeps its files in the data folder and writes api.json', () => {
+  const written = JSON.parse(readFileSync(join(dataDir, 'api.json'), 'utf8')) as {
+    port: number;
+  };
+  expect(written.port).toBeGreaterThan(0);
+  expect(existsSync(join(dataDir, 'state.db'))).toBe(true);
+  expect(readFileSync(join(dataDir, 'api-token'), 'utf8')).toMatch(/^[0-9a-f]{64}$/);
+  expect(existsSync(join(dataDir, 'electron'))).toBe(true);
 });
 
 test('web preferences are hardened at runtime', async () => {

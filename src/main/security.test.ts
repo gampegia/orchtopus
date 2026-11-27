@@ -41,7 +41,8 @@ describe('CONTENT_SECURITY_POLICY', () => {
   it('is exactly the reviewed policy', () => {
     expect(CONTENT_SECURITY_POLICY).toBe(
       "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; " +
-        "font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; " +
+        "font-src 'self'; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*; " +
+        "base-uri 'none'; form-action 'none'; " +
         "object-src 'none'",
     );
   });
@@ -52,14 +53,16 @@ describe('CONTENT_SECURITY_POLICY', () => {
     expect(policy.get('style-src')).toEqual(["'self'"]);
     expect(policy.get('img-src')).toEqual(["'self'"]);
     expect(policy.get('font-src')).toEqual(["'self'"]);
-    expect(policy.get('connect-src')).toEqual(["'self'"]);
+    // The local API only: loopback on any port (the port is chosen at start).
+    expect(policy.get('connect-src')).toEqual(["'self'", 'http://127.0.0.1:*', 'ws://127.0.0.1:*']);
     expect(policy.get('object-src')).toEqual(["'none'"]);
     expect(policy.get('base-uri')).toEqual(["'none'"]);
     expect(policy.get('form-action')).toEqual(["'none'"]);
   });
 
-  it('contains no unsafe keyword, wildcard or remote source', () => {
-    expect(CONTENT_SECURITY_POLICY).not.toMatch(/unsafe-|\*|https?:|data:|blob:/);
+  it('contains no unsafe keyword, wildcard or remote source outside the loopback API', () => {
+    const rest = CONTENT_SECURITY_POLICY.replace(' http://127.0.0.1:* ws://127.0.0.1:*', '');
+    expect(rest).not.toMatch(/unsafe-|\*|https?:|wss?:|data:|blob:/);
   });
 });
 

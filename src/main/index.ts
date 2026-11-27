@@ -1,11 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { app, BrowserWindow, nativeTheme, protocol, session } from 'electron';
-import { APP_SCHEME } from '../shared/app-origin';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, session } from 'electron';
+import { APP_ORIGIN, APP_SCHEME } from '../shared/app-origin';
+import { createCoreRoutes } from './api/routes/core';
+import { DEFAULT_API_PORT, startApiServer, type ApiServer } from './api/server';
+import { createAppContext } from './app-context';
 import { APP_SCHEME_PRIVILEGES, createAppProtocolHandler } from './app-protocol';
+import { resolveDataPaths } from './data-folder';
+import { registerIpc } from './ipc';
 import { loadRenderer, resolveRendererTarget } from './load-renderer';
 import { denyAllPermissions, hardenWebContents } from './security';
 import { showMainWindow } from './show-window';
+import { openStore, type Store } from './store/event-log';
 import { createMainWindowOptions, pageBackgroundColor } from './window-options';
 
 const warn = (message: string): void => {
@@ -16,11 +22,17 @@ app.enableSandbox();
 // Must run before the app is ready.
 protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
 
+// All Orchtopus files live in the data folder, Electron's own profile included.
+const paths = resolveDataPaths({ env: process.env, appData: app.getPath('appData') });
+app.setPath('userData', paths.electronUserData);
+
 const renderer = resolveRendererTarget({
   packaged: app.isPackaged,
   rendererUrl: process.env['ELECTRON_RENDERER_URL'],
   warn,
 });
+// Browser origins allowed to call the local API and the IPC handlers.
+const allowedOrigins = renderer.devServer ? [APP_ORIGIN, renderer.origin] : [APP_ORIGIN];
 
 app.on('web-contents-created', (_event, contents) => {
   hardenWebContents(
@@ -29,6 +41,9 @@ app.on('web-contents-created', (_event, contents) => {
     warn,
   );
 });
+
+let store: Store | null = null;
+let api: ApiServer | null = null;
 
 function createMainWindow(): void {
   const window = new BrowserWindow(
@@ -57,14 +72,49 @@ function createMainWindow(): void {
   });
 }
 
+async function startServices(): Promise<void> {
+  const opened = openStore(paths.stateDb);
+  store = opened;
+  const ctx = createAppContext({ paths, store: opened });
+  const server = await startApiServer({
+    paths,
+    preferredPort: DEFAULT_API_PORT,
+    allowedOrigins,
+    routes: createCoreRoutes({ appVersion: app.getVersion(), snapshot: ctx.snapshot }),
+    snapshot: ctx.snapshot,
+    log: warn,
+  });
+  api = server;
+  ctx.attachPublisher(server.publish);
+  registerIpc({
+    ipcMain,
+    pickFolder: async (event) => {
+      const options = { properties: ['openDirectory' as const] };
+      const window = BrowserWindow.fromWebContents(event.sender);
+      const result = await (window === null
+        ? dialog.showOpenDialog(options)
+        : dialog.showOpenDialog(window, options));
+      return result.canceled ? null : (result.filePaths[0] ?? null);
+    },
+    allowedOrigins,
+    connection: () => ({
+      baseUrl: `http://127.0.0.1:${String(server.port)}`,
+      token: server.token(),
+    }),
+    log: warn,
+  });
+}
+
 app
   .whenReady()
-  .then(() => {
+  .then(async () => {
     denyAllPermissions(session.defaultSession);
     protocol.handle(
       APP_SCHEME,
       createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path), warn),
     );
+    // The API is up before the window loads, so the renderer can connect at once.
+    await startServices();
     createMainWindow();
   })
   .catch((error: unknown) => {
@@ -74,4 +124,23 @@ app
 
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+// Close the API (which deletes api.json) and the store before the process ends.
+let shutDown = false;
+app.on('before-quit', (event) => {
+  if (shutDown) return;
+  event.preventDefault();
+  shutDown = true;
+  const server = api;
+  api = null;
+  (server?.close() ?? Promise.resolve())
+    .catch((error: unknown) => {
+      console.error('Failed to close the local API:', error);
+    })
+    .finally(() => {
+      store?.close();
+      store = null;
+      app.quit();
+    });
 });

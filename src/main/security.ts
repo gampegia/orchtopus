@@ -12,7 +12,8 @@ export const CONTENT_SECURITY_POLICY = [
   "style-src 'self'",
   "img-src 'self'",
   "font-src 'self'",
-  "connect-src 'self'",
+  // The local API (src/main/api) listens on 127.0.0.1 on a port chosen at start.
+  "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*",
   "base-uri 'none'",
   "form-action 'none'",
   "object-src 'none'",
