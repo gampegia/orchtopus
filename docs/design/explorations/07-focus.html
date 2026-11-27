@@ -1,0 +1,1477 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchtopus · 07 Focus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500&family=Atkinson+Hyperlegible+Next:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------
+   Tokens. Components reference only these properties.
+   ------------------------------------------------------------------ */
+:root {
+  --font: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --fs-2xs: 12px;
+  --fs-xs: 13px;  --lh-xs: 18px;
+  --fs-sm: 14px;  --lh-sm: 20px;
+  --fs-base: 15px; --lh-base: 22px;
+  --fs-md: 16px;  --lh-md: 24px;
+  --fs-lg: 18px;  --lh-lg: 26px;
+  --fs-xl: 22px;  --lh-xl: 28px;
+  --fs-2xl: 24px; --lh-2xl: 32px;
+  --fw-regular: 400; --fw-medium: 500; --fw-strong: 600;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px;
+  --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+
+  --r-xs: 4px; --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-win: 10px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 140ms; --t-mid: 200ms; --t-slow: 320ms;
+
+  --win-w: 1440px; --win-h: 900px;
+  --content: 1120px; --content-narrow: 1000px;
+  --titlebar-h: 40px; --rail-h: 64px; --status-h: 28px;
+  --lamp: 10px;
+}
+
+:root[data-mode="dark"] {
+  --backdrop: #0b0b0a;
+  --bg: #161615;
+  --surface: #1e1e1c;
+  --raised: #272725;
+  --hover: #2e2e2c;
+  --sunken: #111110;
+  --line: rgba(236, 235, 232, 0.09);
+  --line-strong: rgba(236, 235, 232, 0.18);
+  --text: #ecebe8;
+  --text-2: #b3b1ab;
+  --muted: #9a9892;
+  --primary: #ecebe8;
+  --primary-hover: #ffffff;
+  --on-primary: #161615;
+  --focus: #ecebe8;
+  --shadow-win: 0 24px 64px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  --amber: #e9a640;  --amber-lamp: #e9a640;  --amber-tint: rgba(233, 166, 64, 0.07); --amber-line: rgba(233, 166, 64, 0.42);
+  --violet: #b9a0f2; --violet-lamp: #a88bef;
+  --green: #5cc28a;  --green-lamp: #5cc28a;  --green-tint: rgba(92, 194, 138, 0.06); --green-line: rgba(92, 194, 138, 0.40);
+  --red: #f06b63;    --red-lamp: #f06b63;    --red-tint: rgba(240, 107, 99, 0.08);  --red-line: rgba(240, 107, 99, 0.50); --red-fill: rgba(240, 107, 99, 0.26); --on-red: #161615;
+  --orange: #f08a4b; --orange-lamp: #f08a4b;
+  --blue: #6aa6f0;   --blue-lamp: #6aa6f0;
+  --idle-lamp: #6f6d68;
+}
+
+:root[data-mode="light"] {
+  --backdrop: #d9d8d4;
+  --bg: #f4f3f0;
+  --surface: #ffffff;
+  --raised: #ecebe7;
+  --hover: #e4e3de;
+  --sunken: #fafaf8;
+  --line: rgba(28, 27, 25, 0.10);
+  --line-strong: rgba(28, 27, 25, 0.20);
+  --text: #1c1b19;
+  --text-2: #4d4b46;
+  --muted: #64625d;
+  --primary: #1c1b19;
+  --primary-hover: #34332f;
+  --on-primary: #ffffff;
+  --focus: #1c1b19;
+  --shadow-win: 0 24px 64px rgba(0, 0, 0, 0.16);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --highlight: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  --amber: #8a5800;  --amber-lamp: #d4900f;  --amber-tint: rgba(212, 144, 15, 0.08); --amber-line: rgba(176, 116, 6, 0.45);
+  --violet: #6a47c2; --violet-lamp: #7f5fd6;
+  --green: #1f7a47;  --green-lamp: #2a9a5c;  --green-tint: rgba(42, 154, 92, 0.07); --green-line: rgba(31, 122, 71, 0.40);
+  --red: #b8322a;    --red-lamp: #d2453b;    --red-tint: rgba(210, 69, 59, 0.07);  --red-line: rgba(184, 50, 42, 0.50); --red-fill: rgba(210, 69, 59, 0.20); --on-red: #ffffff;
+  --orange: #a8501a; --orange-lamp: #d9702f;
+  --blue: #2a62b8;   --blue-lamp: #3a78d4;
+  --idle-lamp: #a3a19b;
+}
+
+/* ------------------------------------------------------------------
+   Page, control bar, window frame
+   ------------------------------------------------------------------ */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--backdrop);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+code, kbd, pre, .mono { font-family: var(--mono); }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-sm); }
+
+.ctrl {
+  position: fixed; top: var(--s-2); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--s-1);
+  padding: var(--s-1); border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--bg); color: var(--muted); font-size: var(--fs-xs); line-height: var(--lh-xs);
+  z-index: 20;
+}
+.ctrl-label { padding: 0 var(--s-2); }
+.ctrl button {
+  min-width: 28px; height: 24px; padding: 0 var(--s-2);
+  border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-2);
+  font-size: var(--fs-xs);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.ctrl button:hover { background: var(--raised); color: var(--text); }
+.ctrl button[aria-pressed="true"] { background: var(--raised); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.ctrl-sep { width: 1px; height: 16px; background: var(--line-strong); margin: 0 var(--s-1); }
+
+.stage { position: fixed; inset: 48px 0 0 0; }
+.window {
+  position: absolute; left: 50%; top: 50%;
+  width: var(--win-w); height: var(--win-h);
+  transform: translate(-50%, -50%) scale(var(--scale, 1));
+  transform-origin: center center;
+  display: grid; grid-template-rows: var(--titlebar-h) var(--rail-h) 1fr var(--status-h);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-win);
+  box-shadow: var(--shadow-win);
+  overflow: hidden;
+}
+
+/* Icons */
+.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.i-18 { width: 18px; height: 18px; }
+
+/* Title bar */
+.titlebar { display: flex; align-items: center; padding-left: var(--s-4); gap: var(--s-2); color: var(--text-2); font-size: var(--fs-sm); }
+.wordmark { color: var(--text); font-weight: var(--fw-strong); font-size: var(--fs-sm); }
+.titlebar .spacer { flex: 1; }
+.winctl { display: flex; height: 100%; }
+.winctl span { width: 46px; display: grid; place-items: center; color: var(--muted); }
+
+/* ------------------------------------------------------------------
+   Session rail
+   ------------------------------------------------------------------ */
+.rail {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: 0 var(--s-6);
+  border-bottom: 1px solid var(--line);
+}
+.rail-group { display: flex; align-items: center; gap: var(--s-2); }
+.rail-group + .rail-group { margin-left: var(--s-4); padding-left: var(--s-4); border-left: 1px solid var(--line); }
+.rail-project { color: var(--muted); font-size: var(--fs-xs); margin-right: var(--s-1); }
+.chip {
+  display: grid; grid-template-columns: var(--lamp) auto; column-gap: var(--s-2); align-items: center;
+  height: 52px; padding: 0 var(--s-4) 0 var(--s-3);
+  border: 1px solid transparent; border-radius: var(--r-md);
+  background: transparent; text-align: left;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.chip:hover { background: var(--raised); }
+.chip[aria-current="true"] { background: var(--surface); border-color: var(--line-strong); box-shadow: var(--highlight); }
+.chip .lamp { grid-row: 1 / span 2; }
+.chip-name { font-size: var(--fs-base); line-height: 20px; font-weight: var(--fw-medium); color: var(--text); }
+.chip-state { font-size: var(--fs-xs); line-height: var(--lh-xs); color: var(--muted); }
+.rail .spacer { flex: 1; }
+.rail-tool {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  height: 36px; padding: 0 var(--s-3);
+  border: 1px solid transparent; border-radius: var(--r-md); background: transparent; color: var(--text-2);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.rail-tool:hover { background: var(--raised); color: var(--text); }
+.rail-tool[aria-current="true"] { background: var(--surface); border-color: var(--line-strong); color: var(--text); }
+.count { font-family: var(--mono); font-size: var(--fs-xs); color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Lamp: the signature. Filled = state colour. A ring around it = it waits for you. */
+.lamp {
+  width: var(--lamp); height: var(--lamp); border-radius: 50%; flex: none;
+  background: var(--idle-lamp);
+}
+.lamp[data-tone="idle"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--idle-lamp); }
+.lamp[data-tone="amber"] { background: var(--amber-lamp); --ring: var(--amber-lamp); }
+.lamp[data-tone="violet"] { background: var(--violet-lamp); --ring: var(--violet-lamp); }
+.lamp[data-tone="green"] { background: var(--green-lamp); --ring: var(--green-lamp); }
+.lamp[data-tone="red"] { background: var(--red-lamp); --ring: var(--red-lamp); }
+.lamp[data-tone="orange"] { background: var(--orange-lamp); --ring: var(--orange-lamp); }
+.lamp[data-tone="blue"] { background: var(--blue-lamp); }
+.lamp[data-wait] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--ring); }
+.chip[aria-current="true"] .lamp[data-wait] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ring); }
+
+.t-amber { color: var(--amber); }
+.t-violet { color: var(--violet); }
+.t-green { color: var(--green); }
+.t-red { color: var(--red); }
+.t-orange { color: var(--orange); }
+.t-blue { color: var(--blue); }
+.t-muted, .muted { color: var(--muted); }
+.t-2 { color: var(--text-2); }
+
+/* ------------------------------------------------------------------
+   Main area and shared components
+   ------------------------------------------------------------------ */
+.main { overflow: auto; padding: var(--s-4) var(--s-8) var(--s-4); }
+.screen { max-width: var(--content); margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+.screen.narrow { max-width: var(--content-narrow); }
+.screen.fill { height: 100%; min-height: 0; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  height: 40px; padding: 0 var(--s-4);
+  border: 1px solid transparent; border-radius: var(--r-md);
+  background: transparent; color: var(--text-2);
+  font-size: var(--fs-base); font-weight: var(--fw-medium); white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { height: 44px; padding: 0 var(--s-5); background: var(--primary); color: var(--on-primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-quiet:hover, .btn-ghost:hover { background: var(--raised); color: var(--text); }
+.btn-secondary { background: var(--raised); color: var(--text); border-color: var(--line); }
+.btn-secondary:hover { background: var(--hover); }
+.btn-sm { height: 32px; padding: 0 var(--s-3); font-size: var(--fs-sm); }
+.icon-btn {
+  width: 36px; height: 36px; display: inline-grid; place-items: center;
+  border: 1px solid transparent; border-radius: var(--r-md); background: transparent; color: var(--text-2);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.icon-btn:hover { background: var(--raised); color: var(--text); }
+
+kbd {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 var(--s-1);
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: var(--r-xs);
+  font-size: var(--fs-2xs); line-height: 1; color: var(--text-2); background: var(--surface);
+}
+.btn-primary kbd { background: transparent; color: var(--on-primary); border-color: currentColor; opacity: 0.75; }
+
+/* Session header */
+.s-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-6); min-height: 40px; }
+.s-id { display: flex; align-items: baseline; gap: var(--s-4); min-width: 0; }
+.s-name { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-xl); font-weight: var(--fw-medium); }
+.branch { font-size: var(--fs-sm); color: var(--text-2); }
+.s-state { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); align-self: center; }
+.s-tools { display: flex; align-items: center; gap: var(--s-1); }
+.s-tools .btn { height: 36px; padding: 0 var(--s-3); font-size: var(--fs-sm); }
+.tool-sep { width: 1px; height: 20px; background: var(--line-strong); margin: 0 var(--s-2); }
+.tool-label { font-size: var(--fs-sm); color: var(--muted); margin-right: var(--s-1); }
+
+/* Summary line, expands on demand */
+.sumline { margin-top: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); }
+.sum-btn {
+  width: 100%; display: flex; align-items: center; gap: var(--s-4);
+  height: 40px; padding: 0 var(--s-2) 0 var(--s-4);
+  border: 0; border-radius: var(--r-md); background: transparent; text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.sum-btn:hover { background: var(--raised); }
+.sum-main { display: inline-flex; align-items: center; gap: var(--s-3); color: var(--text); font-size: var(--fs-sm); white-space: nowrap; }
+.sum-rest { flex: 1; min-width: 0; color: var(--text-2); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sum-more { display: inline-flex; align-items: center; gap: var(--s-1); height: 28px; padding: 0 var(--s-2); color: var(--text-2); font-size: var(--fs-sm); }
+.sum-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.chev { transition: transform var(--t-mid) var(--ease); }
+.bar { position: relative; width: 72px; height: 6px; border-radius: 3px; background: var(--raised); overflow: hidden; flex: none; }
+.bar > i { position: absolute; inset: 0 auto 0 0; width: var(--v); border-radius: 3px; background: var(--text-2); }
+.bar.wide { width: 100%; }
+.num { font-variant-numeric: tabular-nums; }
+
+.sum-detail {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: var(--s-6);
+  padding: var(--s-4) var(--s-4) var(--s-5); border-top: 1px solid var(--line);
+}
+.sum-detail h3 { margin: 0 0 var(--s-2); font-size: var(--fs-xs); line-height: var(--lh-xs); font-weight: var(--fw-regular); color: var(--muted); }
+.sum-detail p { margin: 0; font-size: var(--fs-sm); line-height: var(--lh-sm); }
+.sum-detail .bar { margin-top: var(--s-2); }
+.phases { display: flex; gap: var(--s-2); margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+.phases li { display: inline-flex; align-items: center; gap: var(--s-2); height: 28px; padding: 0 var(--s-3) 0 var(--s-2); border-radius: var(--r-sm); background: var(--raised); font-size: var(--fs-sm); color: var(--text-2); }
+.phases li[data-st="run"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); }
+.phases li[data-st="open"] { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.phases .lamp { width: 8px; height: 8px; margin: 0 var(--s-1); }
+
+/* Decision sheet: the one dominant element on a session screen */
+.sheet {
+  margin-top: var(--s-4);
+  padding: var(--s-5) var(--s-8);
+  border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--highlight);
+}
+.sheet[data-tone="amber"] { border-color: var(--amber-line); background: linear-gradient(var(--amber-tint), var(--amber-tint)), var(--surface); }
+.sheet[data-tone="red"] { border-color: var(--red-line); background: linear-gradient(var(--red-tint), var(--red-tint)), var(--surface); }
+.sheet[data-tone="green"] { border-color: var(--green-line); background: linear-gradient(var(--green-tint), var(--green-tint)), var(--surface); }
+.sheet-meta { display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+.sheet-meta .sig { font-weight: var(--fw-medium); }
+.sheet-meta .t-2 { margin-left: var(--s-1); }
+.sheet-title { margin: var(--s-2) 0 0; font-size: var(--fs-2xl); line-height: var(--lh-2xl); font-weight: var(--fw-medium); }
+.cmd {
+  display: flex; align-items: center; gap: var(--s-3);
+  margin-top: var(--s-3); padding: 0 var(--s-4) 0 var(--s-5); height: 48px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--sunken);
+  font-family: var(--mono); font-size: var(--fs-md); color: var(--text);
+}
+.cmd-prompt { color: var(--muted); }
+.cmd .icon-btn { margin-left: auto; width: 32px; height: 32px; }
+.sheet-why { margin: var(--s-3) 0 0; max-width: 860px; font-size: var(--fs-md); line-height: var(--lh-md); color: var(--text); }
+.sheet-why code { font-size: 0.94em; }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-3) 0 0; padding: 0; list-style: none; }
+.facts li { height: 28px; display: inline-flex; align-items: center; padding: 0 var(--s-3); border-radius: var(--r-sm); border: 1px solid var(--line-strong); font-size: var(--fs-sm); color: var(--text-2); }
+.actions { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-4); }
+.actions .push { flex: 1; }
+.hint { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); color: var(--muted); }
+
+/* Hold to allow once */
+.hold {
+  position: relative; overflow: hidden;
+  height: 44px; padding: 0 var(--s-5);
+  display: inline-flex; align-items: center; gap: var(--s-3);
+  border: 1.5px solid var(--red); border-radius: var(--r-md);
+  background: var(--surface); color: var(--red);
+  font-size: var(--fs-base); font-weight: var(--fw-medium);
+  user-select: none; touch-action: none;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.hold::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--red-fill);
+  transform-origin: left center; transform: scaleX(var(--p, 0));
+  transition: transform var(--t-mid) var(--ease);
+}
+.hold.holding::before { transition: none; }
+.hold > * { position: relative; }
+.hold .secs { font-size: var(--fs-xs); color: var(--text-2); }
+.hold:active { transform: scale(0.98); }
+.hold[data-state="done"] { background: var(--red); color: var(--on-red); }
+.hold[data-state="done"]::before { opacity: 0; }
+.hold[data-state="done"] .secs { color: var(--on-red); }
+
+/* Next strip */
+.next { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-3); min-height: 36px; padding: 0 var(--s-2); font-size: var(--fs-sm); }
+.next-label { color: var(--text-2); font-weight: var(--fw-medium); }
+.next-item {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  height: 32px; padding: 0 var(--s-3);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: transparent; color: var(--text);
+  font-size: var(--fs-sm);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.next-item:hover { background: var(--raised); }
+.next-item .lamp { width: 8px; height: 8px; margin-right: var(--s-1); }
+.next-item .t-2 { margin-left: var(--s-1); }
+.next-rest { margin-left: auto; color: var(--muted); }
+
+/* Terminal, dimmed while a decision waits */
+.term {
+  flex: 1; min-height: 140px; margin-top: var(--s-3);
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--sunken); overflow: hidden;
+}
+.term-head { display: flex; align-items: center; gap: var(--s-3); height: 40px; padding: 0 var(--s-2) 0 var(--s-5); border-bottom: 1px solid var(--line); font-size: var(--fs-sm); color: var(--text-2); }
+.term-head .push { flex: 1; }
+.term-body { margin: 0; padding: var(--s-3) var(--s-5); font-size: var(--fs-sm); line-height: 22px; color: var(--text-2); white-space: pre; overflow: auto; flex: 1; }
+.term-body .tool { color: var(--text-2); }
+.term-body .dim { color: var(--muted); }
+.term-body .now { color: var(--text); }
+
+/* Dock: one input line at the bottom that opens upward */
+.dock { position: relative; margin-top: var(--s-3); }
+.dock-bar {
+  display: flex; align-items: center; gap: var(--s-3);
+  height: 48px; padding: 0 var(--s-2) 0 var(--s-4);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface);
+}
+.dock-bar:focus-within { border-color: var(--focus); }
+.dock-bar input { flex: 1; height: 100%; border: 0; background: transparent; outline: none; font-size: var(--fs-base); color: var(--text); }
+.dock-bar input::placeholder { color: var(--muted); }
+.dock-note { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.pet { display: inline-grid; place-items: center; width: 24px; height: 24px; color: var(--text-2); }
+.pet svg { width: 24px; height: 20px; }
+.dock-panel {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + var(--s-2));
+  max-height: 360px; overflow: auto;
+  padding: var(--s-5) var(--s-6);
+  border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+  background: var(--surface); box-shadow: var(--shadow-pop);
+  animation: rise var(--t-mid) var(--ease);
+  z-index: 5;
+}
+.dock-panel h3 { margin: 0; font-size: var(--fs-base); font-weight: var(--fw-medium); }
+.dock-panel p { margin: var(--s-1) 0 0; color: var(--text-2); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+.dock-panel .panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); }
+.suggest { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-4); }
+.msgs { display: grid; gap: var(--s-4); margin-top: var(--s-4); }
+.msg { display: grid; grid-template-columns: 72px 1fr; gap: var(--s-3); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+.msg .who { color: var(--muted); }
+.msg .body { color: var(--text); max-width: 720px; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Folds: summary rows that expand */
+.folds { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-2); margin-top: var(--s-3); }
+.fold { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--bg); }
+.fold-head { display: flex; align-items: center; gap: var(--s-2); min-height: 44px; padding-right: var(--s-2); }
+.fold-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s-3);
+  height: 42px; padding: 0 var(--s-3) 0 var(--s-4);
+  border: 0; border-radius: var(--r-md); background: transparent; text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.fold-toggle:hover { background: var(--raised); }
+.fold-toggle .i { color: var(--muted); }
+.fold-title { width: 150px; flex: none; font-weight: var(--fw-medium); color: var(--text); }
+.fold-sum { flex: 1; min-width: 0; color: var(--text-2); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.fold-head .btn { height: 32px; padding: 0 var(--s-3); font-size: var(--fs-sm); }
+.fold-head .btn .i { color: var(--muted); }
+.fold-body { padding: var(--s-2) var(--s-5) var(--s-5) 46px; border-top: 1px solid var(--line); }
+
+.gate-list { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2) var(--s-8); margin: var(--s-3) 0 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+.gate-list li { display: flex; align-items: center; gap: var(--s-2); min-height: 28px; }
+.gate-list .i { color: var(--muted); }
+.gate-list .ok .i { color: var(--green); }
+.gate-list .state { margin-left: auto; color: var(--text-2); }
+.task-list { columns: 3; column-gap: var(--s-8); margin: var(--s-3) 0 0; padding-left: 28px; font-size: var(--fs-sm); line-height: 26px; color: var(--text-2); }
+.task-list li::marker { color: var(--muted); font-variant-numeric: tabular-nums; }
+.council { display: grid; grid-template-columns: 180px 120px 1fr; gap: var(--s-2) var(--s-4); margin-top: var(--s-3); font-size: var(--fs-sm); align-items: baseline; }
+.council .role { color: var(--text); }
+.council .verdict { color: var(--text-2); }
+.council ul { margin: 0; padding-left: 18px; color: var(--text-2); }
+.checks { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin-top: var(--s-3); font-size: var(--fs-sm); color: var(--text-2); }
+.checks span { display: inline-flex; align-items: center; gap: var(--s-2); }
+.checks .i { color: var(--green); }
+
+/* PR draft form */
+.field-label { display: block; font-size: var(--fs-xs); line-height: var(--lh-xs); color: var(--muted); margin-bottom: var(--s-1); }
+.input {
+  width: 100%; height: 44px; padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--sunken);
+  font-family: var(--mono); font-size: var(--fs-md); color: var(--text);
+}
+.input:focus { outline: none; border-color: var(--focus); }
+.pr-row { display: flex; align-items: flex-end; gap: var(--s-6); margin-top: var(--s-4); }
+.pr-row .grow { flex: 1; }
+.select {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  height: 40px; min-width: 160px; padding: 0 var(--s-3) 0 var(--s-4);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface); color: var(--text);
+  font-size: var(--fs-sm);
+}
+.select .i { color: var(--muted); }
+.check { display: inline-flex; align-items: center; gap: var(--s-2); height: 40px; font-size: var(--fs-sm); color: var(--text); cursor: pointer; }
+.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
+.desc {
+  display: block; width: 100%; height: 96px; margin-top: 0; padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--sunken);
+  font-family: var(--mono); font-size: var(--fs-sm); line-height: 22px; color: var(--text); resize: none;
+}
+.desc:focus { outline: none; border-color: var(--focus); }
+.desc-wrap { margin-top: var(--s-4); }
+.desc-head { display: flex; align-items: baseline; justify-content: space-between; }
+
+/* Review header */
+.rv-head { display: flex; align-items: center; gap: var(--s-4); }
+.rv-head .grow { flex: 1; min-width: 0; }
+.rv-head h1 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-xl); font-weight: var(--fw-medium); }
+.rv-sub { margin: var(--s-1) 0 0; font-size: var(--fs-sm); color: var(--text-2); }
+.rv-sub code { color: var(--text); }
+
+/* Settings */
+.set-head { display: flex; align-items: center; gap: var(--s-4); }
+.set-head .grow { flex: 1; }
+.set-head h1 { margin: 0; font-size: var(--fs-xl); line-height: var(--lh-xl); font-weight: var(--fw-medium); }
+.set-head p { margin: 0; padding-top: 2px; font-size: var(--fs-sm); color: var(--text-2); }
+.set-row { display: flex; align-items: center; gap: var(--s-4); }
+.set-row-label { width: 112px; font-size: var(--fs-sm); color: var(--text-2); }
+.set-row .applies { margin: 0 0 0 auto; }
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 var(--s-2); margin-left: var(--s-2); border: 1px solid var(--line-strong); border-radius: var(--r-xs); font-size: var(--fs-2xs); color: var(--text-2); white-space: nowrap; }
+.fold-sum .tag { margin-left: var(--s-2); }
+.fold-sum kbd { margin: 0 var(--s-1); height: 20px; min-width: 20px; }
+.set-block + .set-block { margin-top: var(--s-4); }
+.set-block > .field-label { margin-bottom: var(--s-2); }
+.seg { display: inline-flex; padding: var(--s-1); gap: var(--s-1); border-radius: var(--r-md); background: var(--raised); }
+.seg button {
+  height: 36px; padding: 0 var(--s-4); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-2); font-size: var(--fs-sm);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.variants { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
+.variant {
+  display: grid; gap: var(--s-2); padding: var(--s-3); text-align: left;
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface);
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+.variant:hover { background: var(--raised); }
+.variant[aria-pressed="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.variant-name { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-sm); color: var(--text); font-weight: var(--fw-medium); }
+.variant-name .muted { font-weight: var(--fw-regular); font-size: var(--fs-xs); }
+.variant-desc { font-size: var(--fs-xs); line-height: var(--lh-xs); color: var(--text-2); }
+.pv { height: 44px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--bg); padding: 6px; display: grid; gap: 4px; }
+.pv i { display: block; border-radius: 2px; background: var(--raised); }
+.pv i.hi { background: var(--line-strong); }
+.pv-focus { grid-template-rows: 8px 1fr 10px; }
+.pv-focus .top { display: flex; gap: 4px; }
+.pv-focus .top i { width: 22px; height: 8px; }
+.pv-focus .top i.hi { background: var(--amber-lamp); }
+.pv-classic { grid-template-columns: 22% 1fr 26%; }
+.pv-classic .col { display: grid; gap: 3px; align-content: start; }
+.pv-classic .col i { height: 6px; }
+.pv-compact { grid-template-columns: 1fr; align-content: start; gap: 3px; }
+.pv-compact i { height: 5px; }
+.applies { display: inline-flex; align-items: center; gap: var(--s-2); margin-top: var(--s-4); font-size: var(--fs-sm); color: var(--text-2); }
+.applies .i { color: var(--green); }
+.meters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-8); margin-top: var(--s-3); }
+.meter-top { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--fs-sm); }
+.meter-top strong { font-weight: var(--fw-medium); font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.meter-track { position: relative; height: 8px; margin-top: var(--s-2); border-radius: 4px; background: var(--raised); }
+.meter-track > i { position: absolute; inset: 0 auto 0 0; width: var(--v); border-radius: 4px; background: var(--text-2); }
+.meter-track > b { position: absolute; top: -4px; bottom: -4px; width: 2px; left: var(--at); background: var(--muted); border-radius: 1px; }
+.thresholds { display: grid; gap: var(--s-2); margin-top: var(--s-4); }
+.threshold { display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-sm); }
+.threshold .select { min-width: 88px; height: 32px; }
+.models { display: grid; grid-template-columns: 1fr 140px 140px; gap: var(--s-1) var(--s-3); margin-top: var(--s-3); align-items: center; font-size: var(--fs-sm); }
+.models .head { color: var(--muted); font-size: var(--fs-xs); }
+.models .select { height: 32px; min-width: 0; }
+
+/* Window status bar */
+.status { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-6); border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--muted); }
+.status .push { flex: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M9 10h6"/><path d="M12 13V7"/><path d="M9 17h6"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="1"/></symbol>
+</svg>
+
+<!-- Control bar, outside the window frame -->
+<div class="ctrl" role="toolbar" aria-label="Exploration controls">
+  <span class="ctrl-label">07 Focus</span>
+  <span class="ctrl-sep"></span>
+  <span class="ctrl-label">Screen</span>
+  <button type="button" data-screen-btn="1" title="Permission request (key 1)">1</button>
+  <button type="button" data-screen-btn="2" title="Dangerous command (key 2)">2</button>
+  <button type="button" data-screen-btn="3" title="Review and PR draft (key 3)">3</button>
+  <button type="button" data-screen-btn="4" title="Settings (key 4)">4</button>
+  <span class="ctrl-sep"></span>
+  <button type="button" data-mode-btn="light">Light</button>
+  <button type="button" data-mode-btn="dark">Dark</button>
+  <span class="ctrl-label">D toggles</span>
+</div>
+
+<div class="stage">
+<div class="window" id="win">
+
+  <div class="titlebar">
+    <span class="wordmark">Orchtopus</span>
+    <span class="spacer"></span>
+    <div class="winctl" aria-hidden="true">
+      <span><svg class="i"><use href="#i-minus"/></svg></span>
+      <span><svg class="i"><use href="#i-square"/></svg></span>
+      <span><svg class="i"><use href="#i-x"/></svg></span>
+    </div>
+  </div>
+
+  <nav class="rail" id="rail" aria-label="Sessions"></nav>
+
+  <main class="main" id="main">
+
+    <!-- ============================================================
+         Screen 1: permission request, report-export
+         ============================================================ -->
+    <section class="screen fill" data-screen="1" aria-label="Session report-export">
+      <header class="s-head">
+        <div class="s-id">
+          <h1 class="s-name">report-export</h1>
+          <code class="branch">feat/report-export</code>
+          <span class="s-state"><span class="lamp" data-tone="amber" data-wait></span><span class="t-amber">Needs you · permission</span></span>
+        </div>
+        <div class="s-tools">
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-pause"/></svg>Pause</button>
+          <span class="tool-sep"></span>
+          <span class="tool-label">Open in</span>
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-folder"/></svg>Explorer</button>
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-code"/></svg>VS Code</button>
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+        </div>
+      </header>
+
+      <div class="sumline">
+        <button class="sum-btn" type="button" aria-expanded="false" aria-controls="d1" data-toggle>
+          <span class="sum-main"><span class="bar" style="--v:80%"><i></i></span><span class="num">Task 12 of 15</span><span>Normalise date ranges</span></span>
+          <span class="sum-rest">Execute phase · 1 subagent active · Git 5 ahead, 0 behind <code>develop</code> · Context 41 % used</span>
+          <span class="sum-more">Details<svg class="i chev"><use href="#i-chev-down"/></svg></span>
+        </button>
+        <div class="sum-detail" id="d1" hidden>
+          <div>
+            <h3>Workflow</h3>
+            <ol class="phases">
+              <li data-st="done"><svg class="i"><use href="#i-check"/></svg>Brainstorm</li>
+              <li data-st="done"><svg class="i"><use href="#i-check"/></svg>Spec</li>
+              <li data-st="done"><svg class="i"><use href="#i-check"/></svg>Plan</li>
+              <li data-st="run"><span class="lamp" data-tone="blue"></span>Execute <span class="t-blue">running</span></li>
+              <li data-st="open"><svg class="i"><use href="#i-circle"/></svg>Review</li>
+              <li data-st="open"><svg class="i"><use href="#i-circle"/></svg>Finish</li>
+            </ol>
+          </div>
+          <div>
+            <h3>Subagents</h3>
+            <p>1 active, implementer</p>
+          </div>
+          <div>
+            <h3>Git</h3>
+            <p class="num">5 ahead, 0 behind <code>develop</code></p>
+          </div>
+          <div>
+            <h3>Context</h3>
+            <p class="num">41 % used</p>
+            <span class="bar wide" style="--v:41%"><i></i></span>
+          </div>
+        </div>
+      </div>
+
+      <article class="sheet" data-tone="amber" aria-labelledby="s1-title">
+        <div class="sheet-meta">
+          <span class="lamp" data-tone="amber" data-wait></span>
+          <span class="sig t-amber">Permission</span>
+          <span class="t-2">Waiting 1 min. Falls back to the terminal prompt in 9 min.</span>
+        </div>
+        <h2 class="sheet-title" id="s1-title">Bash command needs permission</h2>
+        <div class="cmd"><span class="cmd-prompt">$</span><code>npm install csv-parse@5.6.0 --save</code>
+          <button class="icon-btn" type="button" aria-label="Copy command"><svg class="i"><use href="#i-copy"/></svg></button>
+        </div>
+        <p class="sheet-why">Downloads csv-parse 5.6.0 from the npm registry and adds it to package.json. The package can run install scripts, and only this worktree is affected.</p>
+        <ul class="facts" aria-label="Facts">
+          <li>Network</li>
+          <li>Changes package.json</li>
+          <li>Install scripts</li>
+        </ul>
+        <div class="actions">
+          <button class="btn btn-primary" type="button" data-allow>Allow once <kbd>A</kbd></button>
+          <button class="btn btn-quiet" type="button">Deny <kbd>Esc</kbd></button>
+          <span class="push"></span>
+          <button class="btn btn-quiet" type="button">Always allow in this project</button>
+          <button class="btn btn-quiet" type="button" data-open-dock><svg class="i"><use href="#i-message"/></svg>Ask the advisor</button>
+        </div>
+      </article>
+
+      <div class="next" aria-label="What waits next">
+        <span class="next-label">Then</span>
+        <button class="next-item" type="button"><span class="lamp" data-tone="green" data-wait></span>image-resize<span class="t-2">PR draft</span></button>
+        <span class="next-rest">upload-fix and i18n-de keep running. changelog is idle.</span>
+      </div>
+
+      <section class="term" aria-label="Terminal of report-export">
+        <div class="term-head">
+          <svg class="i"><use href="#i-terminal"/></svg>
+          <span>Terminal</span>
+          <span class="muted">Paused on the request above</span>
+          <span class="push"></span>
+          <button class="btn btn-quiet btn-sm" type="button">Answer in terminal</button>
+        </div>
+<pre class="term-body"><span class="dim">&gt; Continue with task 12 of 15: Normalise date ranges</span>
+<span class="tool">● Skill(superpowers:executing-plans)</span>
+<span class="dim">  └ Loaded plan, task 12 of 15</span>
+<span class="tool">● Task(implementer: Normalise date ranges)</span>
+<span class="dim">  └ 1 subagent active · edited src/export/date-range.ts (+38 −12)</span>
+<span class="tool">● Bash(npm install csv-parse@5.6.0 --save)</span>
+<span class="now">  └ <span class="t-amber">Waiting for permission</span></span></pre>
+      </section>
+
+      <div class="dock" data-dock>
+        <div class="dock-panel" hidden data-dock-panel>
+          <div class="panel-head">
+            <div>
+              <h3>Side chat for report-export</h3>
+              <p>Read-only. It sees this session's terminal, plan and Git state. It cannot run commands or answer the request.</p>
+            </div>
+            <button class="icon-btn" type="button" aria-label="Close side chat" data-close-dock><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="suggest">
+            <button class="btn btn-secondary btn-sm" type="button">Why does it need csv-parse?</button>
+            <button class="btn btn-secondary btn-sm" type="button">What changed in task 12?</button>
+            <button class="btn btn-secondary btn-sm" type="button">How much is left?</button>
+          </div>
+        </div>
+        <label class="dock-bar">
+          <span class="pet" title="Orchtopus pet" data-pet></span>
+          <input type="text" placeholder="Ask about this session" aria-label="Ask about this session" data-dock-input>
+          <span class="dock-note">Read-only helper</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Screen 2: dangerous command, i18n-de
+         ============================================================ -->
+    <section class="screen fill" data-screen="2" aria-label="Session i18n-de" hidden>
+      <header class="s-head">
+        <div class="s-id">
+          <h1 class="s-name">i18n-de</h1>
+          <code class="branch">chore/i18n-de</code>
+          <span class="s-state"><span class="lamp" data-tone="red" data-wait></span><span class="t-red">Needs you · dangerous command</span></span>
+        </div>
+        <div class="s-tools">
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-pause"/></svg>Pause</button>
+          <span class="tool-sep"></span>
+          <span class="tool-label">Open in</span>
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-folder"/></svg>Explorer</button>
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-code"/></svg>VS Code</button>
+          <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-terminal"/></svg>Terminal</button>
+        </div>
+      </header>
+
+      <div class="sumline">
+        <button class="sum-btn" type="button" aria-expanded="false" aria-controls="d2" data-toggle>
+          <span class="sum-main"><span class="bar" style="--v:33%"><i></i></span><span class="num">Task 2 of 6</span><span>Add the German locale file</span></span>
+          <span class="sum-rest">Execute phase · No subagents · Git 4 ahead, 0 behind <code>develop</code> · Context 23 % used</span>
+          <span class="sum-more">Details<svg class="i chev"><use href="#i-chev-down"/></svg></span>
+        </button>
+        <div class="sum-detail" id="d2" hidden>
+          <div>
+            <h3>Workflow</h3>
+            <ol class="phases">
+              <li data-st="done"><svg class="i"><use href="#i-check"/></svg>Brainstorm</li>
+              <li data-st="done"><svg class="i"><use href="#i-check"/></svg>Spec</li>
+              <li data-st="done"><svg class="i"><use href="#i-check"/></svg>Plan</li>
+              <li data-st="run"><span class="lamp" data-tone="blue"></span>Execute <span class="t-blue">running</span></li>
+              <li data-st="open"><svg class="i"><use href="#i-circle"/></svg>Review</li>
+              <li data-st="open"><svg class="i"><use href="#i-circle"/></svg>Finish</li>
+            </ol>
+          </div>
+          <div>
+            <h3>Subagents</h3>
+            <p>None active</p>
+          </div>
+          <div>
+            <h3>Git</h3>
+            <p class="num">4 ahead, 0 behind <code>develop</code></p>
+          </div>
+          <div>
+            <h3>Context</h3>
+            <p class="num">23 % used</p>
+            <span class="bar wide" style="--v:23%"><i></i></span>
+          </div>
+        </div>
+      </div>
+
+      <article class="sheet" data-tone="red" aria-labelledby="s2-title">
+        <div class="sheet-meta">
+          <span class="lamp" data-tone="red" data-wait></span>
+          <span class="sig t-red">Danger</span>
+          <span class="t-2" data-hold-status>Waiting for you. Nothing runs until you decide.</span>
+        </div>
+        <h2 class="sheet-title" id="s2-title">Dangerous command</h2>
+        <div class="cmd"><span class="cmd-prompt">$</span><code>git push --force origin chore/i18n-de</code>
+          <button class="icon-btn" type="button" aria-label="Copy command"><svg class="i"><use href="#i-copy"/></svg></button>
+        </div>
+        <p class="sheet-why">Replaces the remote branch with your local one, so commits that exist only on the remote are lost. <code>main</code> and <code>develop</code> are not touched.</p>
+        <ul class="facts" aria-label="Facts">
+          <li>Force push</li>
+          <li>Rewrites remote branch</li>
+        </ul>
+        <div class="actions">
+          <button class="hold" type="button" data-hold aria-describedby="hold-hint"><span data-hold-label>Hold to allow once</span><span class="secs">press 1 s</span></button>
+          <button class="btn btn-quiet" type="button">Deny <kbd>Esc</kbd></button>
+          <span class="push"></span>
+          <span class="hint" id="hold-hint"><svg class="i"><use href="#i-lock"/></svg>Not available by hotkey or remote</span>
+          <button class="btn btn-quiet" type="button" data-open-dock><svg class="i"><use href="#i-message"/></svg>Ask the advisor</button>
+        </div>
+      </article>
+
+      <div class="next" aria-label="What waits next">
+        <span class="next-label">Then</span>
+        <button class="next-item" type="button" data-go="1"><span class="lamp" data-tone="amber" data-wait></span>report-export<span class="t-2">permission</span></button>
+        <button class="next-item" type="button"><span class="lamp" data-tone="green" data-wait></span>image-resize<span class="t-2">PR draft</span></button>
+        <span class="next-rest">upload-fix keeps running. changelog is idle.</span>
+      </div>
+
+      <section class="term" aria-label="Terminal of i18n-de">
+        <div class="term-head">
+          <svg class="i"><use href="#i-terminal"/></svg>
+          <span>Terminal</span>
+          <span class="muted">Paused on the request above</span>
+          <span class="push"></span>
+          <button class="btn btn-quiet btn-sm" type="button">Answer in terminal</button>
+        </div>
+<pre class="term-body"><span class="dim">&gt; Continue with task 2 of 6: Add the German locale file</span>
+<span class="tool">● Skill(superpowers:executing-plans)</span>
+<span class="dim">  └ Loaded plan, task 2 of 6</span>
+<span class="tool">● Bash(git rebase develop)</span>
+<span class="dim">  └ Successfully rebased and updated refs/heads/chore/i18n-de</span>
+<span class="tool">● Bash(git push --force origin chore/i18n-de)</span>
+<span class="now">  └ <span class="t-red">Waiting for permission, dangerous command</span></span></pre>
+      </section>
+
+      <div class="dock" data-dock>
+        <div class="dock-panel" hidden data-dock-panel>
+          <div class="panel-head">
+            <div>
+              <h3>Side chat for i18n-de</h3>
+              <p>Read-only. It sees this session's terminal, plan and Git state. It cannot run commands or allow the push.</p>
+            </div>
+            <button class="icon-btn" type="button" aria-label="Close side chat" data-close-dock><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="suggest">
+            <button class="btn btn-secondary btn-sm" type="button">Which commits exist only on the remote?</button>
+            <button class="btn btn-secondary btn-sm" type="button">Is a normal push enough?</button>
+          </div>
+        </div>
+        <label class="dock-bar">
+          <span class="pet" title="Orchtopus pet" data-pet></span>
+          <input type="text" placeholder="Ask about this session" aria-label="Ask about this session" data-dock-input>
+          <span class="dock-note">Read-only helper</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Screen 3: review detail with PR draft
+         ============================================================ -->
+    <section class="screen narrow" data-screen="3" aria-label="Review report-export" hidden>
+      <header class="rv-head">
+        <button class="btn btn-ghost btn-sm" type="button" data-go="1"><svg class="i"><use href="#i-chev-left"/></svg>Back</button>
+        <div class="grow">
+          <h1>Review report-export</h1>
+          <p class="rv-sub"><code>feat/report-export → develop</code> · All 15 tasks are done. Read the PR draft, then release it.</p>
+        </div>
+        <button class="icon-btn" type="button" aria-label="Close review" data-go="1"><svg class="i i-18"><use href="#i-x"/></svg></button>
+      </header>
+
+      <div class="folds" data-accordion>
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="f-done" data-toggle>
+              <svg class="i"><use href="#i-list"/></svg>
+              <span class="fold-title">What was done</span>
+              <span class="fold-sum"><span class="num">15 of 15 tasks</span> · export, filters, tests, docs</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+            <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-diff"/></svg>Diff, 3 files</button>
+            <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-history"/></svg>Session history</button>
+            <button class="btn btn-ghost" type="button"><svg class="i"><use href="#i-code"/></svg>Open worktree in VS Code</button>
+          </div>
+          <div class="fold-body" id="f-done" hidden>
+            <ol class="task-list">
+              <li>Add the export route</li>
+              <li>Write report rows as CSV</li>
+              <li>Map columns from config</li>
+              <li>Parse date ranges</li>
+              <li>Filter reports by date range</li>
+              <li>Export button in the report view</li>
+              <li>Show download progress</li>
+              <li>Message for empty exports</li>
+              <li>Stream large exports</li>
+              <li>Add csv-parse for the import check</li>
+              <li>Validate range limits</li>
+              <li>Normalise date ranges</li>
+              <li>Tests for the export route</li>
+              <li>Tests for the range parser</li>
+              <li>Document the export options</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="f-gates" data-toggle>
+              <svg class="i"><use href="#i-check"/></svg>
+              <span class="fold-title">Gates</span>
+              <span class="fold-sum"><span class="num">8 passed</span> · Git check 1 note · Release PR waits for you · CI runs after the PR</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="f-gates" hidden>
+            <ul class="gate-list">
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Spec approved<span class="state">you</span></li>
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Secret scan<span class="state">passed</span></li>
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Plan approved<span class="state">you</span></li>
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Dependency audit<span class="state">passed</span></li>
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Tests<span class="state num">60 passed</span></li>
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Review council<span class="state num">4 of 4</span></li>
+              <li class="ok"><svg class="i"><use href="#i-check"/></svg>Lint and types<span class="state">passed</span></li>
+              <li><svg class="i"><use href="#i-info"/></svg>Git check<span class="state">1 note</span></li>
+              <li><svg class="i"><use href="#i-circle"/></svg>Release PR<span class="state">you, open</span></li>
+              <li><svg class="i"><use href="#i-circle"/></svg>CI<span class="state">after PR</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="f-council" data-toggle>
+              <svg class="i"><use href="#i-users"/></svg>
+              <span class="fold-title">Review council</span>
+              <span class="fold-sum">Spec compliance, code quality and tests pass · 2 notes for the checklist · Security not needed</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="f-council" hidden>
+            <div class="council">
+              <span class="role">Spec compliance</span><span class="verdict">Pass</span><span></span>
+              <span class="role">Code quality</span><span class="verdict">Pass, 2 notes</span>
+              <ul><li>Name the 366-day limit in <code>date-range.ts</code></li><li>Move the CSV headers into config</li></ul>
+              <span class="role">Tests</span><span class="verdict">Pass</span><span></span>
+              <span class="role">Security</span><span class="verdict">Not needed</span><span class="t-2">No sensitive paths changed</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="f-git" data-toggle>
+              <svg class="i"><use href="#i-branch"/></svg>
+              <span class="fold-title">Git check</span>
+              <span class="fold-sum">1 note: this PR mixes two topics, consider splitting</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+            <button class="btn btn-ghost" type="button" data-open-dock><svg class="i"><use href="#i-message"/></svg>Ask the advisor to draft a split</button>
+          </div>
+          <div class="fold-body" id="f-git" hidden>
+            <div class="checks">
+              <span><svg class="i"><use href="#i-check"/></svg>Branch name ok</span>
+              <span><svg class="i"><use href="#i-check"/></svg>Commits ok</span>
+              <span><svg class="i"><use href="#i-check"/></svg>Target <code>develop</code> ok</span>
+              <span><svg class="i" style="color:var(--muted)"><use href="#i-info"/></svg>Mixes CSV export and date filters in one PR</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <article class="sheet" data-tone="green" aria-labelledby="s3-title">
+        <div class="sheet-meta">
+          <span class="lamp" data-tone="green" data-wait></span>
+          <span class="sig t-green">PR draft</span>
+          <span class="t-2">Not created yet. Check the title and description, then release.</span>
+        </div>
+        <div class="pr-row" style="margin-top: var(--s-3)">
+          <div class="grow">
+            <label class="field-label" for="pr-title">Title</label>
+            <input class="input" id="pr-title" value="feat(export): export reports with date filters">
+          </div>
+          <div>
+            <span class="field-label">Target branch</span>
+            <button class="select" type="button"><code>develop</code><svg class="i"><use href="#i-chev-down"/></svg></button>
+          </div>
+          <label class="check"><input type="checkbox" checked> Draft PR</label>
+        </div>
+        <div class="desc-wrap">
+          <div class="desc-head">
+            <label class="field-label" for="pr-desc">Description, written by Claude, editable</label>
+          </div>
+<textarea class="desc" id="pr-desc" spellcheck="false">## What
+- Export reports as CSV from the report view
+- Filter the export by date range, with open and closed ranges
+
+## Why
+Reports are needed in spreadsheets, limited to one period.
+
+## Tests
+- 60 passed, including 14 cases for date ranges
+- Lint, types, secret scan and dependency audit passed
+
+## Checklist
+- [ ] Name the 366-day limit in date-range.ts
+- [ ] Move the CSV headers into config
+- [ ] Consider splitting export and date filters into two PRs</textarea>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" type="button">Release and create PR</button>
+          <button class="btn btn-quiet" type="button"><svg class="i"><use href="#i-refresh"/></svg>Regenerate description</button>
+          <button class="btn btn-quiet" type="button"><svg class="i"><use href="#i-copy"/></svg>Copy</button>
+          <span class="push"></span>
+          <span class="hint">Orchtopus never merges. You merge on GitHub or GitLab.</span>
+        </div>
+      </article>
+
+      <div class="next" aria-label="What waits next">
+        <span class="next-label">Then</span>
+        <button class="next-item" type="button"><span class="lamp" data-tone="green" data-wait></span>image-resize<span class="t-2">PR draft</span></button>
+        <span class="next-rest">upload-fix and i18n-de keep running</span>
+      </div>
+
+      <div class="dock" data-dock>
+        <div class="dock-panel" hidden data-dock-panel>
+          <div class="panel-head">
+            <div>
+              <h3>Advisor for this change</h3>
+              <p>Answers questions about the diff. An instruction goes to the session only when you press Send to session.</p>
+            </div>
+            <button class="icon-btn" type="button" aria-label="Close advisor" data-close-dock><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="msgs">
+            <div class="msg"><span class="who">You</span><span class="body">Does the date filter need its own PR?</span></div>
+            <div class="msg"><span class="who">Advisor</span><span class="body">It touches the same export module but adds a new query option. Two PRs review faster: one for the CSV export, one for the date filter.</span></div>
+            <div class="msg"><span class="who">You</span><span class="body">Which tests cover the date ranges?</span></div>
+            <div class="msg"><span class="who">Advisor</span><span class="body"><code>date-range.spec.ts</code> covers open and closed ranges in 14 cases. The 366-day limit is tested but not named, which is one of the checklist notes.</span></div>
+          </div>
+        </div>
+        <div class="dock-bar">
+          <span class="pet" title="Orchtopus pet" data-pet></span>
+          <input type="text" placeholder="Ask, or write an instruction" aria-label="Ask, or write an instruction" data-dock-input>
+          <button class="btn btn-quiet btn-sm" type="button" data-open-dock>2 messages<svg class="i chev"><use href="#i-chev-down"/></svg></button>
+          <button class="btn btn-secondary btn-sm" type="button"><svg class="i"><use href="#i-send"/></svg>Send to session</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Screen 4: settings
+         ============================================================ -->
+    <section class="screen narrow" data-screen="4" aria-label="Settings" hidden>
+      <header class="set-head">
+        <h1>Settings</h1>
+        <p class="grow">Global. A project tag marks a value that a project overrides.</p>
+        <button class="btn btn-primary" type="button" data-go="1">Done</button>
+      </header>
+
+      <div class="folds" data-accordion>
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-general" data-toggle>
+              <svg class="i"><use href="#i-gear"/></svg><span class="fold-title">General</span>
+              <span class="fold-sum">Starts with Windows · data folder in AppData</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-general" hidden>
+            <div class="thresholds">
+              <div class="threshold"><span>Start Orchtopus with Windows</span><button class="select" type="button">On<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+              <div class="threshold"><span>Data folder</span><code class="t-2">%APPDATA%\Orchtopus\</code><button class="btn btn-quiet btn-sm" type="button">Change</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="true" aria-controls="g-appearance" data-toggle>
+              <svg class="i"><use href="#i-contrast"/></svg><span class="fold-title">Appearance</span>
+              <span class="fold-sum" data-appearance-sum>Dark · Focus</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-appearance">
+            <div class="set-block set-row" style="margin-top: var(--s-3)">
+              <span class="set-row-label">Mode</span>
+              <div class="seg" role="group" aria-label="Mode">
+                <button type="button" data-set-mode="light">Light</button>
+                <button type="button" data-set-mode="dark">Dark</button>
+                <button type="button" data-set-mode="system">Like Windows</button>
+              </div>
+              <span class="applies"><svg class="i"><use href="#i-check"/></svg>Changes apply instantly</span>
+            </div>
+            <div class="set-block">
+              <span class="field-label">Design variant</span>
+              <div class="variants" role="group" aria-label="Design variant">
+                <button class="variant" type="button" aria-pressed="true" data-variant>
+                  <span class="pv pv-focus"><span class="top"><i class="hi"></i><i></i><i></i><i></i></span><i class="hi"></i><i></i></span>
+                  <span class="variant-name">Focus<span class="muted">Current</span></span>
+                  <span class="variant-desc">One session, one decision at a time</span>
+                </button>
+                <button class="variant" type="button" aria-pressed="false" data-variant>
+                  <span class="pv pv-classic"><span class="col"><i></i><i></i><i></i><i></i></span><span class="col"><i class="hi" style="height:28px"></i><i></i><i></i></span><span class="col"><i></i><i></i></span></span>
+                  <span class="variant-name">Classic</span>
+                  <span class="variant-desc">Sessions, terminal and info side by side</span>
+                </button>
+                <button class="variant" type="button" aria-pressed="false" data-variant>
+                  <span class="pv pv-compact"><i></i><i class="hi"></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="variant-name">Compact</span>
+                  <span class="variant-desc">Dense rows for many sessions</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-models" data-toggle>
+              <svg class="i"><use href="#i-cpu"/></svg><span class="fold-title">Models</span>
+              <span class="fold-sum">Opus for main, planning and security · Sonnet for council, advisor and wiki · Haiku for summaries</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-models" hidden>
+            <div class="models">
+              <span class="head">Role</span><span class="head">Model</span><span class="head">Effort</span>
+              <span>Main session</span><button class="select" type="button">Opus<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">High<svg class="i"><use href="#i-chev-down"/></svg></button>
+              <span>Planning</span><button class="select" type="button">Opus<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">High<svg class="i"><use href="#i-chev-down"/></svg></button>
+              <span>Review council</span><button class="select" type="button">Sonnet<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">Medium<svg class="i"><use href="#i-chev-down"/></svg></button>
+              <span>Security reviewer</span><button class="select" type="button">Opus<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">High<svg class="i"><use href="#i-chev-down"/></svg></button>
+              <span>Advisor and side chat</span><button class="select" type="button">Sonnet<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">Medium<svg class="i"><use href="#i-chev-down"/></svg></button>
+              <span>Wiki</span><button class="select" type="button">Sonnet<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">Medium<svg class="i"><use href="#i-chev-down"/></svg></button>
+              <span>Summaries</span><button class="select" type="button">Haiku<svg class="i"><use href="#i-chev-down"/></svg></button><button class="select" type="button">Low<svg class="i"><use href="#i-chev-down"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-usage" data-toggle>
+              <svg class="i"><use href="#i-gauge"/></svg><span class="fold-title">Usage</span>
+              <span class="fold-sum num">5-hour window 46 %, resets 16:40 · Weekly 31 %, resets Mon 09:00</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-usage" hidden>
+            <div class="meters">
+              <div>
+                <div class="meter-top"><span>5-hour window</span><strong>46 %</strong></div>
+                <div class="meter-track" style="--v:46%"><i></i><b style="--at:70%"></b><b style="--at:90%"></b></div>
+                <div class="meter-top muted" style="margin-top: var(--s-2)"><span>Resets 16:40</span><span>Marks at 70 % and 90 %</span></div>
+              </div>
+              <div>
+                <div class="meter-top"><span>Weekly</span><strong>31 %</strong></div>
+                <div class="meter-track" style="--v:31%"><i></i><b style="--at:70%"></b><b style="--at:90%"></b></div>
+                <div class="meter-top muted" style="margin-top: var(--s-2)"><span>Resets Mon 09:00</span><span>Marks at 70 % and 90 %</span></div>
+              </div>
+            </div>
+            <div class="thresholds">
+              <div class="threshold"><span>Pause background jobs at</span><button class="select num" type="button">70 %<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+              <div class="threshold"><span>Ask before new sessions at</span><button class="select num" type="button">90 %<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-notif" data-toggle>
+              <svg class="i"><use href="#i-bell"/></svg><span class="fold-title">Notifications</span>
+              <span class="fold-sum">Permission and danger always notify · running sessions stay quiet<span class="tag">acme-app overrides</span></span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-notif" hidden>
+            <div class="thresholds">
+              <div class="threshold"><span>Permission and danger</span><button class="select" type="button">Toast and sound<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+              <div class="threshold"><span>PR draft ready</span><button class="select" type="button">Toast<svg class="i"><use href="#i-chev-down"/></svg></button><span class="tag">acme-app: toast and sound</span></div>
+              <div class="threshold"><span>Running sessions</span><button class="select" type="button">Quiet<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-keys" data-toggle>
+              <svg class="i"><use href="#i-keyboard"/></svg><span class="fold-title">Keyboard</span>
+              <span class="fold-sum">Allow once<kbd>A</kbd>· Deny<kbd>Esc</kbd>· Next decision<kbd>N</kbd>· Dangerous commands have no hotkey</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-keys" hidden>
+            <div class="thresholds">
+              <div class="threshold"><span>Switch session</span><kbd>1</kbd><span class="muted">to</span><kbd>9</kbd></div>
+              <div class="threshold"><span>Focus the side chat</span><kbd>/</kbd></div>
+              <div class="threshold"><span>Hold to allow once</span><span class="muted">Mouse or touch in the app only</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-privacy" data-toggle>
+              <svg class="i"><use href="#i-shield"/></svg><span class="fold-title">Privacy</span>
+              <span class="fold-sum">Nothing is written into project repositories · histories stay in the data folder</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-privacy" hidden>
+            <div class="thresholds">
+              <div class="threshold"><span>Write config into project repositories</span><button class="select" type="button">Never<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+              <div class="threshold"><span>Session histories</span><button class="select" type="button">Keep 30 days<svg class="i"><use href="#i-chev-down"/></svg></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fold">
+          <div class="fold-head">
+            <button class="fold-toggle" type="button" aria-expanded="false" aria-controls="g-projects" data-toggle>
+              <svg class="i"><use href="#i-folder"/></svg><span class="fold-title">Projects</span>
+              <span class="fold-sum">acme-app with 4 sessions · docs-site with 1 session</span>
+              <svg class="i chev"><use href="#i-chev-down"/></svg>
+            </button>
+          </div>
+          <div class="fold-body" id="g-projects" hidden>
+            <div class="thresholds">
+              <div class="threshold"><span>acme-app</span><span class="muted">GitHub · overrides Notifications</span><button class="btn btn-quiet btn-sm" type="button">Open</button></div>
+              <div class="threshold"><span>docs-site</span><span class="muted">GitLab · no overrides</span><button class="btn btn-quiet btn-sm" type="button">Open</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="status">
+    <span>Claude Code connected</span><span>·</span><span>5 sessions</span><span>·</span><span>Git updated 3 s ago</span>
+    <span class="push"></span>
+    <span>Keys 1 to 4 switch screens, D switches mode</span>
+  </footer>
+</div>
+</div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const win = document.getElementById('win');
+  const state = { screen: 1, mode: 'dark', modePref: null };
+
+  /* ---------- Session rail ---------- */
+  const sessions = [
+    { id: 'report-export', project: 'acme-app' },
+    { id: 'upload-fix', project: 'acme-app' },
+    { id: 'image-resize', project: 'acme-app' },
+    { id: 'i18n-de', project: 'acme-app' },
+    { id: 'changelog', project: 'docs-site' }
+  ];
+  const base = {
+    'report-export': ['amber', 'Permission', true],
+    'upload-fix': ['blue', 'Running', false],
+    'image-resize': ['green', 'PR draft', true],
+    'i18n-de': ['blue', 'Running', false],
+    'changelog': ['idle', 'Idle', false]
+  };
+  const perScreen = {
+    1: { states: base, selected: 'report-export' },
+    2: { states: Object.assign({}, base, { 'i18n-de': ['red', 'Danger', true] }), selected: 'i18n-de' },
+    3: { states: Object.assign({}, base, { 'report-export': ['green', 'Ready for review', true] }), selected: 'report-export' },
+    4: { states: base, selected: null }
+  };
+  const goFor = { 'report-export': 1, 'i18n-de': 2 };
+  const toneText = { amber: 't-amber', green: 't-green', red: 't-red', blue: 't-blue', violet: 't-violet', orange: 't-orange', idle: 't-muted' };
+
+  function renderRail() {
+    const cfg = perScreen[state.screen];
+    const rail = document.getElementById('rail');
+    const groups = {};
+    sessions.forEach(s => { (groups[s.project] = groups[s.project] || []).push(s); });
+    let html = '';
+    Object.keys(groups).forEach(p => {
+      html += '<div class="rail-group"><span class="rail-project">' + p + '</span>';
+      groups[p].forEach(s => {
+        const [tone, word, wait] = cfg.states[s.id];
+        const cur = cfg.selected === s.id;
+        const target = s.id === 'report-export' && state.screen === 3 ? 3 : goFor[s.id];
+        html += '<button class="chip" type="button"' + (cur ? ' aria-current="true"' : '') +
+          (target ? ' data-go="' + target + '"' : '') +
+          ' aria-label="' + s.id + ', ' + word + (wait ? ', waits for you' : '') + '">' +
+          '<span class="lamp" data-tone="' + tone + '"' + (wait ? ' data-wait' : '') + '></span>' +
+          '<span class="chip-name">' + s.id + '</span>' +
+          '<span class="chip-state ' + toneText[tone] + '">' + word + '</span></button>';
+      });
+      html += '</div>';
+    });
+    html += '<span class="spacer"></span>' +
+      '<button class="rail-tool" type="button"><svg class="i"><use href="#i-inbox"/></svg>Inbox <span class="count">2</span></button>' +
+      '<button class="rail-tool" type="button" data-go="4" aria-label="Settings"' + (state.screen === 4 ? ' aria-current="true"' : '') + '><svg class="i"><use href="#i-gear"/></svg>Settings</button>';
+    rail.innerHTML = html;
+  }
+
+  /* ---------- Pixel pet ---------- */
+  const petRows = [
+    '....XXXX....',
+    '..XXXXXXXX..',
+    '.XXXXXXXXXX.',
+    '.XX..XX..XX.',
+    '.XXXXXXXXXX.',
+    '.XXXXXXXXXX.',
+    'X.XX.XX.XX.X',
+    'X..X.XX.X..X',
+    '.X..X..X..X.',
+    '............'
+  ];
+  let rects = '';
+  petRows.forEach((row, y) => [...row].forEach((c, x) => { if (c === 'X') rects += '<rect x="' + x * 2 + '" y="' + y * 2 + '" width="2" height="2"/>'; }));
+  document.querySelectorAll('[data-pet]').forEach(el => {
+    el.innerHTML = '<svg viewBox="0 0 24 20" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">' + rects + '</svg>';
+  });
+
+  /* ---------- Hash state ---------- */
+  function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const s = parseInt(p.get('screen'), 10);
+    const m = p.get('mode');
+    state.screen = s >= 1 && s <= 4 ? s : 1;
+    state.mode = m === 'light' || m === 'dark' ? m : 'dark';
+  }
+  function writeHash() {
+    const h = '#screen=' + state.screen + '&mode=' + state.mode;
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+  function apply() {
+    root.dataset.mode = state.mode;
+    document.querySelectorAll('[data-screen]').forEach(el => { el.hidden = el.dataset.screen !== String(state.screen); });
+    document.querySelectorAll('[data-screen-btn]').forEach(b => b.setAttribute('aria-pressed', b.dataset.screenBtn === String(state.screen)));
+    document.querySelectorAll('[data-mode-btn]').forEach(b => b.setAttribute('aria-pressed', b.dataset.modeBtn === state.mode));
+    const pref = state.modePref || state.mode;
+    document.querySelectorAll('[data-set-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.setMode === pref));
+    const sum = document.querySelector('[data-appearance-sum]');
+    if (sum) sum.textContent = (pref === 'system' ? 'Like Windows' : pref === 'light' ? 'Light' : 'Dark') + ' · Focus variant';
+    renderRail();
+    closeDocks();
+    resetHold();
+    document.getElementById('main').scrollTop = 0;
+    document.querySelectorAll('.term-body').forEach(t => { t.scrollTop = t.scrollHeight; });
+    writeHash();
+  }
+  function go(screen) { state.screen = screen; apply(); }
+  function setMode(mode, pref) { state.mode = mode; state.modePref = pref || null; apply(); }
+
+  /* ---------- Scale the 1440 x 900 frame to fit ---------- */
+  function fit() {
+    const w = window.innerWidth - 32;
+    const h = window.innerHeight - 48 - 16;
+    win.style.setProperty('--scale', Math.min(1, w / 1440, h / 900));
+  }
+
+  /* ---------- Toggles and accordions ---------- */
+  document.addEventListener('click', e => {
+    const t = e.target.closest('[data-toggle]');
+    if (t) {
+      const open = t.getAttribute('aria-expanded') !== 'true';
+      const acc = t.closest('[data-accordion]');
+      if (acc && open) {
+        acc.querySelectorAll('[data-toggle][aria-expanded="true"]').forEach(o => {
+          o.setAttribute('aria-expanded', 'false');
+          document.getElementById(o.getAttribute('aria-controls')).hidden = true;
+        });
+      }
+      t.setAttribute('aria-expanded', String(open));
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !open;
+      return;
+    }
+    const g = e.target.closest('[data-go]');
+    if (g) { go(parseInt(g.dataset.go, 10)); return; }
+    const sb = e.target.closest('[data-screen-btn]');
+    if (sb) { go(parseInt(sb.dataset.screenBtn, 10)); return; }
+    const mb = e.target.closest('[data-mode-btn]');
+    if (mb) { setMode(mb.dataset.modeBtn); return; }
+    const sm = e.target.closest('[data-set-mode]');
+    if (sm) {
+      const v = sm.dataset.setMode;
+      if (v === 'system') setMode(matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark', 'system');
+      else setMode(v);
+      return;
+    }
+    const vb = e.target.closest('[data-variant]');
+    if (vb) { vb.parentElement.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String(b === vb))); return; }
+    const od = e.target.closest('[data-open-dock]');
+    if (od) { openDock(od.closest('.screen')); return; }
+    const cd = e.target.closest('[data-close-dock]');
+    if (cd) { closeDocks(); return; }
+    if (!e.target.closest('[data-dock]')) closeDocks();
+  });
+
+  /* ---------- Dock opens upward ---------- */
+  function openDock(screen) {
+    const panel = screen && screen.querySelector('[data-dock-panel]');
+    if (panel) panel.hidden = false;
+  }
+  function closeDocks() { document.querySelectorAll('[data-dock-panel]').forEach(p => { p.hidden = true; }); }
+  document.querySelectorAll('[data-dock-input]').forEach(inp => {
+    inp.addEventListener('focus', () => openDock(inp.closest('.screen')));
+  });
+
+  /* ---------- Hold to allow once (pointer only, never by key) ---------- */
+  const hold = document.querySelector('[data-hold]');
+  const holdLabel = hold.querySelector('[data-hold-label]');
+  const holdStatus = document.querySelector('[data-hold-status]');
+  let raf = 0, start = 0;
+  function step(t) {
+    const p = Math.min(1, (t - start) / 1000);
+    hold.style.setProperty('--p', p);
+    if (p < 1) { raf = requestAnimationFrame(step); return; }
+    hold.classList.remove('holding');
+    hold.dataset.state = 'done';
+    holdLabel.textContent = 'Allowed once';
+    hold.querySelector('.secs').textContent = 'this push only';
+    holdStatus.textContent = 'Allowed once. The next force push asks again.';
+  }
+  function release() {
+    if (hold.dataset.state === 'done') return;
+    cancelAnimationFrame(raf);
+    hold.classList.remove('holding');
+    hold.style.setProperty('--p', 0);
+  }
+  function resetHold() {
+    cancelAnimationFrame(raf);
+    hold.classList.remove('holding');
+    delete hold.dataset.state;
+    hold.style.setProperty('--p', 0);
+    holdLabel.textContent = 'Hold to allow once';
+    hold.querySelector('.secs').textContent = 'press 1 s';
+    holdStatus.textContent = 'Waiting for you. Nothing runs until you decide.';
+  }
+  hold.addEventListener('pointerdown', e => {
+    if (hold.dataset.state === 'done' || e.button !== 0) return;
+    hold.setPointerCapture(e.pointerId);
+    hold.classList.add('holding');
+    start = performance.now();
+    raf = requestAnimationFrame(step);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => hold.addEventListener(ev, release));
+  hold.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); });
+  hold.addEventListener('click', e => e.preventDefault());
+
+  /* ---------- Keys: 1 to 4 switch screens, D switches mode ---------- */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeDocks(); return; }
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (['1', '2', '3', '4'].includes(e.key)) { go(parseInt(e.key, 10)); }
+    else if (e.key === 'd' || e.key === 'D') { setMode(state.mode === 'dark' ? 'light' : 'dark'); }
+  });
+
+  window.addEventListener('hashchange', () => { readHash(); apply(); });
+  window.addEventListener('resize', fit);
+  readHash();
+  apply();
+  fit();
+})();
+</script>
+</body>
+</html>

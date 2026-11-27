@@ -1,0 +1,1629 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchtopus · R2-B Lagoon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ------------------------------------------------------------------
+   R2-B Lagoon. One place seen at two depths.
+   Light: the lagoon surface by day. Dark: the same place under water at night.
+   Panels are opaque islands floating over the scene. The scene mirrors the
+   overall state with its light (amber waiting, red danger, calm), always
+   next to the text note in the title bar and the counts in the status bar.
+------------------------------------------------------------------- */
+:root {
+  --font-sans: "Figtree", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-20: 20px;
+  --lh-12: 16px; --lh-13: 20px; --lh-14: 20px; --lh-16: 24px; --lh-20: 28px;
+
+  --s-h: 2px; --s-1: 4px; --s-1h: 6px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+
+  --r-key: 4px; --r-sm: 6px; --r-ctl: 8px; --r-bar: 10px; --r-island: 16px; --r-win: 12px;
+
+  --w-frame: 1440px; --h-frame: 900px;
+  --h-title: 48px; --h-status: 32px; --edge: 16px; --gap: 16px; --gap-in: 12px;
+  --w-side: 264px; --w-rail: 312px;
+  --h-row: 52px; --h-nav: 36px; --h-ctl: 36px; --h-ctl-sm: 32px;
+  --list-in: 40px; --lamp-x: 48px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 140ms; --t-med: 200ms; --t-scene: 700ms;
+  --hold-ms: 1000ms;
+
+  /* fixed previews of other variants, same in both modes */
+  --pv-deep-bg: #0d121b; --pv-deep-side: #090d15; --pv-deep-card: #121825; --pv-deep-line: rgba(214,224,240,0.16); --pv-deep-amber: #f2b84b; --pv-deep-blue: #72b8ff; --pv-deep-green: #62d39c;
+  --pv-paper-bg: #f7f4ee; --pv-paper-side: #ece6da; --pv-paper-card: #ffffff; --pv-paper-line: rgba(31,27,22,0.16); --pv-paper-amber: #8a5a00; --pv-paper-blue: #1f62b8; --pv-paper-green: #1a7046;
+}
+
+/* ---------------------------------------------------------- night: below the surface */
+html[data-mode="dark"] {
+  color-scheme: dark;
+  --page: #05070b; --page-ink: #9aa5b5; --page-line: rgba(214,224,240,0.12);
+
+  --deep-top: #15263d; --deep-mid: #0b1524; --deep-low: #060a12;
+  --shaft: #b2d0e6; --shaft-o: 0.075;
+  --ridge: #0c1724; --floor: #08111b; --floor-line: #13233a; --kelp: #10213a;
+  --snow: #cdd9e8; --snow-o: 0.2;
+
+  --island: #0f1622; --island-2: #151e2c; --raised: #1b2535; --hover: #151e2b; --sel: #1b2535;
+  --term-bg: #0a0f18; --term-text: #d3dae5;
+  --line: rgba(214,224,240,0.08); --line-2: rgba(214,224,240,0.15); --edge-line: rgba(214,224,240,0.07);
+  --text: #e6ecf3; --text-2: #a6b1c1; --text-3: #8592a5;
+  --accent: #8cc7bf;
+  --btn-bg: #e6ecf3; --btn-text: #0a0e16; --btn-hover: #ffffff;
+  --hl: inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-island: 0 0 0 1px var(--edge-line), 0 8px 24px rgba(0,0,0,0.32);
+  --shadow-row: inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-win: 0 24px 64px rgba(0,0,0,0.6);
+
+  --amber: #f2b84b; --violet: #b9a3f7; --green: #62d39c; --red: #ff7a7a; --orange: #ff9d57; --blue: #72b8ff;
+  --arm-o: 0.55; --halo-o: 0.22; --tint: 8%;
+  --pet-body: #8cc7bf; --pet-eye: #0b111b; --pet-pupil: #e6ecf3; --pet-mouth: #3f6c66;
+
+  /* day tokens kept for the lagoon preview in settings */
+  --sky-top: #1a2a40; --sky-low: #0e1828; --water-top: #0b1524; --water-low: #08111b; --far: #0c1724; --sand: #101b2a;
+}
+
+/* ---------------------------------------------------------- day: the lagoon surface */
+html[data-mode="light"] {
+  color-scheme: light;
+  --page: #dde2e1; --page-ink: #46515b; --page-line: rgba(24,34,42,0.14);
+
+  --sky-top: #c3d5df; --sky-low: #eef0e8;
+  --cloud: #ffffff; --cloud-o: 0.6;
+  --far: #b1c4c5; --far-2: #9fb5b2;
+  --water-top: #d2e2e0; --water-low: #b9d2cf;
+  --sand: #ebe3cf; --shallow: #d9e8e2; --ripple: #ffffff; --ripple-o: 0.6;
+
+  --island: #fdfcf9; --island-2: #f3f1eb; --raised: #ece9e1; --hover: #f3f1ec; --sel: #edf2f0;
+  --term-bg: #f8f7f2; --term-text: #1f2a33;
+  --line: rgba(24,34,42,0.09); --line-2: rgba(24,34,42,0.17); --edge-line: rgba(24,34,42,0.06);
+  --text: #17212a; --text-2: #45535f; --text-3: #5a6773;
+  --accent: #2a6f69;
+  --btn-bg: #17212a; --btn-text: #fdfcf9; --btn-hover: #2b3742;
+  --hl: none;
+  --shadow-island: 0 0 0 1px var(--edge-line), 0 1px 2px rgba(30,50,60,0.06), 0 8px 24px rgba(30,50,60,0.09);
+  --shadow-row: 0 1px 2px rgba(30,50,60,0.08);
+  --shadow-win: 0 0 0 1px rgba(24,34,42,0.08), 0 24px 64px rgba(30,50,60,0.22);
+
+  --amber: #8a5a00; --violet: #6a4bc4; --green: #1a7046; --red: #b42828; --orange: #a24915; --blue: #1f62b8;
+  --arm-o: 0.65; --halo-o: 0.18; --tint: 6%;
+  --pet-body: #2a6f69; --pet-eye: #fdfcf9; --pet-pupil: #14222a; --pet-mouth: #1b4743;
+}
+
+/* overall state sets the scene light. Text note in the title bar says the same thing. */
+html[data-mode="light"] .frame[data-sky="wait"]   { --glow: #efb456; --glow-o: 0.55; --sun-o: 0.9;  --wash-o: 0.34; }
+html[data-mode="light"] .frame[data-sky="danger"] { --glow: #e0837a; --glow-o: 0.55; --sun-o: 0.9;  --wash-o: 0.34; }
+html[data-mode="light"] .frame[data-sky="calm"]   { --glow: #fff2d8; --glow-o: 0.7;  --sun-o: 0.95; --wash-o: 0.3; }
+html[data-mode="dark"]  .frame[data-sky="wait"]   { --glow: #f2b84b; --glow-o: 0.24; --sun-o: 0.9;  --wash-o: 0.09; }
+html[data-mode="dark"]  .frame[data-sky="danger"] { --glow: #ff6a6a; --glow-o: 0.24; --sun-o: 0.9;  --wash-o: 0.1; }
+html[data-mode="dark"]  .frame[data-sky="calm"]   { --glow: #8cc7bf; --glow-o: 0.13; --sun-o: 0.55; --wash-o: 0.05; }
+
+/* ------------------------------------------------------------------ base */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--page);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  line-height: var(--lh-14);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+code, .mono, pre { font-family: var(--font-mono); font-size: 0.92em; font-variant-ligatures: none; }
+h1, h2, h3, h4, p, ul, ol, dl, dd { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ------------------------------------------------------------------ stage and frame */
+.stage { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-3); padding: var(--s-4); }
+.fit { position: relative; flex: none; }
+.frame {
+  position: absolute; top: 0; left: 0;
+  width: var(--w-frame); height: var(--h-frame);
+  transform-origin: 0 0;
+  border-radius: var(--r-win);
+  box-shadow: var(--shadow-win);
+  overflow: hidden;
+  background: var(--deep-low);
+}
+html[data-mode="light"] .frame { background: var(--water-low); }
+
+/* scene: background only */
+.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+html[data-mode="dark"] .scene .day { display: none; }
+html[data-mode="light"] .scene .night { display: none; }
+.scene .st { transition: stop-color var(--t-scene) var(--ease), stop-opacity var(--t-scene) var(--ease); }
+.scene .sf { transition: fill var(--t-scene) var(--ease), opacity var(--t-scene) var(--ease), stroke var(--t-scene) var(--ease); }
+
+/* control bar outside the frame */
+.ctl {
+  flex: none; display: flex; align-items: center; gap: var(--s-1);
+  padding: var(--s-1); border-radius: var(--r-ctl);
+  color: var(--page-ink); font-size: var(--fs-12); line-height: var(--lh-12);
+}
+.ctl-name { padding: 0 var(--s-3) 0 var(--s-2); }
+.ctl button {
+  height: 28px; padding: 0 var(--s-2); border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  color: var(--page-ink);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.ctl button:hover { color: var(--text); }
+.ctl button[aria-pressed="true"] { color: var(--text); background: var(--page-line); }
+.ctl-sep { width: 1px; height: 16px; background: var(--page-line); margin: 0 var(--s-2); }
+.kbd {
+  font-family: var(--font-mono); font-size: var(--fs-11); line-height: 16px; font-weight: 500;
+  min-width: 18px; height: 18px; padding: 0 var(--s-1);
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: var(--r-key);
+  color: inherit; white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ title bar, over the scene */
+.titlebar {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--h-title);
+  display: flex; align-items: center; gap: var(--s-3);
+  padding-left: var(--s-5);
+  font-size: var(--fs-13); color: var(--text);
+}
+.brand { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-14); font-weight: 600; }
+.brand svg { display: block; }
+.tb-crumb { color: var(--text-2); }
+.tb-spacer { flex: 1; }
+.skynote {
+  height: 32px; display: inline-flex; align-items: center; gap: var(--s-2);
+  padding: 0 var(--s-3);
+  background: var(--island); border-radius: var(--r-ctl); box-shadow: var(--shadow-island);
+  color: var(--text-2);
+}
+.skynote b { color: var(--text); font-weight: 500; }
+.tb-btn {
+  height: 32px; padding: 0 var(--s-2); border-radius: var(--r-ctl);
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  color: var(--text); font-size: var(--fs-13);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.tb-btn:hover, .tb-btn.on { background: var(--island); box-shadow: var(--shadow-island); }
+.tb-count { font-family: var(--font-mono); font-size: var(--fs-12); }
+.winctl { display: flex; margin-left: var(--s-1); }
+.winctl span { width: 46px; height: var(--h-title); display: grid; place-items: center; color: var(--text); transition: background-color var(--t-fast) var(--ease); }
+.winctl span:hover { background: var(--island); }
+.winctl .ic { width: 14px; height: 14px; stroke-width: 1.25; }
+
+/* ------------------------------------------------------------------ shell */
+.body { position: absolute; top: var(--h-title); left: var(--edge); right: var(--edge); bottom: calc(var(--h-status) + var(--gap-in) * 2); }
+.reach { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 5; }
+.island { background: var(--island); border-radius: var(--r-island); box-shadow: var(--shadow-island); }
+
+.screen { display: none; height: 100%; min-height: 0; gap: var(--gap); }
+.screen.on { display: grid; }
+.screen.sess { grid-template-columns: var(--w-side) minmax(0,1fr) var(--w-rail); }
+.screen.rev, .screen.set { grid-template-columns: var(--w-side) minmax(0,1fr); }
+
+/* ------------------------------------------------------------------ session list island with the octopus */
+.side {
+  position: relative; align-self: start; max-height: 100%; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.side-head { display: flex; align-items: center; gap: var(--s-3); height: 64px; flex: none; padding: 0 var(--s-3) 0 10px; }
+.mantle { display: block; flex: none; }
+.mantle svg { display: block; }
+.side-title { font-size: var(--fs-14); font-weight: 500; }
+.side-sub { color: var(--text-3); font-size: var(--fs-12); line-height: var(--lh-12); }
+.side-head .icon-btn { margin-left: auto; }
+.side-list { min-height: 0; overflow: auto; padding: var(--s-1) var(--s-2) var(--s-2) var(--list-in); display: flex; flex-direction: column; gap: var(--s-h); scrollbar-width: none; }
+.grp {
+  height: 28px; flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--s-3) 0 var(--s-5); margin-top: var(--s-3);
+  color: var(--text-3); font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500;
+}
+.grp:first-child { margin-top: 0; }
+.srow {
+  height: var(--h-row); width: 100%; flex: none;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 var(--s-3) 0 var(--s-5);
+  border-radius: var(--r-ctl); text-align: left;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.srow:hover { background: var(--hover); }
+.srow.sel { background: var(--sel); box-shadow: var(--shadow-row); }
+.srow-l1 { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.sname { font-size: var(--fs-14); line-height: var(--lh-14); font-weight: 500; color: var(--text); }
+.sprog { font-family: var(--font-mono); font-size: var(--fs-12); line-height: var(--lh-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sstate { font-size: var(--fs-13); line-height: var(--lh-13); }
+.side-foot { flex: none; padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3); border-top: 1px solid var(--line); }
+.arms { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.arm { fill: none; stroke-width: 1.5; stroke-linecap: round; opacity: var(--arm-o); }
+.reach-arm { stroke-width: 2; opacity: 0.9; }
+.halo { opacity: var(--halo-o); }
+.lamp-idle { fill: none; stroke: var(--text-3); stroke-width: 1.5; }
+
+.lamp { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; display: inline-block; }
+.lamp.ring { background: none; border: 1.5px solid currentColor; }
+
+/* ------------------------------------------------------------------ buttons */
+.btn {
+  height: var(--h-ctl); padding: 0 14px;
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  border-radius: var(--r-ctl);
+  font-size: var(--fs-14); font-weight: 500; white-space: nowrap;
+  background: var(--raised); color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--hl);
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.btn:hover { border-color: var(--line-2); }
+.btn:active { transform: scale(0.98); }
+.btn.primary { background: var(--btn-bg); color: var(--btn-text); border-color: transparent; }
+.btn.primary:hover { background: var(--btn-hover); }
+.btn.ghost { background: none; border-color: transparent; box-shadow: none; color: var(--text-2); }
+.btn.ghost:hover { background: var(--raised); color: var(--text); }
+.btn.sm { height: var(--h-ctl-sm); padding: 0 var(--s-3); font-size: var(--fs-13); }
+.btn .kbd { margin-left: var(--s-1); border-color: currentColor; opacity: 0.65; }
+.icon-btn {
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  display: inline-grid; place-items: center; color: var(--text-3); flex: none;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.icon-btn:hover { background: var(--raised); color: var(--text); }
+.link { display: inline-flex; align-items: center; gap: var(--s-2); color: var(--text-2); font-size: var(--fs-13); border-radius: var(--r-key); transition: color var(--t-fast) var(--ease); }
+.link:hover { color: var(--text); }
+.link u { text-decoration: none; border-bottom: 1px solid var(--line-2); }
+.link .ic { width: 14px; height: 14px; color: var(--text-3); }
+
+/* ------------------------------------------------------------------ main column */
+.main { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--gap-in); }
+.shead { flex: none; height: 64px; display: flex; align-items: center; gap: var(--s-4); padding: 0 var(--s-3) 0 var(--s-5); }
+.shead-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-h); }
+.shead h1 { font-size: var(--fs-20); line-height: var(--lh-20); font-weight: 500; display: flex; align-items: baseline; gap: var(--s-2); }
+.shead h1 .proj { color: var(--text-3); font-weight: 400; }
+.meta-row { display: flex; align-items: center; gap: var(--s-2); color: var(--text-2); font-size: var(--fs-13); line-height: var(--lh-13); }
+.meta-row > span { display: inline-flex; align-items: center; gap: var(--s-1h); }
+.meta-row .ic { width: 14px; height: 14px; color: var(--text-3); }
+.meta-row .sig { font-weight: 500; }
+.dotsep { color: var(--text-3); }
+.shead-act { display: flex; gap: var(--s-1); }
+
+.also {
+  flex: none; height: 40px; display: flex; align-items: center; gap: var(--s-4);
+  padding: 0 var(--s-3) 0 var(--s-5); border-radius: var(--r-bar);
+  color: var(--text-2); font-size: var(--fs-13);
+}
+.also-item { display: inline-flex; align-items: center; gap: var(--s-2); }
+.also-item b { color: var(--text); font-weight: 500; }
+.also .lamp { width: 6px; height: 6px; }
+.also .link { margin-left: auto; }
+
+/* decision island */
+.decision {
+  --sig: var(--amber);
+  position: relative; flex: none;
+  background: color-mix(in oklab, var(--sig) var(--tint), var(--island));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--sig) 40%, transparent), var(--shadow-island);
+  padding: var(--s-5);
+  display: flex; flex-direction: column; gap: var(--s-4);
+}
+.decision.red { --sig: var(--red); }
+.decision.green { --sig: var(--green); }
+.dc-head { display: flex; align-items: center; gap: var(--s-3); }
+.sig-label { display: inline-flex; align-items: center; gap: var(--s-2); color: var(--sig); font-size: var(--fs-13); font-weight: 600; }
+.sig-label .ic { width: 14px; height: 14px; }
+.dc-head h2 { font-size: var(--fs-16); line-height: var(--lh-16); font-weight: 500; }
+.dc-meta { margin-left: auto; color: var(--text-2); font-size: var(--fs-13); }
+.cmd {
+  display: flex; align-items: center; gap: var(--s-3);
+  height: 44px; padding: 0 var(--s-2) 0 var(--s-4);
+  background: var(--term-bg); color: var(--term-text);
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+}
+.cmd code { flex: 1; font-size: var(--fs-14); }
+.cmd .prompt { color: var(--text-3); font-family: var(--font-mono); }
+.dc-what { color: var(--text); max-width: 70ch; }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-5); color: var(--text-2); font-size: var(--fs-13); }
+.facts li { display: inline-flex; align-items: center; gap: var(--s-1h); }
+.facts .ic { width: 14px; height: 14px; color: var(--text-3); }
+.dc-actions { display: flex; align-items: center; gap: var(--s-2); }
+.dc-actions .end { margin-left: auto; }
+.hint { display: inline-flex; align-items: center; gap: var(--s-1h); color: var(--text-2); font-size: var(--fs-13); margin-left: var(--s-2); }
+.hint .ic { width: 14px; height: 14px; color: var(--text-3); }
+
+/* hold to allow once */
+.btn.hold {
+  position: relative; overflow: hidden; isolation: isolate;
+  background: color-mix(in oklab, var(--red) 12%, var(--island));
+  border-color: color-mix(in oklab, var(--red) 55%, transparent);
+  color: var(--text);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.hold-fill {
+  position: absolute; inset: 0; z-index: -1;
+  background: color-mix(in oklab, var(--red) 34%, var(--island));
+  transform: scaleX(0); transform-origin: left center;
+  transition: transform var(--t-med) var(--ease);
+}
+.hold.holding .hold-fill { transform: scaleX(1); transition: transform var(--hold-ms) linear; }
+.hold.done .hold-fill { transform: scaleX(1); }
+.hold .hold-sec { color: var(--text-2); font-weight: 400; font-size: var(--fs-13); }
+.hold:active { transform: none; }
+
+/* terminal island */
+.term { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--term-bg); overflow: hidden; }
+.term-head {
+  height: 40px; flex: none; display: flex; align-items: center; gap: var(--s-2);
+  padding: 0 var(--s-2) 0 var(--s-5);
+  border-bottom: 1px solid var(--line);
+  color: var(--text-2); font-size: var(--fs-13);
+}
+.term-head .ic { color: var(--text-3); }
+.term-head .meta { color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-12); }
+.term-head .icon-btn { margin-left: auto; }
+.term-body {
+  flex: 1; min-height: 0; overflow: auto; margin: 0;
+  padding: var(--s-3) var(--s-5) var(--s-4);
+  font-family: var(--font-mono); font-size: var(--fs-13); line-height: var(--lh-13);
+  color: var(--term-text); white-space: pre;
+}
+.t-m { color: var(--text-3); }
+.t-a { color: var(--text-2); }
+.t-warn { color: var(--amber); }
+.t-bad { color: var(--red); }
+.t-cur { display: inline-block; width: 8px; height: 16px; vertical-align: -3px; background: var(--term-text); opacity: 0.55; margin-left: var(--s-1); }
+
+/* ------------------------------------------------------------------ right rail island */
+.rail { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.rsec { padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--s-3); }
+.rsec h3, .lbl { font-size: var(--fs-12); line-height: var(--lh-12); font-weight: 500; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; }
+.rsec h3 .aside, .lbl .aside { font-weight: 400; color: var(--text-3); }
+.prog-main { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+.prog-main b { font-weight: 500; font-size: var(--fs-16); line-height: var(--lh-16); }
+.prog-main span { color: var(--text-3); font-size: var(--fs-12); font-family: var(--font-mono); }
+.prog-task { color: var(--text-2); font-size: var(--fs-13); margin-top: -8px; }
+.bar { height: 4px; border-radius: 2px; background: var(--raised); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--text-2); border-radius: 2px; }
+.phases { display: flex; flex-direction: column; }
+.phase { height: 28px; display: flex; align-items: center; gap: 10px; font-size: var(--fs-13); }
+.phase .mk { width: 16px; display: grid; place-items: center; color: var(--text-3); }
+.phase .mk .ic { width: 14px; height: 14px; }
+.phase .st { margin-left: auto; color: var(--text-3); font-size: var(--fs-12); }
+.phase.open .nm { color: var(--text-3); }
+.kv { display: flex; flex-direction: column; gap: var(--s-2); font-size: var(--fs-13); }
+.kv div { display: flex; justify-content: space-between; gap: var(--s-3); }
+.kv dt { color: var(--text-3); }
+.kv dd { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.chat { flex: 1; min-height: 0; border-bottom: 0; }
+.msgs { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s-4); overflow: auto; font-size: var(--fs-13); line-height: var(--lh-13); scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.msg .who { color: var(--text-3); font-size: var(--fs-12); line-height: var(--lh-12); margin-bottom: var(--s-h); display: flex; align-items: center; gap: var(--s-1h); }
+.msg .who .ic { width: 12px; height: 12px; }
+.msg p { color: var(--text); }
+.msg.me p { color: var(--text-2); }
+.msg p + p { margin-top: var(--s-1); }
+.chat-note { color: var(--text-3); font-size: var(--fs-12); line-height: var(--lh-12); }
+.composer { display: flex; align-items: flex-end; gap: var(--s-2); }
+.pet { flex: none; display: block; margin-bottom: var(--s-h); }
+.pet svg { display: block; }
+.field {
+  flex: 1; min-width: 0; height: var(--h-ctl);
+  display: flex; align-items: center; gap: var(--s-1);
+  padding: 0 var(--s-1) 0 var(--s-3);
+  background: var(--island-2); border: 1px solid var(--line-2); border-radius: var(--r-ctl);
+  transition: border-color var(--t-fast) var(--ease);
+}
+.field:focus-within { border-color: var(--accent); }
+.field input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: var(--fs-13); }
+.field input::placeholder { color: var(--text-3); opacity: 1; }
+.composer-acts { display: flex; justify-content: flex-end; }
+
+/* pixel octopus */
+.p-b { fill: var(--pet-body); } .p-w { fill: var(--pet-eye); } .p-k { fill: var(--pet-pupil); } .p-d { fill: var(--pet-mouth); }
+
+/* ------------------------------------------------------------------ review */
+.review { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--gap-in); }
+.rv-head { flex: none; height: 64px; display: flex; align-items: center; gap: var(--s-3); padding: 0 var(--s-3); }
+.rv-head .shead-t { gap: var(--s-h); }
+.rv-head h1 { font-size: var(--fs-20); line-height: var(--lh-20); font-weight: 500; }
+.rv-sep { width: 1px; height: 32px; background: var(--line-2); }
+.rv-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 420px 376px minmax(0,1fr); gap: var(--gap); }
+.rv-col { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--gap-in); }
+.sec { padding: var(--s-5); }
+.rv-col .sec { padding: var(--s-4) var(--s-5) var(--s-3); }
+.rv-col .sec-h { margin-bottom: var(--s-2); }
+.sec-h { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); margin-bottom: var(--s-3); }
+.sec-h h2 { font-size: var(--fs-16); line-height: var(--lh-16); font-weight: 500; }
+.sec-h .aside { font-size: var(--fs-13); color: var(--text-2); }
+
+.pr { flex: 1; min-height: 0; }
+.pr .dc-head { justify-content: space-between; }
+.fld { display: flex; flex-direction: column; gap: var(--s-1h); }
+.fld-row { display: flex; align-items: flex-end; gap: var(--s-4); }
+.input {
+  height: var(--h-ctl); padding: 0 var(--s-3);
+  display: flex; align-items: center; gap: var(--s-2);
+  background: var(--island); border: 1px solid var(--line-2); border-radius: var(--r-ctl);
+  font-size: var(--fs-14); color: var(--text);
+}
+.input code { font-size: var(--fs-13); white-space: nowrap; }
+.input.sel { width: 168px; justify-content: space-between; }
+.input .ic { color: var(--text-3); width: 14px; height: 14px; }
+.check { display: inline-flex; align-items: center; gap: var(--s-2); height: var(--h-ctl); font-size: var(--fs-14); }
+.box { width: 16px; height: 16px; border-radius: var(--r-key); display: grid; place-items: center; background: var(--btn-bg); color: var(--btn-text); }
+.box .ic { width: 12px; height: 12px; stroke-width: 2; }
+.desc {
+  flex: 1; min-height: 0; overflow: auto;
+  padding: var(--s-3) var(--s-4);
+  background: var(--island); border: 1px solid var(--line-2); border-radius: var(--r-ctl);
+  font-size: var(--fs-13); line-height: var(--lh-13);
+  outline: 0; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
+}
+.desc:focus { border-color: var(--accent); }
+.desc h4 { font-size: var(--fs-13); font-weight: 600; margin-top: var(--s-3); }
+.desc h4:first-child { margin-top: 0; }
+.desc p, .desc li { color: var(--text); }
+.desc ul li { display: flex; gap: var(--s-2); }
+.desc ul li .cb { color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-12); }
+.pr-note { display: inline-flex; align-items: center; gap: var(--s-1h); color: var(--text-2); font-size: var(--fs-13); }
+.pr-note .ic { width: 14px; height: 14px; color: var(--text-3); }
+
+.tasks { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--fs-13); line-height: var(--lh-13); }
+.tasks > div { display: grid; grid-template-columns: 104px minmax(0,1fr); gap: var(--s-2); }
+.tasks dt { color: var(--text); }
+.tasks dt span { color: var(--text-3); font-family: var(--font-mono); font-size: var(--fs-12); margin-left: var(--s-1); }
+.tasks dd { color: var(--text-2); }
+.links { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); margin-top: var(--s-3); }
+
+.gates-isl { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.gates { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.gate { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: var(--fs-13); border-bottom: 1px solid var(--line); }
+.gate .mk { width: 16px; display: grid; place-items: center; color: var(--green); }
+.gate .mk .ic { width: 14px; height: 14px; stroke-width: 2; }
+.gate .mk.note { color: var(--text-2); }
+.gate .mk.open { color: var(--text-3); }
+.gate .res { margin-left: auto; color: var(--text-2); text-align: right; }
+.gate.muted .nm, .gate.muted .res { color: var(--text-3); }
+.gate.flush { border-bottom: 0; }
+.gate-detail { padding: 0 0 var(--s-1) 26px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--s-h); font-size: var(--fs-13); line-height: var(--lh-13); }
+.gate-detail .ln { display: flex; justify-content: space-between; gap: var(--s-3); color: var(--text-2); }
+.gate-detail .ln span:last-child { color: var(--text); text-align: right; }
+
+.gitcheck .ln { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: var(--fs-13); color: var(--text-2); }
+.gitcheck .ln .ic { width: 14px; height: 14px; color: var(--green); stroke-width: 2; }
+.gitcheck .gnote { margin-top: var(--s-2); color: var(--text); font-size: var(--fs-13); line-height: var(--lh-13); }
+.gitcheck .btn { margin-top: var(--s-3); }
+.advisor { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4) var(--s-5); }
+
+/* ------------------------------------------------------------------ settings */
+.setnav { align-self: start; padding: var(--s-3) var(--s-2); display: flex; flex-direction: column; gap: var(--s-h); }
+.setnav h2 { font-size: var(--fs-16); font-weight: 500; padding: 0 var(--s-3); height: 40px; display: flex; align-items: center; margin-bottom: var(--s-1); }
+.navrow {
+  height: var(--h-nav); display: flex; align-items: center; gap: 10px;
+  padding: 0 var(--s-3); border-radius: var(--r-ctl);
+  color: var(--text-2); font-size: var(--fs-14); text-align: left; width: 100%;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.navrow .ic { color: var(--text-3); }
+.navrow:hover { background: var(--hover); color: var(--text); }
+.navrow.sel { background: var(--sel); color: var(--text); font-weight: 500; box-shadow: var(--shadow-row); }
+.navrow.sel .ic { color: var(--accent); }
+.setnav .back { margin-top: var(--s-3); border-top: 1px solid var(--line); border-radius: 0 0 var(--r-ctl) var(--r-ctl); padding-top: 0; }
+.setmain { min-height: 0; overflow: auto; padding: var(--s-6) var(--s-8); scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.set-top { display: flex; align-items: baseline; gap: var(--s-4); margin-bottom: var(--s-6); }
+.set-top h1 { font-size: var(--fs-20); line-height: var(--lh-20); font-weight: 500; }
+.set-top p { color: var(--text-2); font-size: var(--fs-13); display: inline-flex; align-items: center; gap: var(--s-1h); }
+.set-top p .ic { width: 14px; height: 14px; color: var(--text-3); }
+.set-cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: var(--s-12); align-items: start; }
+.set-col { display: flex; flex-direction: column; gap: var(--s-8); }
+.sset h2 { font-size: var(--fs-16); line-height: var(--lh-16); font-weight: 500; }
+.sset .sub { color: var(--text-2); font-size: var(--fs-13); margin-top: var(--s-h); }
+.srows { margin-top: var(--s-3); border-top: 1px solid var(--line); }
+.srow2 { display: flex; align-items: center; gap: var(--s-4); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); min-height: 56px; }
+.srow2 .l { flex: 1; min-width: 0; }
+.srow2 .l b { font-weight: 400; display: block; }
+.srow2 .l span { color: var(--text-3); font-size: var(--fs-12); line-height: var(--lh-12); display: block; margin-top: var(--s-h); }
+.srow2.stack { flex-direction: column; align-items: stretch; gap: var(--s-3); }
+.seg { display: inline-flex; padding: var(--s-h); gap: var(--s-h); background: var(--island-2); border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.seg button {
+  height: 28px; padding: 0 var(--s-3); border-radius: var(--r-sm);
+  display: inline-flex; align-items: center; gap: var(--s-1h);
+  color: var(--text-2); font-size: var(--fs-13);
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.seg button .ic { width: 14px; height: 14px; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--island); color: var(--text); box-shadow: var(--shadow-row), 0 0 0 1px var(--line); }
+.variants { display: flex; gap: var(--s-4); }
+.variant { display: flex; flex-direction: column; gap: var(--s-2); text-align: left; border-radius: var(--r-ctl); }
+.variant .vname { font-size: var(--fs-13); display: flex; gap: var(--s-2); align-items: baseline; }
+.variant .vname span { color: var(--text-3); font-size: var(--fs-12); }
+.pv { width: 144px; height: 84px; display: block; overflow: hidden; border-radius: var(--r-ctl); box-shadow: 0 0 0 1px var(--line-2); transition: box-shadow var(--t-fast) var(--ease); }
+.pv svg { display: block; width: 100%; height: 100%; }
+.variant:hover .pv { box-shadow: 0 0 0 1px var(--text-3); }
+.variant[aria-pressed="true"] .pv { outline: 2px solid var(--accent); outline-offset: 2px; }
+.instant { display: inline-flex; align-items: center; gap: var(--s-1h); color: var(--text-3); font-size: var(--fs-12); }
+.instant .ic { width: 14px; height: 14px; }
+.meter-wrap { display: flex; flex-direction: column; gap: var(--s-1h); }
+.meter-top { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--fs-14); }
+.meter-top .v { font-variant-numeric: tabular-nums; font-weight: 500; }
+.meter-top .r { color: var(--text-3); font-size: var(--fs-12); }
+.meter { position: relative; height: 8px; border-radius: var(--r-key); background: var(--raised); }
+.meter > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-key); background: var(--text-2); }
+.meter .tick { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--text-3); }
+.ticks { position: relative; height: 16px; font-family: var(--font-mono); font-size: var(--fs-11); line-height: 16px; color: var(--text-3); }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.numfield { display: inline-flex; align-items: center; gap: var(--s-1); height: var(--h-ctl-sm); padding: 0 var(--s-3); background: var(--island-2); border: 1px solid var(--line-2); border-radius: var(--r-ctl); font-variant-numeric: tabular-nums; color: var(--text-2); }
+.numfield input { width: 28px; border: 0; outline: 0; background: none; text-align: right; font-size: var(--fs-14); color: var(--text); }
+.numfield span { color: var(--text-3); }
+.models { margin-top: var(--s-4); border-top: 1px solid var(--line); }
+.mrow { display: grid; grid-template-columns: minmax(0,1fr) 112px 112px; align-items: center; gap: var(--s-2); min-height: 52px; border-bottom: 1px solid var(--line); }
+.mrow .role { display: flex; flex-direction: column; }
+.mrow .role .tag { color: var(--text-3); font-size: var(--fs-12); line-height: var(--lh-12); display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-h); }
+.mrow .role .tag .ic { width: 12px; height: 12px; }
+.mhead { min-height: 32px; color: var(--text-3); font-size: var(--fs-12); }
+.dd {
+  height: var(--h-ctl-sm); padding: 0 var(--s-2) 0 var(--s-3);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--island-2); border: 1px solid var(--line-2); border-radius: var(--r-ctl);
+  font-size: var(--fs-13);
+  transition: border-color var(--t-fast) var(--ease);
+}
+.dd:hover { border-color: var(--text-3); }
+.dd .ic { width: 14px; height: 14px; color: var(--text-3); }
+
+/* ------------------------------------------------------------------ status island: live state left, key hints right */
+.status {
+  position: absolute; left: var(--edge); right: var(--edge); bottom: var(--gap-in); height: var(--h-status);
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: 0 var(--s-2) 0 var(--s-4);
+  border-radius: var(--r-bar);
+  font-size: var(--fs-12); line-height: var(--lh-12); color: var(--text-2);
+  white-space: nowrap;
+}
+.st-group { display: flex; align-items: center; gap: var(--s-4); }
+.st-c { display: inline-flex; align-items: center; gap: var(--s-1h); font-weight: 500; }
+.st-c .lamp { width: 6px; height: 6px; }
+.st-c.sig-idle { font-weight: 400; }
+.st-sep { width: 1px; height: 16px; background: var(--line-2); }
+.st-item { display: inline-flex; align-items: center; gap: var(--s-1h); }
+.st-item .ic { width: 14px; height: 14px; color: var(--text-3); }
+.st-hints { margin-left: auto; display: flex; align-items: center; gap: var(--s-4); color: var(--text-2); }
+.st-hint { display: inline-flex; align-items: center; gap: var(--s-1h); }
+.st-hint .kbd { color: var(--text); }
+.st-hint .ic { width: 14px; height: 14px; color: var(--red); }
+.st-hint.lock { color: var(--text); }
+
+/* signal text */
+:root .sig-amber { color: var(--amber); } :root .sig-violet { color: var(--violet); } :root .sig-green { color: var(--green); }
+:root .sig-red { color: var(--red); } :root .sig-orange { color: var(--orange); } :root .sig-blue { color: var(--blue); }
+:root .sig-idle { color: var(--text-3); }
+
+.term-body { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; }
+  .hold.holding .hold-fill { transition-duration: var(--hold-ms) !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- icon set: lucide-style strokes, 24 grid, 1.5 stroke -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="1"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="i-diff" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M9 10h6"/><path d="M12 7v6"/><path d="M9 17h6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/><path d="M7 16h10"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-pr" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M3 12h6"/><path d="M15 12h6"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.17-2.87L3 3"/><path d="m15 9 6-6"/></symbol>
+</svg>
+
+<div class="stage">
+  <div class="fit" id="fit">
+    <div class="frame" id="frame" data-sky="wait">
+
+      <!-- ============================================================ SCENE
+           Background only: low contrast, nothing behind running text.
+           It shows in the title band, in the gaps and below the session list. -->
+      <svg class="scene" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style="stop-color:var(--sky-top)"/>
+            <stop offset="1" style="stop-color:var(--sky-low)"/>
+          </linearGradient>
+          <linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style="stop-color:var(--water-top)"/>
+            <stop offset="1" style="stop-color:var(--water-low)"/>
+          </linearGradient>
+          <linearGradient id="g-wash" x1="0" y1="0" x2="0" y2="1">
+            <stop class="st" offset="0" style="stop-color:var(--glow);stop-opacity:0"/>
+            <stop class="st" offset="1" style="stop-color:var(--glow);stop-opacity:var(--wash-o)"/>
+          </linearGradient>
+          <linearGradient id="g-wash-down" x1="0" y1="0" x2="0" y2="1">
+            <stop class="st" offset="0" style="stop-color:var(--glow);stop-opacity:var(--wash-o)"/>
+            <stop class="st" offset="1" style="stop-color:var(--glow);stop-opacity:0"/>
+          </linearGradient>
+          <radialGradient id="g-glow" cx="0.5" cy="0.5" r="0.5">
+            <stop class="st" offset="0" style="stop-color:var(--glow);stop-opacity:var(--glow-o)"/>
+            <stop class="st" offset="1" style="stop-color:var(--glow);stop-opacity:0"/>
+          </radialGradient>
+          <linearGradient id="g-deep" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style="stop-color:var(--deep-top)"/>
+            <stop offset="0.45" style="stop-color:var(--deep-mid)"/>
+            <stop offset="1" style="stop-color:var(--deep-low)"/>
+          </linearGradient>
+          <linearGradient id="g-shaft" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" style="stop-color:var(--shaft);stop-opacity:var(--shaft-o)"/>
+            <stop offset="1" style="stop-color:var(--shaft);stop-opacity:0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- day: the lagoon surface -->
+        <g class="day">
+          <rect width="1440" height="641" fill="url(#g-sky)"/>
+          <rect y="400" width="1440" height="241" fill="url(#g-wash)"/>
+          <g style="fill:var(--cloud);opacity:var(--cloud-o)">
+            <ellipse cx="300" cy="20" rx="200" ry="8"/>
+            <ellipse cx="980" cy="28" rx="260" ry="10"/>
+            <ellipse cx="160" cy="540" rx="120" ry="5"/>
+            <ellipse cx="1220" cy="18" rx="140" ry="6"/>
+          </g>
+          <circle class="sf" cx="200" cy="641" r="140" fill="url(#g-glow)"/>
+          <circle class="sf" cx="200" cy="641" r="20" style="fill:var(--glow);opacity:var(--sun-o)"/>
+          <!-- distant islands on the horizon -->
+          <path style="fill:var(--far)" d="M0 641 V628 C 18 622, 34 610, 56 608 C 76 606, 88 616, 104 620 C 116 612, 130 610, 142 618 C 150 624, 156 632, 166 641 Z"/>
+          <path style="fill:var(--far-2)" d="M240 641 C 248 634, 258 630, 268 631 C 276 632, 282 636, 288 641 Z"/>
+          <path style="fill:var(--far)" d="M1060 641 C 1090 628, 1130 620, 1170 622 C 1200 624, 1220 632, 1250 641 Z"/>
+          <path style="fill:var(--far-2)" d="M1300 641 C 1316 632, 1334 628, 1352 630 C 1366 632, 1378 636, 1390 641 Z"/>
+          <rect y="641" width="1440" height="259" fill="url(#g-water)"/>
+          <rect y="641" width="1440" height="80" fill="url(#g-wash-down)"/>
+          <!-- reflection of the state light -->
+          <g class="sf" style="stroke:var(--glow);opacity:var(--sun-o)" stroke-width="2" stroke-linecap="round">
+            <path d="M176 652 h48"/><path d="M184 664 h32"/><path d="M188 676 h24"/><path d="M194 690 h12"/>
+          </g>
+          <!-- sand bar with its shallow rim -->
+          <path style="fill:var(--shallow)" d="M0 772 C 90 752, 200 746, 320 760 C 430 772, 520 792, 640 806 C 720 815, 800 820, 880 826 L 880 900 L 0 900 Z"/>
+          <path style="fill:var(--sand)" d="M0 784 C 96 766, 204 762, 316 774 C 420 786, 512 806, 628 820 C 708 829, 790 834, 880 840 L 880 900 L 0 900 Z"/>
+          <g style="stroke:var(--ripple);opacity:var(--ripple-o)" stroke-width="1.5" stroke-linecap="round" fill="none">
+            <path d="M40 708 h56"/><path d="M120 724 h34"/><path d="M60 744 h40"/>
+            <path d="M560 700 h48"/><path d="M1180 690 h64"/><path d="M1220 706 h32"/>
+          </g>
+        </g>
+
+        <!-- night: the same place below the surface -->
+        <g class="night">
+          <rect width="1440" height="900" fill="url(#g-deep)"/>
+          <g fill="url(#g-shaft)">
+            <polygon points="150,0 250,0 120,700 40,700"/>
+            <polygon points="420,0 470,0 330,620 290,620"/>
+            <polygon points="980,0 1060,0 920,660 860,660"/>
+            <polygon points="1300,0 1340,0 1230,560 1200,560"/>
+          </g>
+          <rect y="560" width="1440" height="240" fill="url(#g-wash)"/>
+          <!-- the island seen from below: its base rises from the floor -->
+          <path style="fill:var(--ridge)" d="M0 900 V612 C 20 604, 40 600, 64 604 C 96 610, 120 630, 150 660 C 176 686, 220 706, 300 716 C 420 730, 560 726, 700 722 C 860 718, 1000 712, 1120 720 C 1240 728, 1340 724, 1440 716 V900 Z"/>
+          <circle class="sf" cx="196" cy="770" r="150" fill="url(#g-glow)"/>
+          <!-- kelp, rooted on the floor, below the session list only -->
+          <g style="stroke:var(--kelp)" stroke-width="3" stroke-linecap="round" fill="none">
+            <path d="M44 808 C 34 770, 58 744, 46 706 C 36 676, 54 652, 46 624"/>
+            <path d="M70 812 C 62 784, 82 760, 72 730"/>
+            <path d="M248 820 C 240 790, 262 766, 252 736 C 244 712, 258 694, 252 672"/>
+          </g>
+          <path style="fill:var(--floor)" d="M0 900 V796 C 100 780, 200 782, 300 796 C 420 812, 520 826, 640 832 C 800 840, 960 828, 1120 834 C 1260 840, 1360 836, 1440 830 V900 Z"/>
+          <path style="stroke:var(--floor-line)" stroke-width="1.5" fill="none" d="M0 796 C 100 780, 200 782, 300 796 C 420 812, 520 826, 640 832"/>
+          <!-- bioluminescent lamps: they carry the overall state -->
+          <g class="sf" style="fill:var(--glow);opacity:var(--sun-o)">
+            <circle cx="184" cy="790" r="3"/><circle cx="200" cy="782" r="2.25"/><circle cx="214" cy="792" r="1.75"/><circle cx="192" cy="800" r="1.5"/>
+          </g>
+          <g style="fill:var(--snow);opacity:var(--snow-o)">
+            <circle cx="80" cy="540" r="1"/><circle cx="210" cy="580" r="0.8"/><circle cx="150" cy="650" r="1.1"/><circle cx="40" cy="700" r="0.8"/>
+            <circle cx="260" cy="610" r="0.9"/><circle cx="120" cy="560" r="0.7"/><circle cx="230" cy="700" r="0.8"/>
+            <circle cx="300" cy="20" r="1"/><circle cx="620" cy="30" r="0.8"/><circle cx="900" cy="14" r="1"/><circle cx="1180" cy="34" r="0.8"/>
+          </g>
+        </g>
+      </svg>
+
+      <!-- title bar sits on the scene -->
+      <header class="titlebar">
+        <span class="brand"><span data-head="calm" data-px="1.5"></span>Orchtopus</span>
+        <span class="tb-crumb" id="crumb">Sessions</span>
+        <span class="tb-spacer"></span>
+        <span class="skynote" id="skynote" role="status"></span>
+        <button class="tb-btn" title="Inbox, 2 items"><svg class="ic"><use href="#i-inbox"/></svg>Inbox <span class="tb-count">2</span></button>
+        <button class="tb-btn" id="tb-settings" data-go="4" title="Settings"><svg class="ic"><use href="#i-settings"/></svg></button>
+        <span class="winctl" aria-hidden="true">
+          <span><svg class="ic"><use href="#i-minus"/></svg></span>
+          <span><svg class="ic"><use href="#i-square"/></svg></span>
+          <span><svg class="ic"><use href="#i-x"/></svg></span>
+        </span>
+      </header>
+
+      <div class="body" id="body">
+
+        <!-- ============================================================ SCREEN 1 -->
+        <section class="screen sess" data-screen="1">
+          <aside class="side island" data-side="1" aria-label="Sessions"></aside>
+
+          <main class="main">
+            <header class="shead island">
+              <div class="shead-t">
+                <h1><span class="proj">acme-app /</span>report-export</h1>
+                <div class="meta-row">
+                  <span class="sig sig-amber"><span class="lamp"></span>Needs you · permission</span>
+                  <span class="dotsep">·</span>
+                  <span><svg class="ic"><use href="#i-branch"/></svg><code>feat/report-export</code></span>
+                </div>
+              </div>
+              <div class="shead-act">
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-pause"/></svg>Pause</button>
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-folder-open"/></svg>Explorer</button>
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-code"/></svg>VS Code</button>
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-terminal"/></svg>Terminal</button>
+              </div>
+            </header>
+
+            <div class="also island">
+              <span>Also waiting</span>
+              <span class="also-item"><span class="lamp sig-green"></span><b>image-resize</b><span class="sig-green">PR draft</span></span>
+              <button class="link"><u>Open image-resize</u></button>
+            </div>
+
+            <section class="decision island reach-target" aria-label="Permission request">
+              <header class="dc-head">
+                <span class="sig-label"><span class="lamp"></span>Permission</span>
+                <h2>Bash command needs permission</h2>
+                <span class="dc-meta num">Waiting 1 min · falls back to the terminal prompt in 9 min</span>
+              </header>
+              <div class="cmd">
+                <span class="prompt">$</span>
+                <code>npm install csv-parse@5.6.0 --save</code>
+                <button class="icon-btn" title="Copy command"><svg class="ic"><use href="#i-copy"/></svg></button>
+              </div>
+              <p class="dc-what">Downloads csv-parse 5.6.0 from the npm registry and adds it to <code>package.json</code>. The package can run install scripts. Only this worktree is affected.</p>
+              <ul class="facts">
+                <li><svg class="ic"><use href="#i-globe"/></svg>Network</li>
+                <li><svg class="ic"><use href="#i-file"/></svg>Changes <code>package.json</code></li>
+                <li><svg class="ic"><use href="#i-package"/></svg>Install scripts</li>
+              </ul>
+              <div class="dc-actions">
+                <button class="btn primary">Allow once <span class="kbd">Enter</span></button>
+                <button class="btn">Always allow in this project</button>
+                <button class="btn">Deny <span class="kbd">Esc</span></button>
+                <button class="btn ghost end"><svg class="ic"><use href="#i-compass"/></svg>Ask the advisor</button>
+              </div>
+            </section>
+
+            <section class="term island" aria-label="Terminal">
+              <header class="term-head">
+                <svg class="ic"><use href="#i-terminal"/></svg><span>Terminal</span><span class="meta">claude · report-export</span>
+                <button class="icon-btn" title="Open in Terminal"><svg class="ic"><use href="#i-terminal"/></svg></button>
+              </header>
+<pre class="term-body"><span class="t-m">›</span> Continue with the plan
+<span class="t-m">●</span> Skill(superpowers:executing-plans)
+<span class="t-m">  ⎿</span> <span class="t-a">Loaded plan · task 12 of 15: Normalise date ranges</span>
+<span class="t-m">●</span> Task(implementer) <span class="t-m">· subagent started</span>
+<span class="t-m">  ⎿</span> <span class="t-a">Writing tests for normaliseDateRange()</span>
+<span class="t-m">●</span> Read(src/export/dateRange.ts)
+<span class="t-m">  ⎿</span> <span class="t-a">84 lines</span>
+<span class="t-m">●</span> Bash(npm test -- dateRange)
+<span class="t-m">  ⎿</span> <span class="t-a">6 passed, 2 failed · CSV dates arrive as strings</span>
+<span class="t-m">●</span> Update(src/export/dateRange.ts)
+<span class="t-m">  ⎿</span> <span class="t-a">+18 −4</span>
+<span class="t-m">●</span> Bash(npm install csv-parse@5.6.0 --save)
+<span class="t-m">  ⎿</span> <span class="t-warn">waiting for permission</span><span class="t-cur"></span></pre>
+            </section>
+          </main>
+
+          <aside class="rail island" aria-label="Session info">
+            <section class="rsec">
+              <h3>Progress</h3>
+              <div class="prog-main"><b>Task 12 of 15</b><span>80 %</span></div>
+              <p class="prog-task">Normalise date ranges</p>
+              <div class="bar"><i style="width:80%"></i></div>
+            </section>
+            <section class="rsec">
+              <h3>Workflow</h3>
+              <ol class="phases">
+                <li class="phase"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Brainstorm</span><span class="st">Done</span></li>
+                <li class="phase"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Spec</span><span class="st">Done</span></li>
+                <li class="phase"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Plan</span><span class="st">Done</span></li>
+                <li class="phase"><span class="mk sig-blue"><span class="lamp"></span></span><span class="nm">Execute</span><span class="st sig-blue">Running</span></li>
+                <li class="phase open"><span class="mk"><span class="lamp ring"></span></span><span class="nm">Review</span><span class="st">Open</span></li>
+                <li class="phase open"><span class="mk"><span class="lamp ring"></span></span><span class="nm">Finish</span><span class="st">Open</span></li>
+              </ol>
+            </section>
+            <section class="rsec">
+              <h3>Session</h3>
+              <dl class="kv">
+                <div><dt>Subagents</dt><dd>1 active</dd></div>
+                <div><dt>Git</dt><dd>5 ahead, 0 behind <code>develop</code></dd></div>
+                <div><dt>Context</dt><dd>41 % used</dd></div>
+              </dl>
+            </section>
+            <section class="rsec chat">
+              <h3>Side chat <span class="aside">Read-only</span></h3>
+              <div class="msgs">
+                <div class="msg me"><div class="who">You</div><p>Why does it need csv-parse?</p></div>
+                <div class="msg"><div class="who"><svg class="ic"><use href="#i-message"/></svg>Helper</div><p>Task 12 reads uploaded CSV files. The dates arrive as strings, and the plan names csv-parse 5.6.0 to parse them.</p></div>
+              </div>
+              <p class="chat-note">Answers about this session. It cannot change anything.</p>
+              <div class="composer">
+                <span class="pet" data-pet="waving" title="Waving: report-export waits for your permission"></span>
+                <label class="field"><input placeholder="Ask about this session" aria-label="Ask about this session"><button class="icon-btn" title="Ask"><svg class="ic"><use href="#i-send"/></svg></button></label>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <!-- ============================================================ SCREEN 2 -->
+        <section class="screen sess" data-screen="2">
+          <aside class="side island" data-side="2" aria-label="Sessions"></aside>
+
+          <main class="main">
+            <header class="shead island">
+              <div class="shead-t">
+                <h1><span class="proj">acme-app /</span>i18n-de</h1>
+                <div class="meta-row">
+                  <span class="sig sig-red"><span class="lamp"></span>Danger · needs you</span>
+                  <span class="dotsep">·</span>
+                  <span><svg class="ic"><use href="#i-branch"/></svg><code>chore/i18n-de</code></span>
+                </div>
+              </div>
+              <div class="shead-act">
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-pause"/></svg>Pause</button>
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-folder-open"/></svg>Explorer</button>
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-code"/></svg>VS Code</button>
+                <button class="btn sm ghost"><svg class="ic"><use href="#i-terminal"/></svg>Terminal</button>
+              </div>
+            </header>
+
+            <div class="also island">
+              <span>Also waiting</span>
+              <span class="also-item"><span class="lamp sig-amber"></span><b>report-export</b><span class="sig-amber">Permission</span></span>
+              <span class="also-item"><span class="lamp sig-green"></span><b>image-resize</b><span class="sig-green">PR draft</span></span>
+              <button class="link"><u>Open next</u></button>
+            </div>
+
+            <section class="decision red island reach-target" aria-label="Dangerous command">
+              <header class="dc-head">
+                <span class="sig-label"><svg class="ic"><use href="#i-alert"/></svg>Danger</span>
+                <h2>Dangerous command</h2>
+                <span class="dc-meta num" id="danger-meta">Waiting 2 min</span>
+              </header>
+              <div class="cmd">
+                <span class="prompt">$</span>
+                <code>git push --force origin chore/i18n-de</code>
+                <button class="icon-btn" title="Copy command"><svg class="ic"><use href="#i-copy"/></svg></button>
+              </div>
+              <p class="dc-what">Replaces the remote branch with your local one. Commits that exist only on the remote are lost. <code>main</code> and <code>develop</code> are not touched.</p>
+              <ul class="facts">
+                <li><svg class="ic"><use href="#i-alert"/></svg>Force push</li>
+                <li><svg class="ic"><use href="#i-branch"/></svg>Rewrites remote branch</li>
+              </ul>
+              <div class="dc-actions">
+                <button class="btn hold" id="hold" aria-describedby="hold-hint"><span class="hold-fill"></span><span class="hold-label">Hold to allow once</span><span class="hold-sec">1 s</span></button>
+                <button class="btn">Deny <span class="kbd">Esc</span></button>
+                <span class="hint" id="hold-hint"><svg class="ic"><use href="#i-lock"/></svg>Not available by hotkey or remote</span>
+                <button class="btn ghost end"><svg class="ic"><use href="#i-compass"/></svg>Ask the advisor</button>
+              </div>
+            </section>
+
+            <section class="term island" aria-label="Terminal">
+              <header class="term-head">
+                <svg class="ic"><use href="#i-terminal"/></svg><span>Terminal</span><span class="meta">claude · i18n-de</span>
+                <button class="icon-btn" title="Open in Terminal"><svg class="ic"><use href="#i-terminal"/></svg></button>
+              </header>
+<pre class="term-body"><span class="t-m">›</span> Continue with the plan
+<span class="t-m">●</span> Skill(superpowers:executing-plans)
+<span class="t-m">  ⎿</span> <span class="t-a">Loaded plan · task 2 of 6: Move German strings into locale files</span>
+<span class="t-m">●</span> Task(implementer) <span class="t-m">· subagent started</span>
+<span class="t-m">  ⎿</span> <span class="t-a">Extracting strings from src/components</span>
+<span class="t-m">●</span> Bash(git fetch origin &amp;&amp; git rebase origin/develop)
+<span class="t-m">  ⎿</span> <span class="t-a">Successfully rebased and updated refs/heads/chore/i18n-de</span>
+<span class="t-m">●</span> Bash(git push origin chore/i18n-de)
+<span class="t-m">  ⎿</span> <span class="t-a">rejected: non-fast-forward</span>
+<span class="t-m">●</span> Bash(git push --force origin chore/i18n-de)
+<span class="t-m">  ⎿</span> <span class="t-bad">waiting for permission, dangerous command</span><span class="t-cur"></span></pre>
+            </section>
+          </main>
+
+          <aside class="rail island" aria-label="Session info">
+            <section class="rsec">
+              <h3>Progress</h3>
+              <div class="prog-main"><b>Task 2 of 6</b><span>33 %</span></div>
+              <p class="prog-task">Move German strings into locale files</p>
+              <div class="bar"><i style="width:33%"></i></div>
+            </section>
+            <section class="rsec">
+              <h3>Workflow</h3>
+              <ol class="phases">
+                <li class="phase"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Brainstorm</span><span class="st">Done</span></li>
+                <li class="phase"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Spec</span><span class="st">Done</span></li>
+                <li class="phase"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Plan</span><span class="st">Done</span></li>
+                <li class="phase"><span class="mk sig-blue"><span class="lamp"></span></span><span class="nm">Execute</span><span class="st sig-blue">Running</span></li>
+                <li class="phase open"><span class="mk"><span class="lamp ring"></span></span><span class="nm">Review</span><span class="st">Open</span></li>
+                <li class="phase open"><span class="mk"><span class="lamp ring"></span></span><span class="nm">Finish</span><span class="st">Open</span></li>
+              </ol>
+            </section>
+            <section class="rsec">
+              <h3>Session</h3>
+              <dl class="kv">
+                <div><dt>Subagents</dt><dd>1 active</dd></div>
+                <div><dt>Git</dt><dd>5 ahead, 0 behind <code>develop</code></dd></div>
+                <div><dt>Context</dt><dd>41 % used</dd></div>
+              </dl>
+            </section>
+            <section class="rsec chat">
+              <h3>Side chat <span class="aside">Read-only</span></h3>
+              <div class="msgs">
+                <div class="msg me"><div class="who">You</div><p>Why does it want to force push?</p></div>
+                <div class="msg"><div class="who"><svg class="ic"><use href="#i-message"/></svg>Helper</div><p>The branch was rebased onto <code>develop</code>. The remote still has the old commits, so the normal push was rejected.</p></div>
+              </div>
+              <p class="chat-note">Answers about this session. It cannot change anything.</p>
+              <div class="composer">
+                <span class="pet" data-pet="alarmed" title="Alarmed: i18n-de wants to run a dangerous command"></span>
+                <label class="field"><input placeholder="Ask about this session" aria-label="Ask about this session"><button class="icon-btn" title="Ask"><svg class="ic"><use href="#i-send"/></svg></button></label>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <!-- ============================================================ SCREEN 3 -->
+        <section class="screen rev" data-screen="3">
+          <aside class="side island" data-side="3" aria-label="Sessions"></aside>
+
+          <div class="review">
+            <header class="rv-head island">
+              <button class="btn sm ghost" data-go="1"><svg class="ic"><use href="#i-arrow-left"/></svg>Back</button>
+              <span class="rv-sep"></span>
+              <div class="shead-t">
+                <h1>Review report-export</h1>
+                <div class="meta-row">
+                  <span class="sig sig-green"><span class="lamp"></span>Ready for review</span>
+                  <span class="dotsep">·</span>
+                  <span><svg class="ic"><use href="#i-branch"/></svg><code>feat/report-export → develop</code></span>
+                </div>
+              </div>
+              <button class="icon-btn" title="Close review" data-go="1"><svg class="ic"><use href="#i-x"/></svg></button>
+            </header>
+
+            <div class="rv-grid">
+              <!-- PR draft first: it is the decision, next to the arm -->
+              <section class="decision green island pr reach-target" aria-label="PR draft">
+                <header class="dc-head">
+                  <span class="sig-label"><svg class="ic"><use href="#i-pr"/></svg>PR draft</span>
+                  <span class="dc-meta" style="margin-left:0">Not created yet</span>
+                </header>
+                <div class="fld">
+                  <span class="lbl">Title</span>
+                  <div class="input"><code>feat(export): export reports with date filters</code></div>
+                </div>
+                <div class="fld-row">
+                  <div class="fld">
+                    <span class="lbl">Target branch</span>
+                    <button class="input sel"><code>develop</code><svg class="ic"><use href="#i-chevron"/></svg></button>
+                  </div>
+                  <label class="check"><span class="box"><svg class="ic"><use href="#i-check"/></svg></span>Draft PR</label>
+                </div>
+                <div class="fld" style="flex:1;min-height:0">
+                  <span class="lbl"><span>Description <span class="aside">· written by Claude, editable</span></span><button class="link"><svg class="ic"><use href="#i-copy"/></svg>Copy</button></span>
+                  <div class="desc" contenteditable="true" spellcheck="false">
+                    <h4>What</h4>
+                    <p>Reports can be exported as CSV with a start and end date. Date ranges are normalised before the query runs, so a range always covers whole days.</p>
+                    <h4>Why</h4>
+                    <p>Reports could only be read in the app. People need the filtered rows in a spreadsheet.</p>
+                    <h4>Tests</h4>
+                    <p>60 tests pass, including new cases for empty, open and reversed date ranges.</p>
+                    <h4>Checklist</h4>
+                    <ul>
+                      <li><span class="cb">[x]</span>Spec and plan approved</li>
+                      <li><span class="cb">[x]</span>Lint, types, secret scan and dependency audit pass</li>
+                      <li><span class="cb">[ ]</span>Rename <code>fmtRange</code> to <code>formatDateRange</code></li>
+                      <li><span class="cb">[ ]</span>Remove the unused export of <code>parseRow</code></li>
+                    </ul>
+                  </div>
+                </div>
+                <div class="dc-actions">
+                  <button class="btn primary"><svg class="ic"><use href="#i-pr"/></svg>Release and create PR</button>
+                  <button class="btn">Regenerate description</button>
+                </div>
+                <p class="pr-note"><svg class="ic"><use href="#i-info"/></svg>Orchtopus never merges. You merge on GitHub or GitLab.</p>
+              </section>
+
+              <div class="rv-col">
+                <section class="island sec">
+                  <div class="sec-h"><h2>What was done</h2><span class="aside sig-green num">15 of 15 tasks</span></div>
+                  <dl class="tasks">
+                    <div><dt>Export <span>5</span></dt><dd>Report query, CSV writer, streaming download, file names, error states</dd></div>
+                    <div><dt>Date filters <span>4</span></dt><dd>Range input, normalise date ranges, time zones, validation</dd></div>
+                    <div><dt>Interface <span>4</span></dt><dd>Export button, progress notice, empty state, settings entry</dd></div>
+                    <div><dt>Tests <span>2</span></dt><dd>Integration tests, CSV fixtures</dd></div>
+                  </dl>
+                  <div class="links">
+                    <button class="link"><svg class="ic"><use href="#i-diff"/></svg><u>Diff · 3 files</u></button>
+                    <button class="link"><svg class="ic"><use href="#i-history"/></svg><u>Session history</u></button>
+                    <button class="link"><svg class="ic"><use href="#i-code"/></svg><u>Open worktree in VS Code</u></button>
+                  </div>
+                </section>
+
+                <section class="island sec gates-isl">
+                  <div class="sec-h"><h2>Gates</h2><span class="aside num">8 passed · 1 note · 2 open</span></div>
+                  <div class="gates">
+                    <div class="gate"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Spec</span><span class="res">Approved by you</span></div>
+                    <div class="gate"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Plan</span><span class="res">Approved by you</span></div>
+                    <div class="gate"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Tests</span><span class="res num">60 passed</span></div>
+                    <div class="gate"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Lint and types</span><span class="res">Passed</span></div>
+                    <div class="gate"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Secret scan</span><span class="res">Passed</span></div>
+                    <div class="gate"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Dependency audit</span><span class="res">Passed</span></div>
+                    <div class="gate flush"><span class="mk"><svg class="ic"><use href="#i-check"/></svg></span><span class="nm">Review council</span><span class="res num">4 of 4</span></div>
+                    <div class="gate-detail">
+                      <div class="ln"><span>Spec compliance</span><span>Pass</span></div>
+                      <div class="ln"><span>Code quality</span><span>Pass, 2 notes for the checklist</span></div>
+                      <div class="ln"><span>Tests</span><span>Pass</span></div>
+                      <div class="ln"><span>Security</span><span>Not needed, no sensitive paths</span></div>
+                    </div>
+                    <div class="gate"><span class="mk note"><svg class="ic"><use href="#i-info"/></svg></span><span class="nm">Git check</span><span class="res">1 note</span></div>
+                    <div class="gate"><span class="mk sig-green"><span class="lamp ring"></span></span><span class="nm">Release PR</span><span class="res sig-green">You, open</span></div>
+                    <div class="gate muted"><span class="mk open"><span class="lamp ring"></span></span><span class="nm">CI</span><span class="res">After PR</span></div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="rv-col">
+                <section class="island sec gitcheck">
+                  <div class="sec-h"><h2>Git check</h2><span class="aside">1 note</span></div>
+                  <div class="ln"><svg class="ic"><use href="#i-check"/></svg>Branch name ok</div>
+                  <div class="ln"><svg class="ic"><use href="#i-check"/></svg>Commits ok</div>
+                  <div class="ln"><svg class="ic"><use href="#i-check"/></svg>Target <code>develop</code> ok</div>
+                  <p class="gnote">This PR mixes two topics: the export feature and a new dependency. Consider splitting.</p>
+                  <button class="btn sm"><svg class="ic"><use href="#i-split"/></svg>Ask the advisor to draft a split</button>
+                </section>
+
+                <section class="island advisor">
+                  <h3 class="lbl">Advisor <span class="aside">For this change</span></h3>
+                  <div class="msgs">
+                    <div class="msg me"><div class="who">You</div><p>Is the csv-parse dependency safe to ship?</p></div>
+                    <div class="msg"><div class="who"><svg class="ic"><use href="#i-compass"/></svg>Advisor</div><p>The dependency audit passed. The version is pinned to 5.6.0, so this PR does not pull in later releases.</p></div>
+                    <div class="msg me"><div class="who">You</div><p>Should I split the PR?</p></div>
+                    <div class="msg"><div class="who"><svg class="ic"><use href="#i-compass"/></svg>Advisor</div><p>Yes, if different people review export code and dependencies. One PR adds csv-parse, the second builds the export on top.</p></div>
+                  </div>
+                  <div class="composer">
+                    <span class="pet" data-pet="content" title="Content: all gates for report-export passed"></span>
+                    <label class="field"><input placeholder="Ask, or write an instruction" aria-label="Ask, or write an instruction"><button class="icon-btn" title="Ask"><svg class="ic"><use href="#i-send"/></svg></button></label>
+                  </div>
+                  <div class="composer-acts">
+                    <button class="btn sm"><svg class="ic"><use href="#i-terminal"/></svg>Send to session</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ SCREEN 4 -->
+        <section class="screen set" data-screen="4">
+          <nav class="setnav island" aria-label="Settings">
+            <h2>Settings</h2>
+            <button class="navrow"><svg class="ic"><use href="#i-sliders"/></svg>General</button>
+            <button class="navrow sel" aria-current="page"><svg class="ic"><use href="#i-palette"/></svg>Appearance</button>
+            <button class="navrow"><svg class="ic"><use href="#i-cpu"/></svg>Models</button>
+            <button class="navrow"><svg class="ic"><use href="#i-gauge"/></svg>Usage</button>
+            <button class="navrow"><svg class="ic"><use href="#i-bell"/></svg>Notifications</button>
+            <button class="navrow"><svg class="ic"><use href="#i-keyboard"/></svg>Keyboard</button>
+            <button class="navrow"><svg class="ic"><use href="#i-shield"/></svg>Privacy</button>
+            <button class="navrow"><svg class="ic"><use href="#i-folder"/></svg>Projects</button>
+            <button class="navrow back" data-go="1"><svg class="ic"><use href="#i-arrow-left"/></svg>Back to sessions</button>
+          </nav>
+
+          <div class="setmain island">
+            <div class="set-top">
+              <h1>Appearance</h1>
+              <p>Global settings. <svg class="ic"><use href="#i-folder"/></svg>marks a value a project overrides.</p>
+            </div>
+
+            <div class="set-cols">
+              <div class="set-col">
+                <section class="sset">
+                  <h2>Look</h2>
+                  <p class="sub">Changes apply instantly.</p>
+                  <div class="srows">
+                    <div class="srow2">
+                      <div class="l"><b>Mode</b><span>Light is the lagoon by day, dark the same place under water</span></div>
+                      <div class="seg" role="group" aria-label="Mode">
+                        <button data-mode-set="light"><svg class="ic"><use href="#i-sun"/></svg>Light</button>
+                        <button data-mode-set="dark"><svg class="ic"><use href="#i-moon"/></svg>Dark</button>
+                        <button data-mode-set="system"><svg class="ic"><use href="#i-monitor"/></svg>Like Windows</button>
+                      </div>
+                    </div>
+                    <div class="srow2 stack">
+                      <div class="l"><b>Design variant</b><span>Each variant has a light and a dark set</span></div>
+                      <div class="variants" role="group" aria-label="Design variant">
+                        <button class="variant" aria-pressed="true">
+                          <span class="pv"><svg viewBox="0 0 152 92" preserveAspectRatio="none" aria-hidden="true">
+                            <rect width="152" height="66" style="fill:var(--sky-top)"/>
+                            <rect y="66" width="152" height="26" style="fill:var(--water-top)"/>
+                            <path d="M0 66 C 8 60, 16 58, 26 61 C 30 62, 34 64, 38 66 Z" style="fill:var(--far)"/>
+                            <rect x="6" y="8" width="36" height="44" rx="4" style="fill:var(--island)"/>
+                            <rect x="48" y="8" width="62" height="28" rx="4" style="fill:color-mix(in oklab, var(--amber) 10%, var(--island))"/>
+                            <rect x="48" y="40" width="62" height="44" rx="4" style="fill:var(--island)"/>
+                            <rect x="116" y="8" width="30" height="76" rx="4" style="fill:var(--island)"/>
+                            <circle cx="12" cy="16" r="2" style="fill:var(--amber)"/><circle cx="12" cy="24" r="2" style="fill:var(--blue)"/><circle cx="12" cy="32" r="2" style="fill:var(--green)"/>
+                          </svg></span>
+                          <span class="vname">Lagoon <span>Current</span></span>
+                        </button>
+                        <button class="variant" aria-pressed="false">
+                          <span class="pv"><svg viewBox="0 0 152 92" preserveAspectRatio="none" aria-hidden="true">
+                            <rect width="152" height="92" style="fill:var(--pv-deep-bg)"/>
+                            <rect width="40" height="92" style="fill:var(--pv-deep-side)"/>
+                            <rect x="48" y="8" width="96" height="30" rx="3" style="fill:var(--pv-deep-card);stroke:var(--pv-deep-line)"/>
+                            <rect x="48" y="44" width="96" height="40" rx="3" style="fill:var(--pv-deep-card);stroke:var(--pv-deep-line)"/>
+                            <circle cx="12" cy="16" r="2" style="fill:var(--pv-deep-amber)"/><circle cx="12" cy="24" r="2" style="fill:var(--pv-deep-blue)"/><circle cx="12" cy="32" r="2" style="fill:var(--pv-deep-green)"/>
+                          </svg></span>
+                          <span class="vname">Deep sea</span>
+                        </button>
+                        <button class="variant" aria-pressed="false">
+                          <span class="pv"><svg viewBox="0 0 152 92" preserveAspectRatio="none" aria-hidden="true">
+                            <rect width="152" height="92" style="fill:var(--pv-paper-bg)"/>
+                            <rect width="40" height="92" style="fill:var(--pv-paper-side)"/>
+                            <rect x="48" y="8" width="96" height="30" rx="2" style="fill:var(--pv-paper-card);stroke:var(--pv-paper-line)"/>
+                            <rect x="48" y="44" width="96" height="40" rx="2" style="fill:var(--pv-paper-card);stroke:var(--pv-paper-line)"/>
+                            <circle cx="12" cy="16" r="2" style="fill:var(--pv-paper-amber)"/><circle cx="12" cy="24" r="2" style="fill:var(--pv-paper-blue)"/><circle cx="12" cy="32" r="2" style="fill:var(--pv-paper-green)"/>
+                          </svg></span>
+                          <span class="vname">Paper</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="sset">
+                  <h2>Usage</h2>
+                  <p class="sub">Subscription limits. Orchtopus warns and pauses, it does not cap.</p>
+                  <div class="srows">
+                    <div class="srow2 stack">
+                      <div class="meter-wrap">
+                        <div class="meter-top"><span>5-hour window <span class="v">46 %</span></span><span class="r">Resets 16:40</span></div>
+                        <div class="meter"><i style="width:46%"></i><span class="tick" style="left:70%"></span><span class="tick" style="left:90%"></span></div>
+                        <div class="ticks"><span style="left:70%">70</span><span style="left:90%">90</span></div>
+                      </div>
+                      <div class="meter-wrap">
+                        <div class="meter-top"><span>Weekly <span class="v">31 %</span></span><span class="r">Resets Mon 09:00</span></div>
+                        <div class="meter"><i style="width:31%"></i><span class="tick" style="left:70%"></span><span class="tick" style="left:90%"></span></div>
+                        <div class="ticks"><span style="left:70%">70</span><span style="left:90%">90</span></div>
+                      </div>
+                    </div>
+                    <div class="srow2">
+                      <div class="l"><b>Pause background jobs</b><span>Wiki and summaries wait until the window resets</span></div>
+                      <label class="numfield">at <input value="70" aria-label="Pause background jobs at percent"><span>%</span></label>
+                    </div>
+                    <div class="srow2">
+                      <div class="l"><b>Ask before new sessions</b><span>Running sessions continue</span></div>
+                      <label class="numfield">at <input value="90" aria-label="Ask before new sessions at percent"><span>%</span></label>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="set-col">
+                <section class="sset">
+                  <h2>Models per role</h2>
+                  <p class="sub">Model and effort for each kind of work.</p>
+                  <div class="models">
+                    <div class="mrow mhead"><span>Role</span><span>Model</span><span>Effort</span></div>
+                    <div class="mrow"><span class="role">Main session</span><button class="dd">Opus<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">High<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                    <div class="mrow"><span class="role">Planning<span class="tag"><svg class="ic"><use href="#i-folder"/></svg>Overridden in acme-app</span></span><button class="dd">Opus<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">High<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                    <div class="mrow"><span class="role">Review council</span><button class="dd">Sonnet<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">Medium<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                    <div class="mrow"><span class="role">Security reviewer</span><button class="dd">Opus<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">High<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                    <div class="mrow"><span class="role">Advisor and side chat</span><button class="dd">Sonnet<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">Medium<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                    <div class="mrow"><span class="role">Wiki</span><button class="dd">Sonnet<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">Medium<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                    <div class="mrow"><span class="role">Summaries</span><button class="dd">Haiku<svg class="ic"><use href="#i-chevron"/></svg></button><button class="dd">Low<svg class="ic"><use href="#i-chevron"/></svg></button></div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <svg class="reach" id="reach" aria-hidden="true"></svg>
+      </div>
+
+      <!-- status island: live state left, key hints for this screen right -->
+      <footer class="status island" id="status" aria-label="Status"></footer>
+    </div>
+  </div>
+
+  <nav class="ctl" aria-label="Exploration controls">
+    <span class="ctl-name">R2-B · Lagoon</span>
+    <button data-go="1"><span class="kbd">1</span>Permission</button>
+    <button data-go="2"><span class="kbd">2</span>Danger</button>
+    <button data-go="3"><span class="kbd">3</span>Review</button>
+    <button data-go="4"><span class="kbd">4</span>Settings</button>
+    <span class="ctl-sep"></span>
+    <button id="modeBtn"><span class="kbd">D</span><span id="modeLbl">Dark</span></button>
+  </nav>
+</div>
+
+<script>
+(() => {
+  /* ---------------------------------------------------------- pixel octopus
+     b body, w eye, k pupil, d mouth. 16 columns, 2 px per cell = 32 px wide. */
+  const PET = {
+    content: [
+      "......bbbb......",
+      "....bbbbbbbb....",
+      "...bbbbbbbbbb...",
+      "..bbbbbbbbbbbb..",
+      "..bbwwbbbbwwbb..",
+      "..bbwkbbbbkwbb..",
+      "..bbbbbbbbbbbb..",
+      "..bbbbbddbbbbb..",
+      "..bbbbbbbbbbbb..",
+      "..bb.bb..bb.bb..",
+      ".bb..b....b..bb.",
+      ".b...bb..bb...b.",
+      ".bb..........bb."
+    ],
+    waving: [
+      "......bbbb....b.",
+      "....bbbbbbbb...b",
+      "...bbbbbbbbbb..b",
+      "..bbbbbbbbbbbb.b",
+      "..bbwkbbbbwkbb.b",
+      "..bbwwbbbbwwbb.b",
+      "..bbbbbbbbbbbbb.",
+      "..bbbbbddbbbbb..",
+      "..bbbbbbbbbbbb..",
+      "..bb.bb..bb.....",
+      ".bb..b....b.....",
+      ".b...bb..bb.....",
+      ".bb............."
+    ],
+    alarmed: [
+      "b..............b",
+      "b.....bbbb.....b",
+      "b...bbbbbbbb...b",
+      ".b.bbbbbbbbbb.b.",
+      ".bbbbbbbbbbbbbb.",
+      "..bwwwbbbbwwwb..",
+      "..bwkwbbbbwkwb..",
+      "..bwwwbbbbwwwb..",
+      "..bbbbbbbbbbbb..",
+      "..bbbbbddbbbbb..",
+      "...bb.b..b.bb...",
+      "...b..b..b..b...",
+      "...b..b..b..b..."
+    ]
+  };
+  /* mantle for the session list: the last row holds one arm stub per session (cells 4, 6, 8, 10, 12) */
+  const HEAD = {
+    calm: [
+      "......bbbb......",
+      "....bbbbbbbb....",
+      "...bbbbbbbbbb...",
+      "..bbbbbbbbbbbb..",
+      "..bbwwbbbbwwbb..",
+      "..bbwkbbbbkwbb..",
+      "..bbbbbbbbbbbb..",
+      "..bbbbbddbbbbb..",
+      "..bbbbbbbbbbbb..",
+      "....b.b.b.b.b..."
+    ],
+    look: [
+      "......bbbb......",
+      "....bbbbbbbb....",
+      "...bbbbbbbbbb...",
+      "..bbbbbbbbbbbb..",
+      "..bbwwbbbbwwbb..",
+      "..bbwkbbbbwkbb..",
+      "..bbbbbbbbbbbb..",
+      "..bbbbbddbbbbb..",
+      "..bbbbbbbbbbbb..",
+      "....b.b.b.b.b..."
+    ],
+    alarmed: [
+      "......bbbb......",
+      "....bbbbbbbb....",
+      "...bbbbbbbbbb...",
+      "..bbbbbbbbbbbb..",
+      "..bwwwbbbbwwwb..",
+      "..bwkwbbbbwkwb..",
+      "..bwwwbbbbwwwb..",
+      "..bbbbbddbbbbb..",
+      "..bbbbbbbbbbbb..",
+      "....b.b.b.b.b..."
+    ]
+  };
+  function pixels(map, px) {
+    const h = map.length, w = map[0].length;
+    let r = "";
+    map.forEach((row, y) => [...row].forEach((c, x) => {
+      if (c !== ".") r += `<rect x="${x}" y="${y}" width="1.02" height="1.02" class="p-${c}"/>`;
+    }));
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w * px}" height="${h * px}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+  }
+  document.querySelectorAll("[data-pet]").forEach(el => { el.innerHTML = pixels(PET[el.dataset.pet], 2); });
+  document.querySelectorAll("[data-head]").forEach(el => { el.innerHTML = pixels(HEAD[el.dataset.head], +(el.dataset.px || 2)); });
+
+  /* ---------------------------------------------------------- sessions per screen */
+  const base = [
+    ["acme-app", "report-export", "feat/report-export", "amber", "Needs you · permission", "12 of 15", true],
+    ["acme-app", "upload-fix", "fix/upload", "blue", "Running", "4 of 7", false],
+    ["acme-app", "image-resize", "feat/image-resize", "green", "PR draft waiting", "done", true],
+    ["acme-app", "i18n-de", "chore/i18n-de", "blue", "Running", "2 of 6", false],
+    ["docs-site", "changelog", "docs/changelog", "idle", "Idle", "3 of 3", false]
+  ];
+  const LISTS = {
+    1: { sel: "report-export", head: "look", rows: base },
+    2: { sel: "i18n-de", head: "alarmed", rows: base.map(r => r[1] === "i18n-de" ? ["acme-app", "i18n-de", "chore/i18n-de", "red", "Danger · needs you", "2 of 6", true] : r) },
+    3: { sel: "report-export", head: "calm", rows: base.map(r => r[1] === "report-export" ? ["acme-app", "report-export", "feat/report-export", "green", "Ready for review", "15 of 15", true] : r) }
+  };
+  document.querySelectorAll("[data-side]").forEach(side => {
+    const L = LISTS[side.dataset.side];
+    let list = "", proj = "";
+    L.rows.forEach(([p, name, branch, sig, state, prog, wait]) => {
+      if (p !== proj) {
+        const n = L.rows.filter(r => r[0] === p).length;
+        list += `<div class="grp"><span>${p}</span><span class="num">${n}</span></div>`;
+        proj = p;
+      }
+      const sel = name === L.sel;
+      list += `<button class="srow${sel ? " sel" : ""}" data-sig="${sig}"${wait ? " data-wait" : ""}${sel ? ' data-reach aria-current="true"' : ""} title="${branch}">
+        <span class="srow-l1"><span class="sname">${name}</span><span class="sprog">${prog}</span></span>
+        <span class="sstate sig-${sig}">${state}</span></button>`;
+    });
+    side.innerHTML = `
+      <div class="side-head">
+        <span class="mantle">${pixels(HEAD[L.head], 2)}</span>
+        <div><div class="side-title">Sessions</div><div class="side-sub">5 sessions in 2 projects</div></div>
+        <button class="icon-btn" title="New session"><svg class="ic"><use href="#i-plus"/></svg></button>
+      </div>
+      <div class="side-list">${list}</div>
+      <div class="side-foot"><button class="btn sm ghost"><svg class="ic"><use href="#i-plus"/></svg>Add project</button></div>
+      <svg class="arms" aria-hidden="true"></svg>`;
+  });
+
+  /* ---------------------------------------------------------- status island and title note */
+  const COUNTS = {
+    1: [["amber", "1 needs you"], ["blue", "2 running"], ["green", "1 PR draft"], ["idle", "1 idle"]],
+    2: [["red", "1 danger"], ["amber", "1 needs you"], ["blue", "1 running"], ["green", "1 PR draft"], ["idle", "1 idle"]],
+    3: [["green", "1 ready for review"], ["green", "1 PR draft"], ["blue", "2 running"], ["idle", "1 idle"]],
+    4: [["amber", "1 needs you"], ["blue", "2 running"], ["green", "1 PR draft"], ["idle", "1 idle"]]
+  };
+  const HINTS = {
+    1: [["Enter", "Allow once"], ["Esc", "Deny"], ["Ctrl+K", "Commands"], ["I", "Inbox"]],
+    2: [[null, "Allowing needs the held button"], ["Esc", "Deny"], ["Ctrl+K", "Commands"], ["I", "Inbox"]],
+    3: [["Esc", "Back"], ["Tab", "Next pane"], ["Ctrl+K", "Commands"], ["I", "Inbox"]],
+    4: [["↑↓", "Move"], ["Esc", "Back to sessions"], ["Ctrl+K", "Commands"], ["I", "Inbox"]]
+  };
+  const NOTE = {
+    1: ["amber", "<b>report-export</b> needs permission"],
+    2: ["red", "<b>i18n-de</b> waits on a dangerous command"],
+    3: ["green", "No permission waiting · 2 ready for review"],
+    4: ["amber", "<b>report-export</b> needs permission"]
+  };
+  const SKY = { 1: "wait", 2: "danger", 3: "calm", 4: "wait" };
+  function renderStatus(n) {
+    const counts = COUNTS[n].map(([sig, txt]) =>
+      `<span class="st-c sig-${sig}"><span class="lamp${sig === "idle" ? " ring" : ""}"></span>${txt}</span>`).join("");
+    const hints = HINTS[n].map(([k, txt]) => k
+      ? `<span class="st-hint"><span class="kbd">${k}</span>${txt}</span>`
+      : `<span class="st-hint lock"><svg class="ic"><use href="#i-lock"/></svg>${txt}</span>`).join("");
+    document.getElementById("status").innerHTML = `
+      <div class="st-group">${counts}</div>
+      <span class="st-sep"></span>
+      <span class="st-item"><svg class="ic"><use href="#i-plug"/></svg>Claude Code connected</span>
+      <span class="st-item"><svg class="ic"><use href="#i-git"/></svg>Git updated 3 s ago</span>
+      <div class="st-hints">${hints}</div>`;
+    const note = NOTE[n];
+    document.getElementById("skynote").innerHTML = `<span class="lamp sig-${note[0]}"></span><span>${note[1]}</span>`;
+  }
+
+  /* ---------------------------------------------------------- arms: one head, one arm per session */
+  const fit = document.getElementById("fit");
+  const frame = document.getElementById("frame");
+  const body = document.getElementById("body");
+  const reach = document.getElementById("reach");
+  let scale = 1;
+  const LAMP = 48, R = 6;
+  const colourOf = sig => sig === "idle" ? "var(--text-3)" : `var(--${sig})`;
+
+  function drawArms() {
+    reach.innerHTML = "";
+    document.querySelectorAll(".side .arms").forEach(a => { a.innerHTML = ""; });
+    const scr = document.querySelector(".screen.on");
+    const side = scr && scr.querySelector(".side");
+    if (!side) return;
+    const s = scale;
+    const sr = side.getBoundingClientRect();
+    const m = side.querySelector(".mantle svg").getBoundingClientRect();
+    const mx = (m.left - sr.left) / s;
+    const hy = (m.bottom - sr.top) / s;
+    const lr = side.querySelector(".side-list").getBoundingClientRect();
+    const top = (lr.top - sr.top) / s, bot = (lr.bottom - sr.top) / s;
+    const rows = [...side.querySelectorAll(".srow")];
+    let out = "";
+    rows.forEach((row, i) => {
+      const r = row.getBoundingClientRect();
+      const nm = row.querySelector(".sname").getBoundingClientRect();
+      const ly = Math.round(((nm.top + nm.bottom) / 2 - sr.top) / s);
+      const lx = mx + (12 - i * 2) * 2 + 1;   /* centre of the stub cell for this arm */
+      const col = colourOf(row.dataset.sig);
+      if (ly < top + 4) return;                                   /* scrolled above the list */
+      if (ly > bot - 4) { out += `<path class="arm" style="stroke:${col}" d="M${lx} ${hy} V${bot}"/>`; return; }
+      out += `<path class="arm" style="stroke:${col}" d="M${lx} ${hy} V${ly - R} Q${lx} ${ly} ${lx + R} ${ly} H${LAMP}"/>`;
+      if (row.hasAttribute("data-wait")) out += `<circle class="halo" cx="${LAMP}" cy="${ly}" r="7" style="fill:${col}"/>`;
+      out += row.dataset.sig === "idle"
+        ? `<circle class="lamp-idle" cx="${LAMP}" cy="${ly}" r="3.25"/>`
+        : `<circle cx="${LAMP}" cy="${ly}" r="4" style="fill:${col}"/>`;
+
+      if (row.hasAttribute("data-reach")) {
+        const target = scr.querySelector(".reach-target");
+        const yb0 = (r.bottom - sr.top) / s - 1;
+        if (!target || yb0 > bot) return;
+        const fb = reach.getBoundingClientRect();
+        const t = target.getBoundingClientRect();
+        const ox = (sr.left - fb.left) / s, oy = (sr.top - fb.top) / s;
+        const x0 = ox + LAMP, y0 = oy + ly;
+        const yb = oy + yb0;
+        const cl = (t.left - fb.left) / s, ct = (t.top - fb.top) / s, cb = (t.bottom - fb.top) / s;
+        let d = `M${x0} ${y0 + 5} V${yb - R} Q${x0} ${yb} ${x0 + R} ${yb}`;
+        let ty = yb;
+        if (yb >= ct + 24 && yb <= cb - 24) {
+          d += ` H${cl}`;
+        } else {
+          ty = Math.min(Math.max(yb, ct + 32), cb - 32);
+          const gx = cl - 8, dir = ty > yb ? 1 : -1;
+          d += ` H${gx - R} Q${gx} ${yb} ${gx} ${yb + dir * R} V${ty - dir * R} Q${gx} ${ty} ${gx + R} ${ty} H${cl}`;
+        }
+        reach.innerHTML = `<path class="arm reach-arm" style="stroke:${col}" d="${d}"/><circle cx="${cl}" cy="${ty}" r="3.5" style="fill:${col}"/>`;
+      }
+    });
+    side.querySelector(".arms").innerHTML = out;
+  }
+  document.querySelectorAll(".side-list").forEach(l => l.addEventListener("scroll", drawArms, { passive: true }));
+  if ("ResizeObserver" in window) new ResizeObserver(() => requestAnimationFrame(drawArms)).observe(body);
+
+  /* ---------------------------------------------------------- fit 1440 x 900 into the viewport */
+  function layout() {
+    const ctl = document.querySelector(".ctl").offsetHeight;
+    const availW = window.innerWidth - 32;
+    const availH = window.innerHeight - 32 - ctl - 12;
+    scale = Math.min(1, availW / 1440, availH / 900);
+    frame.style.transform = `scale(${scale})`;
+    fit.style.width = 1440 * scale + "px";
+    fit.style.height = 900 * scale + "px";
+    drawArms();
+  }
+
+  /* ---------------------------------------------------------- state in the hash */
+  const state = { screen: 1, mode: "dark" };
+  const crumbs = { 1: "Sessions", 2: "Sessions", 3: "Review", 4: "Settings" };
+  function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const s = parseInt(p.get("screen"), 10);
+    const m = p.get("mode");
+    state.screen = [1, 2, 3, 4].includes(s) ? s : 1;
+    state.mode = m === "light" || m === "dark" ? m : "dark";
+  }
+  function apply() {
+    document.documentElement.dataset.mode = state.mode;
+    frame.dataset.sky = SKY[state.screen];
+    document.querySelectorAll(".screen").forEach(el => el.classList.toggle("on", +el.dataset.screen === state.screen));
+    document.querySelectorAll(".ctl [data-go]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.go === state.screen));
+    document.getElementById("tb-settings").classList.toggle("on", state.screen === 4);
+    document.getElementById("modeLbl").textContent = state.mode === "dark" ? "Dark" : "Light";
+    document.getElementById("crumb").textContent = crumbs[state.screen];
+    document.querySelectorAll("[data-mode-set]").forEach(b => b.setAttribute("aria-pressed", b.dataset.modeSet === state.mode));
+    renderStatus(state.screen);
+    const h = `#screen=${state.screen}&mode=${state.mode}`;
+    if (location.hash !== h) history.replaceState(null, "", h);
+    drawArms();
+    requestAnimationFrame(drawArms);
+  }
+  function go(n) { state.screen = n; apply(); }
+  function toggleMode() { state.mode = state.mode === "dark" ? "light" : "dark"; apply(); }
+
+  document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => go(+b.dataset.go)));
+  document.getElementById("modeBtn").addEventListener("click", toggleMode);
+  document.querySelectorAll("[data-mode-set]").forEach(b => b.addEventListener("click", () => {
+    const v = b.dataset.modeSet;
+    state.mode = v === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : v;
+    apply();
+    if (v === "system") document.querySelectorAll("[data-mode-set]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  }));
+  document.querySelectorAll(".variant").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".variant").forEach(v => v.setAttribute("aria-pressed", v === b));
+  }));
+  window.addEventListener("keydown", e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t.closest && t.closest("input, textarea, [contenteditable='true']")) return;
+    if (/^[1-4]$/.test(e.key)) { go(+e.key); e.preventDefault(); }
+    else if (e.key === "d" || e.key === "D") { toggleMode(); e.preventDefault(); }
+  });
+  window.addEventListener("hashchange", () => { readHash(); apply(); });
+  window.addEventListener("resize", layout);
+
+  /* ---------------------------------------------------------- hold to allow once: pointer only, 1 s */
+  const hold = document.getElementById("hold");
+  const label = hold.querySelector(".hold-label");
+  const sec = hold.querySelector(".hold-sec");
+  let timer = null;
+  function start(e) {
+    if (hold.classList.contains("done") || e.button > 0) return;
+    e.preventDefault();
+    hold.setPointerCapture && hold.setPointerCapture(e.pointerId);
+    hold.classList.add("holding");
+    timer = setTimeout(() => {
+      hold.classList.remove("holding");
+      hold.classList.add("done");
+      label.textContent = "Allowed once";
+      sec.textContent = "sent to i18n-de";
+      document.getElementById("danger-meta").textContent = "Allowed once · the session continues";
+      setTimeout(() => {
+        hold.classList.remove("done");
+        label.textContent = "Hold to allow once";
+        sec.textContent = "1 s";
+        document.getElementById("danger-meta").textContent = "Waiting 2 min";
+      }, 2600);
+    }, 1000);
+  }
+  function cancel() { if (hold.classList.contains("done")) return; clearTimeout(timer); hold.classList.remove("holding"); }
+  hold.addEventListener("pointerdown", start);
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => hold.addEventListener(ev, cancel));
+  hold.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") e.preventDefault(); });
+  hold.addEventListener("click", e => e.preventDefault());
+  hold.addEventListener("contextmenu", e => e.preventDefault());
+
+  readHash();
+  apply();
+  layout();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchtopus exploration 08: Control room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Direction 08 · Control room
+   Product: supervises five Claude Code sessions for one developer through a long working day.
+   Character: exact, dense, calm.
+   World: an instrument panel on a night shift: calibrated scales, channel keys, a quiet measuring grid.
+   Moments: the waiting decision on the stage; the wall of live mini-terminals.
+   Signature: the task ruler, one tick per task, the current tick in the session's signal colour. */
+
+:root {
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-18: 18px; --fs-24: 24px;
+  --lh-16: 16px; --lh-20: 20px;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+
+  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-tile: 10px; --r-lg: 12px; --r-win: 10px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 140ms; --t-mid: 200ms; --t-enter: 320ms; --t-hold: 1000ms;
+
+  --win-w: 1440px; --win-h: 900px;
+}
+
+:root[data-mode="dark"] {
+  color-scheme: dark;
+  --backdrop: #07090b;
+  --ctl-bg: #12161b;
+  --win-bg: #0d1014;
+  --canvas: #101318;
+  --panel: #151a20;
+  --raised: #1c2229;
+  --sunken: #0b0e12;
+  --line: rgba(226, 234, 243, 0.08);
+  --line-2: rgba(226, 234, 243, 0.15);
+  --grid: rgba(226, 234, 243, 0.035);
+  --text-1: #e6ebf1;
+  --text-2: #a7b0bb;
+  --text-3: #8893a0;
+  --accent: #52c7d4;
+  --accent-line: rgba(82, 199, 212, 0.6);
+  --on-accent: #061417;
+  --primary-bg: #e6ebf1;
+  --primary-fg: #0d1014;
+  --win-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --btn-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  --amber: #f2b552;  --amber-fill: #f2b552;  --on-amber: #1d1406;
+  --violet: #b7a1ff;
+  --green: #57c99a;  --green-fill: #57c99a;  --on-green: #04170f;
+  --red: #f2686d;    --red-fill: #f2686d;    --on-red: #1f0607;
+  --orange: #f39155;
+  --blue: #72a8ff;
+
+  --wash-pct: 7%;
+  --frame-pct: 55%;
+}
+
+:root[data-mode="light"] {
+  color-scheme: light;
+  --backdrop: #c9ced4;
+  --ctl-bg: #dfe3e8;
+  --win-bg: #e4e8ec;
+  --canvas: #eceff2;
+  --panel: #ffffff;
+  --raised: #f3f5f7;
+  --sunken: #f4f6f8;
+  --line: rgba(18, 24, 32, 0.10);
+  --line-2: rgba(18, 24, 32, 0.18);
+  --grid: rgba(18, 24, 32, 0.045);
+  --text-1: #111820;
+  --text-2: #45505c;
+  --text-3: #5d6876;
+  --accent: #0a7783;
+  --accent-line: rgba(10, 119, 131, 0.6);
+  --on-accent: #ffffff;
+  --primary-bg: #111820;
+  --primary-fg: #ffffff;
+  --win-shadow: 0 16px 48px rgba(16, 24, 32, 0.18);
+  --btn-highlight: 0 1px 2px rgba(16, 24, 32, 0.05);
+
+  --amber: #975a00;  --amber-fill: #975a00;  --on-amber: #ffffff;
+  --violet: #6a4bd0;
+  --green: #13784a;  --green-fill: #13784a;  --on-green: #ffffff;
+  --red: #c2272d;    --red-fill: #c2272d;    --on-red: #ffffff;
+  --orange: #b0470c;
+  --blue: #1d5ccc;
+
+  --wash-pct: 6%;
+  --frame-pct: 50%;
+}
+
+:root {
+  --amber-wash: color-mix(in srgb, var(--amber) var(--wash-pct), var(--panel));
+  --amber-frame: color-mix(in srgb, var(--amber) var(--frame-pct), var(--panel));
+  --green-wash: color-mix(in srgb, var(--green) var(--wash-pct), var(--panel));
+  --green-frame: color-mix(in srgb, var(--green) var(--frame-pct), var(--panel));
+  --red-wash: color-mix(in srgb, var(--red) var(--wash-pct), var(--panel));
+  --red-frame: color-mix(in srgb, var(--red) var(--frame-pct), var(--panel));
+  --red-hold: color-mix(in srgb, var(--red) 24%, var(--panel));
+  --blue-frame: color-mix(in srgb, var(--blue) var(--frame-pct), var(--panel));
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--backdrop);
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  line-height: var(--lh-20);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.mono { font-family: var(--font-mono); }
+.ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ic.sm { width: 14px; height: 14px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* ---------- Frame and control bar ---------- */
+.frame { position: absolute; left: 0; top: 0; width: var(--win-w); height: var(--win-h); transform-origin: 0 0; }
+.win {
+  position: absolute; inset: 0;
+  display: none;
+  grid-template-rows: 32px 36px minmax(0, 1fr) 24px;
+  background: var(--canvas);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-win);
+  overflow: hidden;
+  box-shadow: var(--win-shadow);
+}
+.win.on { display: grid; animation: enter var(--t-enter) var(--ease); }
+@keyframes enter { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .win.on { animation: none; } }
+
+.ctl {
+  position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: var(--s-2);
+  height: 32px; padding: 0 var(--s-1);
+  background: var(--ctl-bg); border: 1px solid var(--line); border-radius: var(--r-md);
+  font-size: var(--fs-12); color: var(--text-3);
+}
+.ctl-group { display: flex; align-items: center; gap: 2px; }
+.ctl-label { padding: 0 var(--s-2) 0 var(--s-2); }
+.ctl button { height: 24px; padding: 0 var(--s-2); border-radius: var(--r-xs); color: var(--text-2); transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.ctl button:hover { background: var(--raised); color: var(--text-1); }
+.ctl button[aria-pressed="true"] { background: var(--raised); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--line-2); }
+.ctl-sep { width: 1px; height: 16px; background: var(--line-2); }
+.ctl kbd { margin-left: var(--s-1); }
+
+/* ---------- Title bar ---------- */
+.titlebar { display: flex; align-items: center; background: var(--win-bg); border-bottom: 1px solid var(--line); padding-left: var(--s-4); }
+.wordmark { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); margin-right: var(--s-6); }
+.wordmark svg { width: 16px; height: 16px; color: var(--accent); }
+.nav { display: flex; height: 100%; gap: var(--s-1); }
+.nav button { position: relative; display: flex; align-items: center; gap: var(--s-2); height: 100%; padding: 0 var(--s-3); color: var(--text-2); font-size: var(--fs-13); transition: color var(--t-fast) var(--ease); }
+.nav button:hover { color: var(--text-1); }
+.nav button[aria-current="page"] { color: var(--text-1); }
+.nav button[aria-current="page"]::after { content: ""; position: absolute; left: var(--s-3); right: var(--s-3); bottom: -1px; height: 2px; background: var(--accent); border-radius: 1px; }
+.winctl { margin-left: auto; display: flex; height: 100%; }
+.winctl span { width: 46px; display: grid; place-items: center; color: var(--text-2); }
+.winctl svg { width: 10px; height: 10px; stroke: currentColor; stroke-width: 1; fill: none; }
+
+/* ---------- Instrument strip ---------- */
+.strip-i { display: flex; align-items: center; background: var(--panel); border-bottom: 1px solid var(--line); padding: 0 var(--s-4); gap: var(--s-4); font-size: var(--fs-12); color: var(--text-2); }
+.inst { display: flex; align-items: center; gap: var(--s-2); height: 100%; }
+.inst .v { color: var(--text-1); font-weight: 500; font-family: var(--font-mono); }
+.inst .m { color: var(--text-3); font-family: var(--font-mono); }
+.inst-btn { display: flex; align-items: center; gap: var(--s-2); height: 24px; padding: 0 var(--s-2); margin-left: calc(var(--s-2) * -1); border-radius: var(--r-xs); color: var(--text-2); transition: background-color var(--t-fast) var(--ease); }
+.inst-btn:hover { background: var(--raised); }
+.vsep { width: 1px; height: 16px; background: var(--line-2); }
+.strip-i .right { margin-left: auto; color: var(--text-3); }
+
+.meter { position: relative; display: inline-block; width: var(--w, 120px); height: 6px; border-radius: 2px; background-color: var(--raised); box-shadow: inset 0 0 0 1px var(--line); }
+.meter-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--text-2); border-radius: 2px 0 0 2px; }
+.meter-mark { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--text-3); }
+.meter.lg { height: 8px; }
+.meter.lg .meter-mark { top: -4px; bottom: -4px; }
+
+/* ---------- Status bar ---------- */
+.statusbar { display: flex; align-items: center; gap: var(--s-3); padding: 0 var(--s-4); background: var(--win-bg); border-top: 1px solid var(--line); font-size: var(--fs-12); color: var(--text-3); line-height: var(--lh-16); }
+.statusbar .ok { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+.statusbar .right { margin-left: auto; display: flex; align-items: center; gap: var(--s-1); }
+
+/* ---------- Shared bits ---------- */
+.body { position: relative; min-height: 0; background-color: var(--canvas); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 16px 16px; background-position: -1px -1px; }
+kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; font-family: var(--font-mono); font-size: var(--fs-11); line-height: 1; color: var(--text-3); border: 1px solid var(--line-2); border-radius: var(--r-xs); box-shadow: inset 0 -1px 0 var(--line-2); background: var(--panel); }
+.btn kbd.onfill { color: inherit; background: transparent; border-color: color-mix(in srgb, currentColor 40%, transparent); box-shadow: none; }
+
+.lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--sig); flex: none; }
+.lamp.idle { background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-3); }
+.sig-amber { --sig: var(--amber); --sig-wash: var(--amber-wash); --sig-frame: var(--amber-frame); --sig-fill: var(--amber-fill); --on-sig: var(--on-amber); }
+.sig-green { --sig: var(--green); --sig-wash: var(--green-wash); --sig-frame: var(--green-frame); --sig-fill: var(--green-fill); --on-sig: var(--on-green); }
+.sig-red   { --sig: var(--red);   --sig-wash: var(--red-wash);   --sig-frame: var(--red-frame);   --sig-fill: var(--red-fill);   --on-sig: var(--on-red); }
+.sig-blue  { --sig: var(--blue);  --sig-wash: var(--panel);      --sig-frame: var(--blue-frame);  --sig-fill: var(--blue);       --on-sig: var(--panel); }
+.sig-idle  { --sig: var(--text-3); --sig-wash: var(--panel);     --sig-frame: var(--line-2); }
+.sigtext { color: var(--sig); font-weight: 500; }
+
+.ruler { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 2px; height: 8px; width: 100%; }
+.ruler i { display: block; background: var(--line-2); border-radius: 1px; }
+.ruler i.on { background: var(--text-2); }
+.ruler i.cur { background: var(--sig); }
+.ruler.lg { height: 12px; gap: 3px; }
+.ruler.solid { grid-template-columns: 1fr; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); height: 32px; padding: 0 var(--s-3); border-radius: var(--r-md); font-size: var(--fs-13); font-weight: 500; white-space: nowrap; color: var(--text-1); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line-2), var(--btn-highlight); transition: background-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.btn:hover { background: color-mix(in srgb, var(--text-1) 6%, var(--raised)); }
+.btn:active { transform: scale(0.98); }
+.btn .ic { color: var(--text-2); }
+.btn.lg { height: 36px; padding: 0 var(--s-3); }
+.btn.sm { height: 24px; padding: 0 var(--s-2); font-size: var(--fs-12); gap: 6px; }
+.btn.fill { background: var(--sig-fill); color: var(--on-sig); box-shadow: none; }
+.btn.fill .ic { color: inherit; }
+.btn.fill:hover { background: color-mix(in srgb, var(--on-sig) 10%, var(--sig-fill)); }
+.btn.ghost { background: transparent; box-shadow: none; color: var(--text-2); }
+.btn.ghost:hover { background: var(--raised); color: var(--text-1); }
+.btn.icon { width: 32px; padding: 0; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s-4); min-height: 0; }
+.ph { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-3); font-size: var(--fs-12); line-height: var(--lh-16); color: var(--text-2); font-weight: 500; }
+.ph .r { margin-left: auto; font-weight: 400; color: var(--text-3); }
+.ph .r.mono { font-size: var(--fs-12); }
+
+code, .code { font-family: var(--font-mono); font-size: 0.95em; color: var(--text-1); }
+
+/* ---------- Session screens (1, 2) ---------- */
+.cr { display: grid; grid-template-columns: minmax(0, 1fr) 416px; }
+.stg { display: grid; grid-template-rows: 44px minmax(0, 1fr); gap: var(--s-3); padding: var(--s-4); min-height: 0; }
+.stg-head { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.stg-title { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+.stg-title .lamp { width: 10px; height: 10px; }
+.crumb { color: var(--text-3); font-size: var(--fs-13); }
+.sname { font-size: var(--fs-18); font-weight: 500; line-height: 24px; color: var(--text-1); }
+.branch { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-3); }
+.statelabel { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 var(--s-2); border-radius: var(--r-xs); background: var(--sig-wash); box-shadow: inset 0 0 0 1px var(--sig-frame); color: var(--sig); font-size: var(--fs-12); font-weight: 500; }
+.stg-actions { margin-left: auto; display: flex; gap: var(--s-2); }
+
+.stg-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s-4); min-height: 0; }
+.stg-main { display: flex; flex-direction: column; gap: var(--s-3); min-height: 0; }
+.rail { display: flex; flex-direction: column; gap: var(--s-3); min-height: 0; }
+
+.alsowait { display: flex; align-items: center; gap: var(--s-3); height: 36px; padding: 0 var(--s-3); border-radius: var(--r-md); background: var(--panel); border: 1px solid var(--line); color: var(--text-2); font-size: var(--fs-13); flex: none; }
+.alsowait .ic { color: var(--text-3); }
+.alsowait .item { display: inline-flex; align-items: center; gap: var(--s-2); height: 24px; padding: 0 var(--s-2); border-radius: var(--r-xs); color: var(--text-1); transition: background-color var(--t-fast) var(--ease); }
+.alsowait .item:hover { background: var(--raised); }
+.alsowait .item .why { color: var(--sig); font-weight: 500; }
+.alsowait .r { margin-left: auto; color: var(--text-3); font-size: var(--fs-12); }
+
+/* Decision card */
+.dcard { flex: none; display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-5); border-radius: var(--r-lg); background: var(--sig-wash); border: 1px solid var(--sig-frame); }
+.dcard-h { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-4); align-items: start; }
+.dlabel { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-12); line-height: var(--lh-16); color: var(--sig); font-weight: 500; margin-bottom: var(--s-1); }
+.dtitle { font-size: var(--fs-16); line-height: 24px; font-weight: 500; color: var(--text-1); margin: 0; }
+.dtimer { display: grid; justify-items: end; gap: 6px; text-align: right; }
+.dtimer .a { font-size: var(--fs-13); color: var(--text-1); line-height: var(--lh-16); }
+.dtimer .b { font-size: var(--fs-12); color: var(--text-2); line-height: var(--lh-16); }
+.dtimer .ruler { width: 140px; height: 6px; }
+.cmd { display: flex; align-items: center; gap: var(--s-3); height: 44px; padding: 0 var(--s-2) 0 var(--s-4); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-sm); font-family: var(--font-mono); font-size: var(--fs-14); color: var(--text-1); }
+.cmd .p { color: var(--text-3); }
+.cmd .btn { margin-left: auto; }
+.dwhat { margin: 0; font-size: var(--fs-14); line-height: 22px; color: var(--text-2); max-width: 72ch; }
+.dwhat b { font-weight: 500; color: var(--text-1); }
+.facts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.fact { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 var(--s-2); border-radius: var(--r-xs); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); font-size: var(--fs-12); color: var(--text-1); }
+.fact .ic { color: var(--text-2); }
+.dactions { display: flex; align-items: center; gap: var(--s-2); }
+.dactions .hint { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-2); }
+
+.holdhint { display: flex; align-items: center; gap: 6px; margin-top: calc(var(--s-2) * -1); font-size: var(--fs-12); color: var(--text-2); }
+.holdhint .ic { color: var(--text-3); }
+.hold { position: relative; overflow: hidden; height: 36px; white-space: nowrap; flex: none; padding: 0 var(--s-4); border-radius: var(--r-md); background: var(--panel); box-shadow: inset 0 0 0 1px var(--red-frame); color: var(--text-1); font-weight: 500; display: inline-flex; align-items: center; gap: var(--s-2); user-select: none; touch-action: none; }
+.hold::before { content: ""; position: absolute; inset: 0; background: var(--red-hold); transform: scaleX(0); transform-origin: left center; transition: transform 180ms var(--ease); }
+.hold.holding::before { transform: scaleX(1); transition: transform var(--t-hold) linear; }
+.hold.done::before { transform: scaleX(1); transition: none; }
+.hold > * { position: relative; }
+.hold .ic { color: var(--red); }
+.hold .hsec { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-2); font-weight: 400; }
+
+/* Terminal */
+.term { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.term-h { display: flex; align-items: center; gap: var(--s-3); height: 36px; padding: 0 var(--s-4); border-bottom: 1px solid var(--line); font-size: var(--fs-12); color: var(--text-2); flex: none; }
+.term-h .r { margin-left: auto; color: var(--text-3); font-family: var(--font-mono); }
+.term-b { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: var(--s-3) var(--s-4); font-family: var(--font-mono); font-size: var(--fs-13); line-height: var(--lh-20); overflow: hidden; }
+.tl { white-space: pre; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
+.tl.b { color: var(--text-1); }
+.tl.tool { color: var(--text-1); }
+.tl.res { color: var(--text-2); }
+.tl.mut { color: var(--text-3); }
+.tl.sig { color: var(--sig); font-weight: 500; }
+.tl.cur::after { content: ""; display: inline-block; width: 8px; height: 15px; margin-left: 4px; vertical-align: -2px; background: var(--text-2); }
+
+/* Rail panels */
+.prog-fig { display: flex; align-items: baseline; gap: var(--s-2); }
+.prog-fig .n { font-size: var(--fs-24); line-height: 28px; font-weight: 500; color: var(--text-1); }
+.prog-fig .of { font-size: var(--fs-13); color: var(--text-2); }
+.prog-task { font-size: var(--fs-14); color: var(--text-1); margin: var(--s-1) 0 var(--s-3); }
+.phases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(3, 24px); gap: var(--s-1) var(--s-3); margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.phase { display: flex; align-items: center; gap: 6px; height: 24px; font-size: var(--fs-12); color: var(--text-2); }
+.phase .ic { color: var(--text-3); }
+.phase.now { color: var(--text-1); font-weight: 500; }
+.phase.open { color: var(--text-3); }
+.phase .ring { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--text-3); margin: 0 3px; }
+.phase .lamp { margin: 0 3px; }
+.phase .w { color: var(--sig); font-weight: 500; }
+
+.kv { display: grid; grid-template-columns: 88px minmax(0, 1fr); row-gap: var(--s-1); align-items: center; }
+.kv dt { font-size: var(--fs-12); color: var(--text-3); height: 28px; display: flex; align-items: center; }
+.kv dd { margin: 0; font-size: var(--fs-13); color: var(--text-1); display: flex; align-items: center; gap: var(--s-2); white-space: nowrap; }
+.kv dd .m { color: var(--text-3); }
+
+.chat { flex: 1; display: flex; flex-direction: column; }
+.chat-b { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.chat-b p { margin: 0; font-size: var(--fs-13); color: var(--text-2); }
+.chips { display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+.chip { display: inline-flex; align-items: center; gap: var(--s-2); height: 28px; padding: 0 var(--s-3); border-radius: var(--r-md); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-1); font-size: var(--fs-12); transition: background-color var(--t-fast) var(--ease); }
+.chip:hover { background: color-mix(in srgb, var(--text-1) 6%, var(--raised)); }
+.chip .ic { color: var(--text-3); }
+.inputrow { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.pet { color: var(--text-3); width: 22px; height: 16px; flex: none; }
+.input { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s-2); height: 36px; padding: 0 var(--s-1) 0 var(--s-3); border-radius: var(--r-md); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line-2); }
+.input input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--text-1); font: inherit; font-size: var(--fs-13); }
+.input input::placeholder { color: var(--text-3); }
+.input:focus-within { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.input .btn.icon { width: 28px; height: 28px; }
+
+/* Wall */
+.wall { display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-4); border-left: 1px solid var(--line); min-height: 0; }
+.wall-h { display: flex; align-items: center; gap: var(--s-2); height: 44px; flex: none; }
+.wall-h .t { font-size: var(--fs-14); font-weight: 500; }
+.wall-h .c { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-3); }
+.wall-h .r { margin-left: auto; font-size: var(--fs-12); color: var(--text-3); display: flex; align-items: center; gap: var(--s-1); }
+.group { display: flex; flex-direction: column; gap: var(--s-2); }
+.group + .group { margin-top: var(--s-2); }
+.glabel { display: flex; align-items: center; gap: var(--s-2); height: 16px; font-size: var(--fs-12); color: var(--text-3); line-height: var(--lh-16); }
+.glabel .ic { width: 14px; height: 14px; }
+.glabel .c { margin-left: auto; font-family: var(--font-mono); }
+
+.tile { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3); border-radius: var(--r-tile); background: var(--panel); border: 1px solid var(--line); cursor: pointer; text-align: left; width: 100%; transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.tile:hover { border-color: var(--line-2); }
+.tile.lift { background: var(--sig-wash); border-color: var(--sig-frame); }
+.tile.onstage { background: var(--raised); border-color: var(--accent-line); }
+.tile-h { display: flex; align-items: center; gap: var(--s-2); height: 20px; min-width: 0; }
+.tile-name { font-size: var(--fs-13); font-weight: 500; color: var(--text-1); }
+.tile-branch { font-family: var(--font-mono); font-size: var(--fs-11); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tile-state { margin-left: auto; font-size: var(--fs-12); font-weight: 500; color: var(--sig); white-space: nowrap; }
+.sig-idle .tile-state, .sig-idle .cell-state { font-weight: 400; }
+.tile-on { font-size: var(--fs-12); color: var(--accent); white-space: nowrap; }
+.tile-why { display: flex; align-items: center; gap: var(--s-2); height: 24px; font-size: var(--fs-12); color: var(--text-1); }
+.tile-why .btn { margin-left: auto; }
+.mini { margin: 0; padding: var(--s-1) var(--s-2); background: var(--sunken); border-radius: var(--r-xs); font-family: var(--font-mono); font-size: var(--fs-11); line-height: var(--lh-16); color: var(--text-3); }
+.mini div { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.tile.lift .mini { color: var(--text-2); }
+.mini .sig { color: var(--sig); }
+.tile-f { display: flex; align-items: center; gap: var(--s-3); height: 16px; white-space: nowrap; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--text-3); }
+.tile-f .ruler { width: 112px; height: 6px; flex: none; }
+.tile-f .p { color: var(--text-2); }
+.tile-f kbd { margin-left: auto; }
+
+/* ---------- Compact strip (screens 3, 4) ---------- */
+.with-strip { display: grid; grid-template-rows: 64px minmax(0, 1fr); }
+.sstrip { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-4); background: var(--panel); border-bottom: 1px solid var(--line); }
+.sgroup { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.sgroup.grow { flex: 4; }
+.sgroup.one { flex: 1.1; }
+.sglabel { font-size: var(--fs-12); color: var(--text-3); writing-mode: horizontal-tb; padding-right: var(--s-1); white-space: nowrap; }
+.ssep { width: 1px; height: 32px; background: var(--line-2); margin: 0 var(--s-2); }
+.cell { flex: 1; min-width: 0; height: 48px; display: grid; grid-template-rows: 20px 16px; align-content: center; row-gap: 2px; padding: 0 var(--s-3); border-radius: var(--r-md); background: var(--panel); border: 1px solid var(--line); cursor: pointer; text-align: left; transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.cell:hover { border-color: var(--line-2); }
+.cell.lift { background: var(--sig-wash); border-color: var(--sig-frame); }
+.cell.onstage { background: var(--raised); border-color: var(--accent-line); }
+.cell-r1 { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.cell-r1 .tile-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-r1 kbd { margin-left: auto; }
+.cell-r2 { display: flex; align-items: center; gap: var(--s-2); padding-left: 16px; font-size: var(--fs-12); line-height: var(--lh-16); }
+.cell-state { color: var(--sig); font-weight: 500; white-space: nowrap; }
+.cell-r2 .p { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
+
+/* ---------- Review (screen 3) ---------- */
+.rv { display: grid; grid-template-rows: 56px minmax(0, 1fr); min-height: 0; }
+.rv-head { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4) var(--s-4) 0; }
+.rv-head .sname { margin-left: var(--s-1); }
+.rv-head .close { margin-left: var(--s-2); }
+.rv-cols { display: grid; grid-template-columns: 372px minmax(0, 1fr) 404px; gap: var(--s-4); padding: var(--s-4); min-height: 0; }
+.col { display: flex; flex-direction: column; gap: var(--s-3); min-height: 0; }
+
+.gates { display: flex; flex-direction: column; }
+.gate { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; height: 28px; font-size: var(--fs-13); color: var(--text-1); }
+.gate .ic { color: var(--text-2); }
+.gate.open .ic { color: var(--text-3); }
+.gate.open { color: var(--text-2); }
+.gate .who { color: var(--text-3); font-size: var(--fs-12); margin-left: 6px; }
+.gate .res { font-family: var(--font-mono); font-size: var(--fs-12); color: var(--text-2); }
+.gate .res.next { color: var(--green); font-weight: 500; font-family: var(--font-sans); display: inline-flex; align-items: center; gap: 4px; }
+.gate .res.note { color: var(--text-1); font-weight: 500; }
+.sub { margin: 0 0 var(--s-2) 7px; padding: 2px 0 2px 19px; border-left: 1px solid var(--line-2); display: flex; flex-direction: column; }
+.subrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-3); align-items: center; min-height: 24px; font-size: var(--fs-12); line-height: var(--lh-16); color: var(--text-2); }
+.subrow .res { font-family: var(--font-mono); color: var(--text-2); }
+.subrow .res.muted { color: var(--text-3); }
+.subrow .x { color: var(--text-3); }
+.subnote { display: flex; gap: var(--s-2); align-items: flex-start; padding: 6px 0 var(--s-2); font-size: var(--fs-12); line-height: var(--lh-16); color: var(--text-1); }
+.subnote .ic { color: var(--text-2); margin-top: 0; }
+
+.pr { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-5); border-radius: var(--r-lg); background: var(--sig-wash); border: 1px solid var(--sig-frame); }
+.pr-h { display: flex; align-items: center; gap: var(--s-2); }
+.pr-h .dlabel { margin: 0; }
+.pr-h .r { margin-left: auto; font-size: var(--fs-12); color: var(--text-3); }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.flabel { font-size: var(--fs-12); color: var(--text-2); line-height: var(--lh-16); display: flex; align-items: center; gap: var(--s-2); }
+.flabel .r { margin-left: auto; color: var(--text-3); }
+.tinput { height: 36px; display: flex; align-items: center; padding: 0 var(--s-3); border-radius: var(--r-md); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); font-family: var(--font-mono); font-size: var(--fs-14); color: var(--text-1); }
+.prrow { display: flex; align-items: flex-end; gap: var(--s-4); }
+.select { display: inline-flex; align-items: center; gap: var(--s-2); height: 32px; padding: 0 var(--s-2) 0 var(--s-3); border-radius: var(--r-md); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text-1); font-size: var(--fs-13); min-width: 140px; justify-content: space-between; }
+.select .ic { color: var(--text-3); }
+.select.mono { font-family: var(--font-mono); }
+.check { display: inline-flex; align-items: center; gap: var(--s-2); height: 32px; font-size: var(--fs-13); color: var(--text-1); }
+.box { width: 16px; height: 16px; border-radius: var(--r-xs); background: var(--accent); display: grid; place-items: center; color: var(--on-accent); }
+.box .ic { width: 12px; height: 12px; stroke-width: 2; }
+.box.off { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); }
+.editor { flex: 1; min-height: 0; overflow: auto; padding: var(--s-3) var(--s-4); border-radius: var(--r-md); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); font-size: var(--fs-13); line-height: var(--lh-20); color: var(--text-2); outline: none; }
+.editor:focus { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.editor h4 { margin: 0 0 2px; font-size: var(--fs-13); font-weight: 500; color: var(--text-1); }
+.editor h4:not(:first-child) { margin-top: var(--s-3); }
+.editor p, .editor ul { margin: 0; }
+.editor ul { padding-left: 18px; }
+.editor li::marker { color: var(--text-3); }
+.editor .cb { list-style: none; padding-left: 0; }
+.editor .cb li { display: flex; gap: var(--s-2); align-items: flex-start; }
+.editor .cb .box { margin-top: 2px; flex: none; }
+.pr-actions { display: flex; align-items: center; gap: var(--s-2); }
+.pr-note { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-12); color: var(--text-2); margin-top: calc(var(--s-1) * -1); }
+.pr-note .ic { color: var(--text-3); }
+
+.done-groups { display: flex; flex-direction: column; gap: var(--s-3); }
+.dg-h { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-12); line-height: var(--lh-16); color: var(--text-1); font-weight: 500; }
+.dg-h .c { margin-left: auto; font-family: var(--font-mono); color: var(--text-3); font-weight: 400; }
+.dg p { margin: 2px 0 0; font-size: var(--fs-12); line-height: 18px; color: var(--text-2); }
+.links { display: flex; gap: var(--s-2); margin-left: auto; }
+.ph .ruler { width: 120px; height: 6px; }
+
+.adv { flex: 1; display: flex; flex-direction: column; }
+.log { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--s-3); overflow: hidden; }
+.msg { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--s-2); font-size: var(--fs-13); line-height: var(--lh-20); }
+.msg .who { font-size: var(--fs-12); color: var(--text-3); line-height: var(--lh-20); }
+.msg .t { color: var(--text-1); }
+.msg.you .t { color: var(--text-2); }
+.instr { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); border-radius: var(--r-sm); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); font-size: var(--fs-12); line-height: 18px; color: var(--text-1); }
+.instr-a { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); }
+.instr-a .m { font-size: var(--fs-12); color: var(--text-3); }
+
+/* ---------- Settings (screen 4) ---------- */
+.st { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 0; }
+.snav { display: flex; flex-direction: column; gap: 2px; padding: var(--s-4) var(--s-3); border-right: 1px solid var(--line); background: var(--panel); }
+.snav-t { font-size: var(--fs-12); color: var(--text-3); padding: 0 var(--s-2); height: 24px; display: flex; align-items: center; margin-bottom: var(--s-1); }
+.snav button { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 var(--s-2); border-radius: var(--r-md); color: var(--text-2); font-size: var(--fs-13); text-align: left; transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.snav button .ic { color: var(--text-3); }
+.snav button:hover { background: var(--raised); color: var(--text-1); }
+.snav button[aria-current="true"] { background: var(--raised); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.snav button[aria-current="true"] .ic { color: var(--accent); }
+.snav .foot { margin-top: auto; padding: var(--s-2); font-size: var(--fs-12); color: var(--text-3); line-height: var(--lh-16); }
+.snav .foot .mono { display: block; color: var(--text-2); font-size: var(--fs-11); margin-top: 2px; }
+.sc { padding: var(--s-4) var(--s-6) var(--s-4); display: grid; grid-template-rows: 44px auto auto; row-gap: var(--s-4); align-content: start; min-height: 0; }
+.sc-h { display: flex; align-items: baseline; gap: var(--s-3); }
+.sc-h h2 { margin: 0; font-size: var(--fs-18); font-weight: 500; line-height: 24px; }
+.sc-h p { margin: 0; font-size: var(--fs-13); color: var(--text-2); }
+.sc-h .ovr { display: inline-flex; align-items: center; gap: 6px; }
+.sc-h .ovr .ic { color: var(--accent); }
+.sc-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); }
+.sec { padding: var(--s-5); }
+.sec .ph { font-size: var(--fs-14); color: var(--text-1); margin-bottom: var(--s-4); line-height: var(--lh-20); }
+.setrow { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: var(--s-4); align-items: center; }
+.setrow + .setrow { margin-top: var(--s-4); }
+.setlabel { font-size: var(--fs-13); color: var(--text-2); }
+.seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-md); background: var(--raised); box-shadow: inset 0 0 0 1px var(--line); justify-self: start; }
+.seg button { display: inline-flex; align-items: center; gap: var(--s-2); height: 28px; padding: 0 var(--s-3); border-radius: var(--r-sm); font-size: var(--fs-13); color: var(--text-2); transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.seg button .ic { color: var(--text-3); }
+.seg button:hover { color: var(--text-1); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--text-1); box-shadow: inset 0 0 0 1px var(--line-2); }
+.seg button[aria-pressed="true"] .ic { color: var(--accent); }
+.variants { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.variant { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: var(--s-1); border-radius: var(--r-md); transition: background-color var(--t-fast) var(--ease); }
+.variant:hover { background: var(--raised); }
+.vprev { height: 72px; border-radius: var(--r-xs); background: var(--canvas); box-shadow: inset 0 0 0 1px var(--line-2); padding: 6px; display: grid; gap: 4px; }
+.variant[aria-pressed="true"] .vprev { box-shadow: inset 0 0 0 2px var(--accent); }
+.vname { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-1); padding: 0 2px; line-height: var(--lh-16); }
+.vname .m { margin-left: auto; color: var(--accent); }
+.vb { background: var(--raised); border-radius: 2px; }
+.vb.p { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.vb.t { background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); }
+.vb.a { background: var(--amber-wash); box-shadow: inset 0 0 0 1px var(--amber-frame); }
+.vb.g { background: var(--green-wash); box-shadow: inset 0 0 0 1px var(--green-frame); }
+.v1 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1.3fr; }
+.v1 .w { grid-row: 1 / 3; grid-column: 2; display: grid; gap: 3px; grid-template-rows: repeat(4, 1fr); }
+.v2 { grid-template-columns: 1fr 3fr; }
+.v2 .l { display: grid; gap: 3px; grid-template-rows: repeat(5, 1fr); }
+.v2 .r { display: grid; gap: 4px; grid-template-rows: 1fr 1.4fr; }
+.v3 { grid-template-rows: 2.2fr 1fr; }
+.v3 .s { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+.applynote { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-4); font-size: var(--fs-12); color: var(--text-2); }
+.applynote .ic { color: var(--text-3); }
+
+.usage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-6); }
+.u-h { display: flex; align-items: baseline; gap: var(--s-2); font-size: var(--fs-12); color: var(--text-2); }
+.u-h .fig { font-size: var(--fs-24); line-height: 28px; font-weight: 500; color: var(--text-1); }
+.u-h .r { margin-left: auto; font-family: var(--font-mono); color: var(--text-3); }
+.u-m { margin-top: var(--s-3); position: relative; }
+.u-m .meter { width: 100%; }
+.u-scale { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--font-mono); font-size: var(--fs-11); color: var(--text-3); line-height: var(--lh-16); }
+.rules { margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-6); }
+.rule { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; }
+.stepper { display: inline-flex; align-items: center; height: 32px; border-radius: var(--r-md); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); flex: none; }
+.stepper button { width: 28px; height: 32px; display: grid; place-items: center; color: var(--text-2); }
+.stepper button:hover { color: var(--text-1); }
+.stepper span { min-width: 48px; text-align: center; font-family: var(--font-mono); font-size: var(--fs-13); color: var(--text-1); }
+.u-foot { margin-top: var(--s-3); font-size: var(--fs-12); color: var(--text-3); }
+
+.models { width: 100%; border-collapse: collapse; }
+.models th { text-align: left; font-size: var(--fs-12); font-weight: 400; color: var(--text-3); height: 28px; border-bottom: 1px solid var(--line); padding: 0 var(--s-3) 0 0; }
+.models td { height: 36px; border-bottom: 1px solid var(--line); padding: 0 var(--s-3) 0 0; font-size: var(--fs-13); color: var(--text-1); vertical-align: middle; }
+.models tr:last-child td { border-bottom: 0; }
+.models .select { height: 28px; min-width: 120px; }
+.models .ovr { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-2); }
+.models .ovr .ic { color: var(--accent); }
+.models .dim { color: var(--text-3); font-size: var(--fs-12); }
+</style>
+</head>
+<body>
+<div class="frame" id="frame" aria-live="polite"></div>
+
+<nav class="ctl" aria-label="Exploration controls">
+  <div class="ctl-group" role="group" aria-label="Screen">
+    <span class="ctl-label">Screen</span>
+    <button data-ctl-screen="1" title="Session with a permission request">1</button>
+    <button data-ctl-screen="2" title="Dangerous command">2</button>
+    <button data-ctl-screen="3" title="Review with PR draft">3</button>
+    <button data-ctl-screen="4" title="Settings">4</button>
+  </div>
+  <span class="ctl-sep"></span>
+  <div class="ctl-group" role="group" aria-label="Mode">
+    <button data-ctl-mode="light">Light</button>
+    <button data-ctl-mode="dark">Dark</button>
+    <kbd>D</kbd>
+  </div>
+</nav>
+
+<script>
+(() => {
+  /* ---------- Icons (Lucide-style, 24 grid, 1.5 stroke) ---------- */
+  const I = {
+    pause: '<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    code: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+    terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+    inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+    file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+    filecode: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    back: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+    branch: '<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+    pr: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" x2="6" y1="9" y2="21"/>',
+    lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    upload: '<path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>',
+    send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+    refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+    sliders: '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+    grid: '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    review: '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    circle: '<circle cx="12" cy="12" r="8"/>',
+    minuscircle: '<circle cx="12" cy="12" r="8"/><path d="M8 12h8"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    arrowr: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    corner: '<polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+    palette: '<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 11.992 2z"/>',
+    cpu: '<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>',
+    bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
+    keyboard: '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
+    shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+    layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    minus: '<path d="M5 12h14"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>'
+  };
+  const ic = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const NB = ' '; // narrow no-break space before %
+  const pct = n => `${n}${NB}%`;
+
+  /* Pixel octopus pet, monochrome */
+  const PET = ['...#####...', '..#######..', '.#########.', '.##.###.##.', '.#########.', '..#######..', '.#.#.#.#.#.', '#..#.#.#..#'];
+  const pet = () => {
+    let r = '';
+    PET.forEach((row, y) => [...row].forEach((c, x) => { if (c === '#') r += `<rect x="${x}" y="${y}" width="1" height="1"/>`; }));
+    return `<svg class="pet" viewBox="0 0 11 8" fill="currentColor" shape-rendering="crispEdges" aria-label="Orchtopus pet">${r}</svg>`;
+  };
+  const mark = `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 9.5h1.5l1-3 2 5 1-2h1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  /* Task ruler: one tick per task, current tick in the session's signal colour */
+  const ruler = (n, done, cur, cls = '') => {
+    let t = '';
+    for (let i = 1; i <= n; i++) t += `<i class="${i <= done ? 'on' : ''}${i === cur ? ' cur' : ''}"></i>`;
+    return `<span class="ruler ${cls}" style="--n:${n}" role="img" aria-label="${done} of ${n} tasks done">${t}</span>`;
+  };
+  const solid = () => `<span class="ruler solid" role="img" aria-label="All tasks done"><i class="on"></i></span>`;
+  const meter = (p, w, marks = [], cls = '') =>
+    `<span class="meter ${cls}" style="--w:${w}" role="img" aria-label="${p} percent"><span class="meter-fill" style="width:${p}%"></span>${marks.map(m => `<span class="meter-mark" style="left:${m}%"></span>`).join('')}</span>`;
+
+  /* ---------- Demo data ---------- */
+  const L = (c, t) => [c, t];
+  const BASE = {
+    'report-export': { project: 'acme-app', branch: 'feat/report-export', key: 'F1', go: 1 },
+    'upload-fix':    { project: 'acme-app', branch: 'fix/upload', key: 'F2', go: 0 },
+    'image-resize':  { project: 'acme-app', branch: 'feat/image-resize', key: 'F3', go: 0 },
+    'i18n-de':       { project: 'acme-app', branch: 'chore/i18n-de', key: 'F4', go: 2 },
+    'changelog':     { project: 'docs-site', branch: 'docs/changelog', key: 'F5', go: 0 }
+  };
+  const UPLOAD = { sig: 'blue', word: 'Running', n: 7, done: 3, cur: 4, p: 'task 4 of 7', ago: 2, live: true,
+    lines: [L('', '● Bash(npm test -- upload.spec.ts)'), L('', '  ⎿  22 passed, 1 failed (3.4 s)'), L('', '● Fixing retry after timeout in src/upload/retry.ts')] };
+  const IMAGE = { sig: 'green', word: 'PR draft waiting', lift: true, why: 'Needs you: release the PR draft', action: 'Open PR draft', solid: true, p: 'done', agoText: 'waiting 12 min',
+    lines: [L('', '● Finish: review council passed 4 of 4'), L('', '● PR draft written for feat/image-resize'), L('sig', '  ⎿  Waiting for you to release it')] };
+  const I18N_RUN = { sig: 'blue', word: 'Running', n: 6, done: 1, cur: 2, p: 'task 2 of 6', ago: 1, live: true,
+    lines: [L('', '● Update(locales/de/settings.json)'), L('', '  ⎿  64 strings added'), L('', '● Checking German plural forms')] };
+  const CHANGELOG = { sig: 'idle', word: 'Idle', n: 3, done: 3, cur: 0, p: '3 of 3', agoText: 'idle 24 min',
+    lines: [L('', '● Changelog updated for 3 releases'), L('', '  ⎿  Task 3 of 3 done'), L('', '> ')] };
+  const REPORT_PERM = { sig: 'amber', word: 'Needs permission', n: 15, done: 11, cur: 12, p: 'task 12 of 15', agoText: 'waiting 1 min',
+    lines: [L('', '● Rows need parsing before the date filter runs'), L('', '● Bash(npm install csv-parse@5.6.0 --save)'), L('sig', '  ⎿  Waiting for permission')] };
+  const REPORT_REVIEW = { sig: 'green', word: 'Ready for review', n: 15, done: 15, cur: 0, p: '15 of 15', agoText: 'waiting 3 min',
+    lines: [] };
+
+  const SESS = {
+    1: { 'report-export': { ...REPORT_PERM, onstage: true }, 'upload-fix': UPLOAD, 'image-resize': IMAGE, 'i18n-de': I18N_RUN, 'changelog': CHANGELOG },
+    2: { 'report-export': { ...REPORT_PERM, lift: true, why: 'Needs you: npm install csv-parse', action: 'Review request' }, 'upload-fix': UPLOAD, 'image-resize': IMAGE,
+         'i18n-de': { sig: 'red', word: 'Dangerous command', n: 6, done: 1, cur: 2, p: 'task 2 of 6', agoText: 'waiting 40 s', onstage: true }, 'changelog': CHANGELOG },
+    3: { 'report-export': { ...REPORT_REVIEW, onstage: true }, 'upload-fix': UPLOAD, 'image-resize': IMAGE, 'i18n-de': I18N_RUN, 'changelog': CHANGELOG },
+    4: { 'report-export': { ...REPORT_REVIEW, lift: true }, 'upload-fix': UPLOAD, 'image-resize': IMAGE, 'i18n-de': I18N_RUN, 'changelog': CHANGELOG }
+  };
+  const ORDER = ['report-export', 'upload-fix', 'image-resize', 'i18n-de', 'changelog'];
+
+  /* ---------- Shared chrome ---------- */
+  const titlebar = s => {
+    const cur = s <= 2 ? 1 : s;
+    const tab = (n, label, icon) => `<button data-go="${n}" ${cur === n ? 'aria-current="page"' : ''}>${ic(icon)}${label}</button>`;
+    return `<header class="titlebar">
+      <div class="wordmark">${mark}Orchtopus</div>
+      <nav class="nav" aria-label="Main">${tab(1, 'Sessions', 'grid')}${tab(3, 'Review', 'review')}${tab(4, 'Settings', 'sliders')}</nav>
+      <div class="winctl" aria-hidden="true">
+        <span><svg viewBox="0 0 10 10"><path d="M0 5.5h10"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></svg></span>
+      </div>
+    </header>`;
+  };
+  const instruments = (ctxName, ctxPct) => `<div class="strip-i" role="status">
+      <button class="inst inst-btn" data-go="3">${ic('inbox')}Inbox <span class="v">2</span></button>
+      <span class="vsep"></span>
+      <div class="inst">5-hour window ${meter(46, '140px', [70, 90])}<span class="v">${pct(46)}</span><span class="m">resets 16:40</span></div>
+      <span class="vsep"></span>
+      <div class="inst">Context · ${ctxName} ${meter(ctxPct, '96px')}<span class="v">${pct(ctxPct)}</span></div>
+      <span class="right">Weekly <span class="mono">${pct(31)}</span> · resets Mon 09:00</span>
+    </div>`;
+  const statusbar = () => `<footer class="statusbar">
+      <span class="ok">${ic('plug', 'sm')}Claude Code connected</span><span>·</span><span>5 sessions</span><span>·</span><span>Git updated 3 s ago</span>
+      <span class="right"><kbd>F1</kbd>–<kbd>F5</kbd> take the stage</span>
+    </footer>`;
+
+  /* ---------- Wall tiles ---------- */
+  const agoText = d => d.agoText || (d.live ? `<span data-live="${d.ago}">output ${d.ago} s ago</span>` : '');
+  const tile = (id, d) => {
+    const b = BASE[id];
+    const lamp = `<span class="lamp ${d.sig === 'idle' ? 'idle' : ''}"></span>`;
+    const go = b.go ? `data-go="${b.go}"` : '';
+    if (d.onstage) {
+      return `<div role="button" tabindex="0" class="tile onstage sig-${d.sig}" ${go} aria-current="true">
+        <div class="tile-h">${lamp}<span class="tile-name">${id}</span><span class="tile-on">On stage</span><span class="tile-state">${d.word}</span><kbd>${b.key}</kbd></div>
+      </div>`;
+    }
+    const prog = d.solid ? solid() : ruler(d.n, d.done, d.cur);
+    return `<div role="button" tabindex="0" class="tile ${d.lift ? 'lift' : ''} sig-${d.sig}" ${go}>
+      <div class="tile-h">${lamp}<span class="tile-name">${id}</span><span class="tile-branch">${b.branch}</span><span class="tile-state">${d.word}</span></div>
+      ${d.lift ? `<div class="tile-why">${esc(d.why)}<span class="btn sm" role="presentation">${d.action}</span></div>` : ''}
+      <div class="mini">${d.lines.map(l => `<div class="${l[0]}">${esc(l[1])}</div>`).join('')}</div>
+      <div class="tile-f">${prog}<span class="p">${d.p}</span><span>${agoText(d)}</span><kbd>${b.key}</kbd></div>
+    </div>`;
+  };
+  const wall = s => {
+    const S = SESS[s];
+    const acme = ORDER.filter(id => BASE[id].project === 'acme-app');
+    return `<aside class="wall" aria-label="Sessions">
+      <div class="wall-h"><span class="t">Sessions</span><span class="c">5</span><span class="r">Click a tile or press its key to take the stage</span></div>
+      <div class="group">
+        <div class="glabel">${ic('folder')}acme-app<span class="c">4 sessions</span></div>
+        ${acme.map(id => tile(id, S[id])).join('')}
+      </div>
+      <div class="group">
+        <div class="glabel">${ic('folder')}docs-site<span class="c">1 session</span></div>
+        ${tile('changelog', S['changelog'])}
+      </div>
+    </aside>`;
+  };
+  const cell = (id, d) => {
+    const b = BASE[id];
+    const go = b.go ? `data-go="${b.go}"` : '';
+    return `<button class="cell ${d.onstage ? 'onstage' : d.lift ? 'lift' : ''} sig-${d.sig}" ${go}>
+      <span class="cell-r1"><span class="lamp ${d.sig === 'idle' ? 'idle' : ''}"></span><span class="tile-name">${id}</span><kbd>${b.key}</kbd></span>
+      <span class="cell-r2"><span class="cell-state">${d.word}</span><span class="p">${d.p}</span></span>
+    </button>`;
+  };
+  const sstrip = s => {
+    const S = SESS[s];
+    return `<div class="sstrip" aria-label="Sessions">
+      <div class="sgroup grow"><span class="sglabel">acme-app</span>${['report-export', 'upload-fix', 'image-resize', 'i18n-de'].map(id => cell(id, S[id])).join('')}</div>
+      <span class="ssep"></span>
+      <div class="sgroup one"><span class="sglabel">docs-site</span>${cell('changelog', S['changelog'])}</div>
+    </div>`;
+  };
+
+  /* ---------- Stage (screens 1, 2) ---------- */
+  const term = (sig, lines) => `<section class="term sig-${sig}" aria-label="Terminal">
+      <div class="term-h">${ic('terminal')}Terminal<span class="r">pwsh · claude</span></div>
+      <div class="term-b">${lines.map(l => `<div class="tl ${l[0]}">${esc(l[1])}</div>`).join('')}</div>
+    </section>`;
+
+  const phases = sig => `<div class="phases">
+      <span class="phase">${ic('check', 'sm')}Brainstorm</span>
+      <span class="phase">${ic('check', 'sm')}Spec</span>
+      <span class="phase">${ic('check', 'sm')}Plan</span>
+      <span class="phase now sig-blue"><span class="lamp"></span>Execute <span class="w">running</span></span>
+      <span class="phase open"><span class="ring"></span>Review</span>
+      <span class="phase open"><span class="ring"></span>Finish</span>
+    </div>`;
+
+  const rail = o => `<div class="rail">
+      <section class="panel sig-${o.sig}">
+        <div class="ph">Progress<span class="r">Workflow phases below</span></div>
+        <div class="prog-fig"><span class="n">Task ${o.cur}</span><span class="of">of ${o.n}</span></div>
+        <div class="prog-task">${o.task}</div>
+        ${ruler(o.n, o.cur - 1, o.cur, 'lg')}
+        ${phases()}
+      </section>
+      <section class="panel">
+        <div class="ph">Session info</div>
+        <dl class="kv">
+          <dt>Subagents</dt><dd>${o.sub}</dd>
+          <dt>Git</dt><dd>${o.git}</dd>
+          <dt>Context</dt><dd>${pct(o.ctx)} used ${meter(o.ctx, '80px')}</dd>
+        </dl>
+      </section>
+      <section class="panel chat" aria-label="Side chat">
+        <div class="ph">Side chat<span class="r">${ic('lock', 'sm')}</span><span style="color:var(--text-3);font-weight:400">Read-only</span></div>
+        <div class="chat-b">
+          <p>Answers questions about ${o.name}. It reads the session and cannot run commands.</p>
+          <div class="chips">
+            ${o.chips.map(c => `<button class="chip">${ic('msg', 'sm')}${c}</button>`).join('')}
+          </div>
+        </div>
+        <div class="inputrow">${pet()}<label class="input"><input type="text" placeholder="Ask about this session" aria-label="Ask about this session"><button class="btn ghost icon" aria-label="Send">${ic('send')}</button></label></div>
+      </section>
+    </div>`;
+
+  const stageHead = o => `<div class="stg-head">
+      <div class="stg-title sig-${o.sig}">
+        <span class="crumb">acme-app /</span>
+        <span class="lamp"></span>
+        <span class="sname">${o.name}</span>
+        <span class="branch">${ic('branch', 'sm')}${o.branch}</span>
+        <span class="statelabel">${o.state}</span>
+      </div>
+      <div class="stg-actions">
+        <button class="btn">${ic('pause')}Pause</button>
+        <button class="btn">${ic('folder')}Explorer</button>
+        <button class="btn">${ic('code')}VS Code</button>
+        <button class="btn">${ic('terminal')}Terminal</button>
+      </div>
+    </div>`;
+
+  const waitItem = (id, sig, why) => {
+    const go = BASE[id].go ? `data-go="${BASE[id].go}"` : '';
+    return `<button class="item sig-${sig}" ${go}><span class="lamp"></span>${id} <span class="why">${why}</span><kbd>${BASE[id].key}</kbd></button>`;
+  };
+
+  const screen1 = () => {
+    const card = `<section class="dcard sig-amber" aria-label="Permission request">
+        <div class="dcard-h">
+          <div>
+            <div class="dlabel"><span class="lamp"></span>Permission</div>
+            <h3 class="dtitle">Bash command needs permission</h3>
+          </div>
+          <div class="dtimer">
+            <span class="a">Waiting 1 min</span>
+            ${ruler(10, 0, 1)}
+            <span class="b">Falls back to the terminal prompt in 9 min</span>
+          </div>
+        </div>
+        <div class="cmd"><span class="p">$</span>npm install csv-parse@5.6.0 --save<button class="btn ghost icon" aria-label="Copy command">${ic('copy')}</button></div>
+        <p class="dwhat">Downloads csv-parse 5.6.0 from the npm registry and adds it to <code>package.json</code>. The package can run install scripts. Only this worktree is affected.</p>
+        <div class="facts">
+          <span class="fact">${ic('globe', 'sm')}Network</span>
+          <span class="fact">${ic('file', 'sm')}Changes <code>package.json</code></span>
+          <span class="fact">${ic('filecode', 'sm')}Install scripts</span>
+        </div>
+        <div class="dactions">
+          <button class="btn lg fill">${ic('check')}Allow once<kbd class="onfill">Enter</kbd></button>
+          <button class="btn lg">Always allow in this project</button>
+          <button class="btn lg">Deny<kbd>Esc</kbd></button>
+          <button class="btn lg ghost">${ic('msg')}Ask the advisor</button>
+        </div>
+      </section>`;
+    const lines = [
+      L('b', '● Continuing with task 12 of 15: Normalise date ranges'),
+      L('tool', '● Skill(superpowers:executing-plans)'),
+      L('res', '  ⎿  Loaded docs/plans/report-export.md'),
+      L('tool', '● Agent(test-writer)'),
+      L('res', '  ⎿  Writing edge cases for open-ended ranges · 1 active'),
+      L('tool', '● Bash(npm test -- date-range.spec.ts)'),
+      L('res', '  ⎿  14 passed, 0 failed (1.8 s)'),
+      L('tool', '● Update(src/export/date-range.ts)'),
+      L('res', '  ⎿  normaliseRange: 18 lines added, 6 removed'),
+      L('b', '● Rows need parsing before the date filter runs. Adding csv-parse.'),
+      L('tool', '● Bash(npm install csv-parse@5.6.0 --save)'),
+      L('sig cur', '  ⎿  Waiting for permission')
+    ];
+    return `<div class="body cr">
+      <main class="stg">
+        ${stageHead({ sig: 'amber', name: 'report-export', branch: 'feat/report-export', state: 'Needs permission' })}
+        <div class="stg-grid">
+          <div class="stg-main">
+            <div class="alsowait">${ic('inbox')}Also waiting ${waitItem('image-resize', 'green', 'PR draft')}</div>
+            ${card}
+            ${term('amber', lines)}
+          </div>
+          ${rail({ sig: 'amber', name: 'report-export', n: 15, cur: 12, task: 'Normalise date ranges', sub: '1 active', git: `5 ahead, 0 behind <code>develop</code>`, ctx: 41, chips: ['Why does it need csv-parse?', 'What changed in task 11?'] })}
+        </div>
+      </main>
+      ${wall(1)}
+    </div>`;
+  };
+
+  const screen2 = () => {
+    const card = `<section class="dcard sig-red" aria-label="Dangerous command">
+        <div class="dcard-h">
+          <div>
+            <div class="dlabel"><span class="lamp"></span>Danger</div>
+            <h3 class="dtitle">Dangerous command</h3>
+          </div>
+          <div class="dtimer">
+            <span class="a">Waiting 40 s</span>
+            <span class="b">No timeout for dangerous commands</span>
+          </div>
+        </div>
+        <div class="cmd"><span class="p">$</span>git push --force origin chore/i18n-de<button class="btn ghost icon" aria-label="Copy command">${ic('copy')}</button></div>
+        <p class="dwhat">Replaces the remote branch with your local one. Commits that exist only on the remote are lost. <code>main</code> and <code>develop</code> are not touched.</p>
+        <div class="facts">
+          <span class="fact">${ic('upload', 'sm')}Force push</span>
+          <span class="fact">${ic('branch', 'sm')}Rewrites remote branch</span>
+        </div>
+        <div class="dactions">
+          <button class="hold" data-hold><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${I.shield}</svg><span class="hold-label">Hold to allow once</span><span class="hsec">1 s</span></button>
+          <button class="btn lg">Deny<kbd>Esc</kbd></button>
+          <button class="btn lg ghost">${ic('msg')}Ask the advisor</button>
+        </div>
+        <div class="holdhint">${ic('lock', 'sm')}Not available by hotkey or remote. Press and hold the button for 1 s.</div>
+      </section>`;
+    const lines = [
+      L('b', '● Continuing with task 2 of 6: Translate settings strings'),
+      L('tool', '● Skill(superpowers:executing-plans)'),
+      L('res', '  ⎿  Loaded docs/plans/i18n-de.md'),
+      L('tool', '● Update(locales/de/settings.json)'),
+      L('res', '  ⎿  64 strings added'),
+      L('tool', '● Bash(npm run i18n:check)'),
+      L('res', '  ⎿  0 missing keys, 0 unused keys'),
+      L('tool', '● Bash(git rebase develop)'),
+      L('res', '  ⎿  Successfully rebased and updated refs/heads/chore/i18n-de'),
+      L('b', '● The remote branch still has the old history. Pushing the rebased branch.'),
+      L('tool', '● Bash(git push --force origin chore/i18n-de)'),
+      L('sig cur', '  ⎿  Waiting for permission · dangerous command')
+    ];
+    return `<div class="body cr">
+      <main class="stg">
+        ${stageHead({ sig: 'red', name: 'i18n-de', branch: 'chore/i18n-de', state: 'Dangerous command' })}
+        <div class="stg-grid">
+          <div class="stg-main">
+            <div class="alsowait">${ic('inbox')}Also waiting ${waitItem('report-export', 'amber', 'permission')}${waitItem('image-resize', 'green', 'PR draft')}</div>
+            ${card}
+            ${term('red', lines)}
+          </div>
+          ${rail({ sig: 'red', name: 'i18n-de', n: 6, cur: 2, task: 'Translate settings strings', sub: 'None active', git: `2 ahead, 0 behind <code>develop</code>`, ctx: 18, chips: ['What is only on the remote branch?', 'Why was the rebase needed?'] })}
+        </div>
+      </main>
+      ${wall(2)}
+    </div>`;
+  };
+
+  /* ---------- Review (screen 3) ---------- */
+  const screen3 = () => {
+    const gate = (icon, name, who, res, cls = '', resCls = '') =>
+      `<div class="gate ${cls}">${ic(icon)}<span>${name}${who ? `<span class="who">${who}</span>` : ''}</span><span class="res ${resCls}">${res}</span></div>`;
+    const gates = `<section class="panel" aria-label="Gates">
+        <div class="ph">Gates<span class="r mono">8 of 10 passed</span></div>
+        <div class="gates">
+          ${gate('check', 'Spec approved', 'you', 'approved')}
+          ${gate('check', 'Plan approved', 'you', 'approved')}
+          ${gate('check', 'Tests', '', '60 passed')}
+          ${gate('check', 'Lint and types', '', 'passed')}
+          ${gate('check', 'Secret scan', '', 'passed')}
+          ${gate('check', 'Dependency audit', '', 'passed')}
+          ${gate('check', 'Review council', '', '4 of 4')}
+          <div class="sub" aria-label="Review council">
+            <div class="subrow"><span>Spec compliance</span><span class="res">pass</span></div>
+            <div class="subrow"><span>Code quality <span class="x">· 2 notes for the checklist</span></span><span class="res">pass</span></div>
+            <div class="subrow"><span>Tests</span><span class="res">pass</span></div>
+            <div class="subrow"><span>Security <span class="x">· no sensitive paths</span></span><span class="res muted">not needed</span></div>
+          </div>
+          ${gate('alert', 'Git check', '', '1 note', '', 'note')}
+          <div class="sub" aria-label="Git check">
+            <div class="subrow"><span>Branch name</span><span class="res">ok</span></div>
+            <div class="subrow"><span>Commits</span><span class="res">ok</span></div>
+            <div class="subrow"><span>Target <code>develop</code></span><span class="res">ok</span></div>
+            <div class="subnote">${ic('alert', 'sm')}<span>This PR mixes two topics. Consider splitting it.</span></div>
+            <div><button class="btn sm">${ic('msg', 'sm')}Ask the advisor to draft a split</button></div>
+          </div>
+          ${gate('circle', 'Release PR', 'you', `${ic('arrowr', 'sm')}next`, 'open', 'next')}
+          ${gate('minuscircle', 'CI', '', 'after PR', 'open')}
+        </div>
+      </section>`;
+
+    const pr = `<section class="pr sig-green" aria-label="PR draft">
+        <div class="pr-h"><div class="dlabel"><span class="lamp"></span>PR draft</div><span style="font-size:12px;color:var(--text-2)">Not created yet</span><span class="r">Written by Claude · you can edit every field</span></div>
+        <div class="field"><span class="flabel">Title</span><div class="tinput" contenteditable="true" spellcheck="false">feat(export): export reports with date filters</div></div>
+        <div class="prrow">
+          <div class="field"><span class="flabel">Target branch</span><span class="select mono">develop${ic('chev')}</span></div>
+          <label class="check"><span class="box">${ic('check')}</span>Draft PR</label>
+        </div>
+        <div class="field" style="flex:1;min-height:0">
+          <span class="flabel">Description<span class="r">Markdown</span></span>
+          <div class="editor" contenteditable="true" spellcheck="false">
+            <h4>What</h4>
+            <ul>
+              <li>Exports reports as CSV with from and to date filters.</li>
+              <li>Normalises date ranges, so open-ended and reversed ranges export the right rows.</li>
+              <li>Adds csv-parse 5.6.0 to parse exported rows.</li>
+            </ul>
+            <h4>Why</h4>
+            <p>Reports could only be exported in full and had to be filtered by hand.</p>
+            <h4>Tests</h4>
+            <p>60 tests pass, with new cases for leap days and open-ended ranges.</p>
+            <h4>Checklist</h4>
+            <ul class="cb">
+              <li><span class="box off"></span>Extract the date parsing helper (code quality note)</li>
+              <li><span class="box off"></span>Rename <code>rangeEnd</code> to <code>rangeEndExclusive</code> (code quality note)</li>
+              <li><span class="box off"></span>Decide on splitting export and date filters (Git check note)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="pr-actions">
+          <button class="btn lg fill">${ic('pr')}Release and create PR</button>
+          <button class="btn lg">${ic('refresh')}Regenerate description</button>
+          <button class="btn lg">${ic('copy')}Copy</button>
+        </div>
+        <div class="pr-note">${ic('info', 'sm')}Orchtopus never merges. You merge on GitHub or GitLab.</div>
+      </section>`;
+
+    const done = `<section class="panel" aria-label="What was done">
+        <div class="ph">What was done<span class="r mono">15 of 15 tasks</span>${ruler(15, 15, 0)}</div>
+        <div class="done-groups">
+          <div class="dg"><div class="dg-h">Export<span class="c">5 tasks</span></div><p>Report export command, rows streamed as CSV, row parsing with csv-parse, file names by date, empty reports</p></div>
+          <div class="dg"><div class="dg-h">Date filters<span class="c">6 tasks</span></div><p>From and to filters, input validation, normalised date ranges, open-ended ranges, time zones, active filter in the file header</p></div>
+          <div class="dg"><div class="dg-h">Tests<span class="c">4 tasks</span></div><p>Date-range unit tests, export snapshots, leap-day edge cases, updated fixtures</p></div>
+        </div>
+      </section>`;
+
+    const adv = `<section class="panel adv" aria-label="Advisor">
+        <div class="ph">Advisor<span class="r">For this change</span></div>
+        <div class="log">
+          <div class="msg you"><span class="who">You</span><span class="t">Which two topics does the Git check mean?</span></div>
+          <div class="msg"><span class="who">Advisor</span><span class="t">The date-range helper and the report export. The helper can ship first; the export builds on it.</span></div>
+          <div class="msg you"><span class="who">You</span><span class="t">Write that split as an instruction. Nothing gets pushed.</span></div>
+          <div class="msg"><span class="who">Advisor</span><span class="t">Ready. Check it, then hand it to the session.
+            <div class="instr">Split into two branches from <code>develop</code>: date-range helper first, then report export. Keep the commits. Do not push.</div>
+            <div class="instr-a"><button class="btn sm">${ic('corner', 'sm')}Send to session</button><span class="m">report-export runs it next</span></div>
+          </span></div>
+        </div>
+        <div class="inputrow"><label class="input"><input type="text" placeholder="Ask, or write an instruction" aria-label="Ask, or write an instruction"><button class="btn ghost icon" aria-label="Send">${ic('send')}</button></label></div>
+      </section>`;
+
+    return `<div class="body with-strip">
+      ${sstrip(3)}
+      <main class="rv">
+        <div class="rv-head sig-green">
+          <button class="btn" data-go="1">${ic('back')}Back</button>
+          <span class="crumb">Review /</span>
+          <span class="lamp"></span>
+          <span class="sname" style="margin-left:0">report-export</span>
+          <span class="branch">${ic('branch', 'sm')}feat/report-export → develop</span>
+          <span class="statelabel">Ready for review</span>
+          <span class="links">
+            <button class="btn sm">${ic('file', 'sm')}Diff · 3 files</button>
+            <button class="btn sm">${ic('history', 'sm')}Session history</button>
+            <button class="btn sm">${ic('code', 'sm')}Open worktree in VS Code</button>
+          </span>
+          <button class="btn icon close" data-go="1" aria-label="Close review">${ic('x')}</button>
+        </div>
+        <div class="rv-cols">
+          <div class="col">${gates}</div>
+          <div class="col">${pr}</div>
+          <div class="col">${done}${adv}</div>
+        </div>
+      </main>
+    </div>`;
+  };
+
+  /* ---------- Settings (screen 4) ---------- */
+  const screen4 = mode => {
+    const nav = [['sliders', 'General'], ['palette', 'Appearance'], ['cpu', 'Models'], ['gauge', 'Usage'], ['bell', 'Notifications'], ['keyboard', 'Keyboard'], ['shield', 'Privacy'], ['folder', 'Projects']];
+    const sel = (v, mono) => `<span class="select ${mono ? 'mono' : ''}">${v}${ic('chev')}</span>`;
+    const models = [
+      ['Main session', 'Opus', 'high', ''],
+      ['Planning', 'Opus', 'high', ''],
+      ['Review council', 'Sonnet', 'medium', 'acme-app uses Opus · high'],
+      ['Security reviewer', 'Opus', 'high', ''],
+      ['Advisor and side chat', 'Sonnet', 'medium', ''],
+      ['Wiki', 'Sonnet', 'medium', ''],
+      ['Summaries', 'Haiku', 'low', '']
+    ];
+    return `<div class="body with-strip">
+      ${sstrip(4)}
+      <div class="st">
+        <nav class="snav" aria-label="Settings">
+          <div class="snav-t">Settings</div>
+          ${nav.map(([i, n]) => `<button ${n === 'Appearance' ? 'aria-current="true"' : ''}>${ic(i)}${n}</button>`).join('')}
+          <div class="foot">Data folder<span class="mono">%APPDATA%\\Orchtopus\\</span></div>
+        </nav>
+        <main class="sc">
+          <div class="sc-h"><h2>Appearance, usage and models</h2><p class="ovr">Global settings. ${ic('folder', 'sm')} marks a project override.</p></div>
+          <div class="sc-row">
+            <section class="panel sec" aria-label="Appearance">
+              <div class="ph">Appearance</div>
+              <div class="setrow"><span class="setlabel">Mode</span>
+                <div class="seg" role="group" aria-label="Mode">
+                  <button data-set-mode="light" aria-pressed="${mode === 'light'}">${ic('sun')}Light</button>
+                  <button data-set-mode="dark" aria-pressed="${mode === 'dark'}">${ic('moon')}Dark</button>
+                  <button data-set-mode="system" aria-pressed="false">${ic('monitor')}Like Windows</button>
+                </div>
+              </div>
+              <div class="setrow" style="align-items:start"><span class="setlabel" style="padding-top:4px">Design variant</span>
+                <div class="variants">
+                  <button class="variant" aria-pressed="true"><span class="vprev v1"><span class="vb a"></span><span class="w"><span class="vb p"></span><span class="vb g"></span><span class="vb p"></span><span class="vb p"></span></span><span class="vb t"></span></span><span class="vname">Control room<span class="m">${ic('check', 'sm')}</span></span></button>
+                  <button class="variant" aria-pressed="false"><span class="vprev v2"><span class="l"><span class="vb p"></span><span class="vb a"></span><span class="vb p"></span><span class="vb g"></span><span class="vb p"></span></span><span class="r"><span class="vb a"></span><span class="vb t"></span></span></span><span class="vname">Focus desk</span></button>
+                  <button class="variant" aria-pressed="false"><span class="vprev v3"><span class="vb t"></span><span class="s"><span class="vb a"></span><span class="vb p"></span><span class="vb g"></span><span class="vb p"></span><span class="vb p"></span></span></span><span class="vname">Terminal first</span></button>
+                </div>
+              </div>
+              <div class="applynote">${ic('info', 'sm')}Changes apply instantly. Nothing restarts.</div>
+            </section>
+            <section class="panel sec" aria-label="Usage">
+              <div class="ph">Usage<span class="r">Subscription limits</span></div>
+              <div class="usage">
+                <div>
+                  <div class="u-h"><span class="fig">${pct(46)}</span>5-hour window<span class="r">resets 16:40</span></div>
+                  <div class="u-m">${meter(46, '100%', [70, 90], 'lg')}</div>
+                  <div class="u-scale"><span>0</span><span>50</span><span>100</span></div>
+                </div>
+                <div>
+                  <div class="u-h"><span class="fig">${pct(31)}</span>Weekly<span class="r">resets Mon 09:00</span></div>
+                  <div class="u-m">${meter(31, '100%', [70, 90], 'lg')}</div>
+                  <div class="u-scale"><span>0</span><span>50</span><span>100</span></div>
+                </div>
+              </div>
+              <div class="rules">
+                <div class="rule">Pause background jobs at<span class="stepper"><button aria-label="Lower">${ic('minus', 'sm')}</button><span>${pct(70)}</span><button aria-label="Raise">${ic('plus', 'sm')}</button></span></div>
+                <div class="rule">Ask before new sessions at<span class="stepper"><button aria-label="Lower">${ic('minus', 'sm')}</button><span>${pct(90)}</span><button aria-label="Raise">${ic('plus', 'sm')}</button></span></div>
+              </div>
+              <div class="u-foot">The marks on both scales show these two rules. Nothing is capped; Orchtopus warns and asks.</div>
+            </section>
+          </div>
+          <section class="panel sec" aria-label="Models per role">
+            <div class="ph">Models per role<span class="r">Model · effort</span></div>
+            <table class="models">
+              <thead><tr><th style="width:240px">Role</th><th style="width:160px">Model</th><th style="width:160px">Effort</th><th>Project overrides</th></tr></thead>
+              <tbody>
+                ${models.map(([r, m, e, o]) => `<tr><td>${r}</td><td>${sel(m)}</td><td>${sel(e)}</td><td>${o ? `<span class="ovr">${ic('folder', 'sm')}${o}</span>` : '<span class="dim">None</span>'}</td></tr>`).join('')}
+              </tbody>
+            </table>
+          </section>
+        </main>
+      </div>
+    </div>`;
+  };
+
+  /* ---------- Build windows ---------- */
+  const frame = document.getElementById('frame');
+  const build = mode => {
+    const ctx = { 1: ['report-export', 41], 2: ['i18n-de', 18], 3: ['report-export', 41], 4: ['report-export', 41] };
+    const bodies = { 1: screen1, 2: screen2, 3: screen3, 4: () => screen4(mode) };
+    frame.innerHTML = [1, 2, 3, 4].map(n =>
+      `<div class="win" data-screen="${n}" role="application" aria-label="Orchtopus window, screen ${n}">
+        ${titlebar(n)}${instruments(ctx[n][0], ctx[n][1])}${bodies[n]()}${statusbar()}
+      </div>`).join('');
+  };
+
+  /* ---------- State: hash, keys, scale ---------- */
+  let state = { s: 1, m: 'dark' };
+  const read = () => {
+    const p = new URLSearchParams(location.hash.replace(/^#/, ''));
+    let s = parseInt(p.get('screen'), 10);
+    if (!(s >= 1 && s <= 4)) s = 1;
+    let m = p.get('mode');
+    if (m !== 'light' && m !== 'dark') m = 'dark';
+    return { s, m };
+  };
+  const apply = () => {
+    const modeChanged = document.documentElement.dataset.mode !== state.m || !frame.firstChild;
+    document.documentElement.dataset.mode = state.m;
+    if (modeChanged) build(state.m);
+    frame.querySelectorAll('.win').forEach(w => w.classList.toggle('on', +w.dataset.screen === state.s));
+    document.querySelectorAll('[data-ctl-screen]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.ctlScreen === state.s)));
+    document.querySelectorAll('[data-ctl-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ctlMode === state.m)));
+    const h = `#screen=${state.s}&mode=${state.m}`;
+    if (location.hash !== h) history.replaceState(null, '', h);
+  };
+  const set = patch => { state = { ...state, ...patch }; apply(); };
+
+  const fit = () => {
+    const reserve = 56;
+    const k = Math.min(1, (innerWidth - 32) / 1440, (innerHeight - reserve - 16) / 900);
+    const x = Math.max(16, (innerWidth - 1440 * k) / 2);
+    const y = Math.max(12, (innerHeight - reserve - 900 * k) / 2);
+    frame.style.transform = `translate(${x}px, ${y}px) scale(${k})`;
+  };
+
+  document.addEventListener('click', e => {
+    const g = e.target.closest('[data-go]');
+    if (g) { set({ s: +g.dataset.go }); return; }
+    const cs = e.target.closest('[data-ctl-screen]');
+    if (cs) { set({ s: +cs.dataset.ctlScreen }); return; }
+    const cm = e.target.closest('[data-ctl-mode]');
+    if (cm) { set({ m: cm.dataset.ctlMode }); return; }
+    const sm = e.target.closest('[data-set-mode]');
+    if (sm) {
+      const v = sm.dataset.setMode;
+      set({ m: v === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : v });
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input, textarea, [contenteditable="true"]')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const rb = e.target.closest && e.target.closest('[role="button"][data-go]');
+    if (rb && e.key === 'Enter') { set({ s: +rb.dataset.go }); return; }
+    if (['1', '2', '3', '4'].includes(e.key)) set({ s: +e.key });
+    else if (e.key === 'd' || e.key === 'D') set({ m: state.m === 'dark' ? 'light' : 'dark' });
+    else if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('[data-hold]')) e.preventDefault(); // hold button ignores keys
+  });
+  addEventListener('hashchange', () => { state = read(); apply(); });
+  addEventListener('resize', fit);
+
+  /* Hold to allow once: pointer only, 1 s */
+  const resetHold = b => { clearTimeout(b._t); b.classList.remove('holding'); };
+  document.addEventListener('pointerdown', e => {
+    const b = e.target.closest('[data-hold]');
+    if (!b || b.classList.contains('done') || e.button !== 0) return;
+    b.setPointerCapture && b.setPointerCapture(e.pointerId);
+    b.classList.add('holding');
+    b._t = setTimeout(() => {
+      b.classList.remove('holding');
+      b.classList.add('done');
+      b.querySelector('.hold-label').textContent = 'Allowed once';
+      b.querySelector('.hsec').textContent = 'running';
+      setTimeout(() => {
+        b.classList.remove('done');
+        b.querySelector('.hold-label').textContent = 'Hold to allow once';
+        b.querySelector('.hsec').textContent = '1 s';
+      }, 2400);
+    }, 1000);
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t =>
+    document.addEventListener(t, () => document.querySelectorAll('[data-hold].holding').forEach(resetHold)));
+
+  /* Live "output N s ago" on running tiles */
+  setInterval(() => {
+    document.querySelectorAll('[data-live]').forEach(el => {
+      let v = +el.dataset.live + 1;
+      if (v > 2 + Math.floor(Math.random() * 4)) v = 0;
+      el.dataset.live = v;
+      el.textContent = v === 0 ? 'output now' : `output ${v} s ago`;
+    });
+  }, 1000);
+
+  state = read();
+  apply();
+  fit();
+})();
+</script>
+</body>
+</html>

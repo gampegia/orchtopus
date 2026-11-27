@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terminal native</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- Tokens: shared ---------- */
+:root{
+  --font-mono:"JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --font-sans:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+
+  --fs-key:11px; --fs-s:12px; --fs-m:13px; --fs-l:14px; --fs-xl:16px;
+  --lh-key:16px; --lh:20px; --lh-read:22px;
+
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+
+  --r-key:4px; --r-ctl:4px; --r-win:8px; --r-prev:6px;
+
+  --frame-w:1440px; --frame-h:900px;
+  --h-title:36px; --h-status:28px; --h-pane:28px; --h-row:20px; --h-btn:28px; --h-btn-l:32px; --h-head:52px;
+  --w-side:264px; --w-right:336px; --w-col-a:360px; --w-col-c:320px;
+
+  --ease:cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast:140ms; --t-hold:1000ms;
+}
+
+/* ---------- Tokens: dark ---------- */
+:root[data-mode="dark"]{
+  --desk:#08080a; --desk-text:#8f8f96; --desk-line:#232327;
+  --win-shadow:0 0 0 1px #2e2e33, 0 24px 64px rgba(0,0,0,0.55);
+  --line:#28282c; --line-strong:#3a3a40;
+  --surface:#151517; --surface-2:#1b1b1e; --surface-3:#242428;
+  --term:#0f0f11; --input:#0f0f11;
+  --text:#e9e9ec; --text-2:#a8a8ae; --text-3:#8a8a91;
+  --key-bg:#242428; --key-line:#3c3c42; --key-fg:#c4c4ca;
+  --primary-bg:#e9e9ec; --primary-fg:#111113; --primary-key-line:#8d8d94; --primary-hover:#ffffff;
+  --focus:#a8a8ae;
+
+  --amber:#f2b441; --violet:#b69cff; --green:#4cc38a; --red:#f2555a; --orange:#ff8b4a; --blue:#6ea8ff;
+  --amber-tint:color-mix(in srgb, #f2b441 8%, #151517);
+  --amber-line:color-mix(in srgb, #f2b441 55%, #151517);
+  --red-tint:color-mix(in srgb, #f2555a 9%, #151517);
+  --red-line:color-mix(in srgb, #f2555a 60%, #151517);
+  --red-fill:color-mix(in srgb, #f2555a 30%, #151517);
+  --green-tint:color-mix(in srgb, #4cc38a 7%, #151517);
+  --green-line:color-mix(in srgb, #4cc38a 50%, #151517);
+  --blue-cell:#6ea8ff; --done-cell:#8a8a91; --open-cell:#2c2c31;
+}
+
+/* ---------- Tokens: light ---------- */
+:root[data-mode="light"]{
+  --desk:#d9d9dc; --desk-text:#4a4a50; --desk-line:#c4c4c8;
+  --win-shadow:0 0 0 1px #c3c3c8, 0 12px 32px rgba(0,0,0,0.12);
+  --line:#e0e0e3; --line-strong:#c9c9ce;
+  --surface:#ffffff; --surface-2:#f6f6f7; --surface-3:#ececee;
+  --term:#f9f9f7; --input:#ffffff;
+  --text:#1b1b1f; --text-2:#4e4e55; --text-3:#6a6a72;
+  --key-bg:#ffffff; --key-line:#c9c9ce; --key-fg:#3c3c42;
+  --primary-bg:#1b1b1f; --primary-fg:#ffffff; --primary-key-line:#6a6a72; --primary-hover:#2f2f35;
+  --focus:#4e4e55;
+
+  --amber:#8f5d00; --violet:#6e3fd1; --green:#176b33; --red:#c42b2b; --orange:#a3400b; --blue:#1f5fc4;
+  --amber-tint:color-mix(in srgb, #c98a12 8%, #ffffff);
+  --amber-line:color-mix(in srgb, #c98a12 70%, #ffffff);
+  --red-tint:color-mix(in srgb, #c42b2b 6%, #ffffff);
+  --red-line:color-mix(in srgb, #c42b2b 65%, #ffffff);
+  --red-fill:color-mix(in srgb, #c42b2b 22%, #ffffff);
+  --green-tint:color-mix(in srgb, #1f8a43 6%, #ffffff);
+  --green-line:color-mix(in srgb, #1f8a43 60%, #ffffff);
+  --blue-cell:#1f5fc4; --done-cell:#6a6a72; --open-cell:#e0e0e3;
+}
+
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--desk);color:var(--text);font-family:var(--font-sans);font-size:var(--fs-m);line-height:var(--lh);
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
+button,input,textarea,select{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mono{font-family:var(--font-mono)}
+.t2{color:var(--text-2)} .t3{color:var(--text-3)}
+.c-amber{color:var(--amber)} .c-violet{color:var(--violet)} .c-green{color:var(--green)}
+.c-red{color:var(--red)} .c-orange{color:var(--orange)} .c-blue{color:var(--blue)}
+.ic{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+kbd{font-family:var(--font-mono);font-size:var(--fs-key);line-height:var(--lh-key);font-weight:500;
+  display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 var(--sp-1);
+  border-radius:var(--r-key);background:var(--key-bg);color:var(--key-fg);
+  border:1px solid var(--key-line);box-shadow:inset 0 -1px 0 var(--key-line);white-space:nowrap}
+
+/* ---------- Stage and demo controls (outside the window) ---------- */
+.stage{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--sp-3);padding:var(--sp-4)}
+.demo{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;column-gap:var(--sp-4);row-gap:var(--sp-1);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--desk-text);white-space:nowrap}
+.demo > *{flex:none}
+.demo-group{display:flex;align-items:center;gap:var(--sp-1)}
+.demo button{height:24px;padding:0 var(--sp-2);border-radius:var(--r-ctl);color:var(--desk-text);border:1px solid transparent;
+  transition:background-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.demo button:hover{color:var(--text)}
+.demo button[aria-pressed="true"]{border-color:var(--desk-line);color:var(--text)}
+.demo .sep{width:1px;height:16px;background:var(--desk-line)}
+.fit{position:relative;flex:none}
+.win{position:absolute;left:0;top:0;width:var(--frame-w);height:var(--frame-h);transform-origin:0 0;
+  border-radius:var(--r-win);overflow:hidden;box-shadow:var(--win-shadow);background:var(--line);
+  display:grid;grid-template-rows:var(--h-title) 1fr;gap:1px}
+
+/* ---------- Title bar ---------- */
+.titlebar{background:var(--surface-2);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding-left:var(--sp-3)}
+.brand{display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-mono);font-size:var(--fs-m);font-weight:500}
+.brand .t3{font-weight:400}
+.palette{width:440px;height:24px;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-1) 0 var(--sp-2);
+  border-radius:var(--r-ctl);background:var(--input);border:1px solid var(--line);color:var(--text-3);font-size:var(--fs-s);
+  transition:border-color var(--t-fast) var(--ease)}
+.palette:hover{border-color:var(--line-strong)}
+.palette span{flex:1;text-align:left}
+.tb-right{display:flex;justify-content:flex-end;align-items:center;height:100%}
+.tb-btn{height:24px;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2);border-radius:var(--r-ctl);color:var(--text-2);
+  font-family:var(--font-mono);font-size:var(--fs-s);margin-right:var(--sp-2);transition:background-color var(--t-fast) var(--ease)}
+.tb-btn:hover,.tb-btn.on{background:var(--surface-3);color:var(--text)}
+.tb-btn .n{color:var(--text)}
+.winctl{display:flex;height:100%;margin-left:var(--sp-2)}
+.winctl span{width:44px;display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+
+/* ---------- Screens ---------- */
+.screen{display:none;min-height:0;grid-template-rows:1fr var(--h-status);gap:1px;background:var(--line)}
+.screen.on{display:grid}
+.body{display:grid;gap:1px;background:var(--line);min-height:0}
+.body.sess-layout{grid-template-columns:var(--w-side) 1fr var(--w-right)}
+.body.wide-layout{grid-template-columns:var(--w-side) 1fr}
+.col{display:flex;flex-direction:column;gap:1px;background:var(--line);min-height:0;min-width:0}
+.pane{background:var(--surface);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
+.grow{flex:1}
+.pane-h{height:var(--h-pane);flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);
+  background:var(--surface-2);border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:var(--fs-s);font-weight:500}
+.pane-h .meta{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2);font-weight:400;color:var(--text-3)}
+.pane-b{padding:var(--sp-3)}
+.lbl{font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3)}
+
+/* ---------- Sessions sidebar ---------- */
+.group-h{height:var(--h-pane);display:flex;align-items:flex-end;justify-content:space-between;padding:0 var(--sp-3) var(--sp-1);
+  font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3)}
+.group-h:not(:first-child){margin-top:var(--sp-2)}
+.sess{display:grid;grid-template-columns:72px 1fr auto;grid-template-rows:var(--h-row) var(--h-row);column-gap:var(--sp-2);
+  padding:var(--sp-1) var(--sp-3);font-family:var(--font-mono);font-size:var(--fs-s);cursor:pointer;
+  transition:background-color var(--t-fast) var(--ease)}
+.sess:hover{background:var(--surface-2)}
+.sess.sel{background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--line-strong)}
+.sess .name{font-size:var(--fs-m);font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess .key{align-self:center}
+.sess .key kbd{color:var(--text-3)}
+.sess .br{grid-row:2;grid-column:2 / 4;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess .pg{grid-row:2;grid-column:1;color:var(--text-2)}
+.st{font-family:var(--font-mono);font-size:var(--fs-s);font-weight:500;white-space:nowrap}
+.inbox-row{display:grid;grid-template-columns:72px 1fr auto;column-gap:var(--sp-2);height:32px;align-items:center;padding:0 var(--sp-3);
+  font-family:var(--font-mono);font-size:var(--fs-s);cursor:pointer;transition:background-color var(--t-fast) var(--ease)}
+.inbox-row:hover{background:var(--surface-2)}
+.inbox-row .who{color:var(--text)}
+.log{padding:var(--sp-2) 0;font-family:var(--font-mono);font-size:var(--fs-s)}
+.log div{display:grid;grid-template-columns:40px 1fr;grid-template-rows:var(--h-row) var(--h-row);column-gap:var(--sp-2);padding:0 var(--sp-3);white-space:nowrap;margin-bottom:var(--sp-1)}
+.log div span{overflow:hidden;text-overflow:ellipsis}
+.log div span:last-child{grid-column:2}
+
+/* ---------- Session header ---------- */
+.s-head{height:var(--h-head);flex:none;display:flex;align-items:center;gap:var(--sp-4);padding:0 var(--sp-3);background:var(--surface)}
+.s-title{display:grid;grid-template-rows:var(--h-row) var(--h-row);min-width:0}
+.s-title .l1{display:flex;align-items:baseline;gap:var(--sp-3);font-family:var(--font-mono)}
+.s-title .nm{font-size:var(--fs-l);font-weight:500}
+.s-title .l2{display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3)}
+.s-actions{margin-left:auto;display:flex;gap:var(--sp-1)}
+.also{height:var(--h-pane);flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);background:var(--surface-2);
+  font-family:var(--font-mono);font-size:var(--fs-s)}
+.also .right{margin-left:auto;color:var(--text-3);display:flex;align-items:center;gap:var(--sp-2)}
+
+/* ---------- Buttons ---------- */
+.btn{height:var(--h-btn);display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-1) 0 var(--sp-2);
+  border-radius:var(--r-ctl);font-family:var(--font-sans);font-size:var(--fs-m);font-weight:500;white-space:nowrap;
+  color:var(--text);background:var(--surface-2);border:1px solid var(--line);
+  transition:background-color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease)}
+.btn:hover{background:var(--surface-3);border-color:var(--line-strong)}
+.btn:active{transform:scale(0.98)}
+.btn .ic{color:var(--text-2)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-2)}
+.btn-ghost:hover{color:var(--text)}
+.btn-l{height:var(--h-btn-l);padding:0 var(--sp-1) 0 var(--sp-3);gap:var(--sp-3)}
+.btn-p{background:var(--primary-bg);color:var(--primary-fg);border-color:var(--primary-bg)}
+.btn-p:hover{background:var(--primary-hover);border-color:var(--primary-hover)}
+.btn-p kbd{background:transparent;color:var(--primary-fg);border-color:var(--primary-key-line);box-shadow:none}
+.btn-noKey{padding-right:var(--sp-3)}
+
+/* ---------- Decision pane ---------- */
+.dec{flex:none;background:var(--surface)}
+.dec .pane-h{height:40px;font-family:var(--font-sans);font-size:var(--fs-xl);font-weight:500;gap:var(--sp-3)}
+.dec .pane-h .st{font-size:var(--fs-s)}
+.dec .pane-h .meta{font-family:var(--font-mono);font-size:var(--fs-s)}
+.dec-amber{box-shadow:inset 0 0 0 1px var(--amber-line)}
+.dec-amber .pane-h{background:var(--amber-tint);border-bottom-color:var(--amber-line)}
+.dec-red{box-shadow:inset 0 0 0 1px var(--red-line)}
+.dec-red .pane-h{background:var(--red-tint);border-bottom-color:var(--red-line)}
+.dec-body{padding:var(--sp-4);display:grid;grid-template-columns:1fr;gap:var(--sp-3)}
+.cmd{font-family:var(--font-mono);font-size:var(--fs-l);line-height:var(--lh);padding:var(--sp-2) var(--sp-3);
+  background:var(--term);border:1px solid var(--line);border-radius:var(--r-ctl);display:flex;gap:var(--sp-2)}
+.cmd .p{color:var(--text-3)}
+.row2{display:grid;grid-template-columns:96px 1fr;column-gap:var(--sp-3);align-items:baseline}
+.read{font-family:var(--font-sans);font-size:var(--fs-l);line-height:var(--lh-read);color:var(--text);max-width:68ch;margin:0}
+.read code{font-family:var(--font-mono);font-size:var(--fs-m)}
+.facts{display:flex;gap:var(--sp-2);flex-wrap:wrap}
+.fact{font-family:var(--font-mono);font-size:var(--fs-s);height:22px;display:inline-flex;align-items:center;padding:0 var(--sp-2);
+  border:1px solid var(--line-strong);border-radius:var(--r-key);color:var(--text-2)}
+.actions{display:flex;align-items:center;gap:var(--sp-2);padding-top:var(--sp-1)}
+.hint{display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-2);margin-left:var(--sp-2)}
+
+.hold{position:relative;overflow:hidden;height:var(--h-btn-l);display:inline-flex;align-items:center;gap:var(--sp-3);padding:0 var(--sp-3);
+  border-radius:var(--r-ctl);background:var(--red-tint);border:1px solid var(--red-line);color:var(--text);
+  font-family:var(--font-sans);font-size:var(--fs-m);font-weight:500;user-select:none;touch-action:none}
+.hold::before{content:"";position:absolute;inset:0;background:var(--red-fill);transform:scaleX(0);transform-origin:left center;
+  transition:transform var(--t-fast) var(--ease)}
+.hold.holding::before{transform:scaleX(1);transition:transform var(--t-hold) linear}
+.hold.done::before{transform:scaleX(1)}
+.hold > *{position:relative}
+.hold .sub{font-family:var(--font-mono);font-size:var(--fs-s);font-weight:400;color:var(--text-2)}
+
+/* ---------- Terminal ---------- */
+.term{background:var(--term);flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding:var(--sp-2) var(--sp-3)}
+.term pre{margin:0;font-family:var(--font-mono);font-size:var(--fs-m);line-height:var(--lh);color:var(--text);white-space:pre}
+
+/* ---------- Right column ---------- */
+.kv{display:grid;grid-template-columns:96px 1fr;column-gap:var(--sp-3);font-family:var(--font-mono);font-size:var(--fs-s);line-height:var(--lh)}
+.kv dt{color:var(--text-3)} .kv dd{margin:0;color:var(--text)}
+.task-now{font-family:var(--font-sans);font-size:var(--fs-l);font-weight:500;margin:var(--sp-1) 0 var(--sp-2)}
+.cells{display:grid;gap:2px;height:8px;margin-bottom:var(--sp-3)}
+.cells i{background:var(--open-cell);border-radius:1px}
+.cells i.d{background:var(--done-cell)} .cells i.r{background:var(--blue-cell)}
+.phases{display:grid;grid-template-columns:repeat(2,1fr);column-gap:var(--sp-3);row-gap:0}
+.phase{display:flex;align-items:center;gap:var(--sp-2);height:var(--h-row);font-family:var(--font-mono);font-size:var(--fs-s)}
+.phase .ic{width:14px;height:14px;color:var(--text-3)}
+.phase .w{margin-left:auto}
+.meter{height:4px;border-radius:2px;background:var(--open-cell);position:relative;overflow:hidden;margin-top:var(--sp-1)}
+.meter i{position:absolute;inset:0 auto 0 0;width:var(--v);background:var(--done-cell)}
+
+.chat{flex:1;min-height:0;overflow:hidden;padding:var(--sp-3);display:flex;flex-direction:column;justify-content:flex-end;gap:var(--sp-3)}
+.msg{font-family:var(--font-sans);font-size:var(--fs-m);line-height:var(--lh)}
+.msg .who{font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3);display:block}
+.msg p{margin:0}
+.msg code{font-family:var(--font-mono);font-size:var(--fs-s)}
+.chat-in{flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-2) var(--sp-3) var(--sp-3)}
+.field{height:var(--h-btn-l);flex:1;min-width:0;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-1) 0 var(--sp-2);
+  background:var(--input);border:1px solid var(--line-strong);border-radius:var(--r-ctl);transition:border-color var(--t-fast) var(--ease)}
+.field:focus-within{border-color:var(--text-3)}
+.field input,.field textarea{flex:1;min-width:0;border:0;background:transparent;outline:none;font-family:var(--font-sans);font-size:var(--fs-m)}
+.field input::placeholder,.field textarea::placeholder{color:var(--text-3)}
+.pet{width:20px;height:20px;flex:none;color:var(--text-3)}
+.note{font-family:var(--font-sans);font-size:var(--fs-s);line-height:var(--lh);color:var(--text-3);margin:0}
+
+/* ---------- Status bar ---------- */
+.statusbar{background:var(--surface-2);display:flex;align-items:center;font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-2);white-space:nowrap}
+.statusbar .seg{height:100%;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);border-right:1px solid var(--line)}
+.statusbar .seg.focus{background:var(--surface-3);color:var(--text)}
+.statusbar .seg.r{margin-left:auto;border-right:0;border-left:1px solid var(--line)}
+.statusbar .seg kbd{height:16px;line-height:14px}
+.statusbar .gap{margin-left:var(--sp-2)}
+
+/* ---------- Review screen ---------- */
+.review-grid{display:grid;grid-template-columns:var(--w-col-a) 1fr var(--w-col-c);gap:1px;background:var(--line);flex:1;min-height:0}
+.tasks{list-style:none;margin:0;padding:var(--sp-2) var(--sp-3);font-family:var(--font-sans);font-size:var(--fs-m);line-height:var(--lh)}
+.tasks li{display:grid;grid-template-columns:28px 1fr;height:var(--h-row)}
+.tasks li span:first-child{font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3)}
+.links{display:flex;flex-direction:column;gap:var(--sp-1);padding:var(--sp-2) var(--sp-3) var(--sp-3);border-top:1px solid var(--line)}
+.links .btn{justify-content:flex-start}
+.links .btn kbd{margin-left:auto}
+.gates{padding:var(--sp-2) 0}
+.gate{display:grid;grid-template-columns:80px 1fr auto;column-gap:var(--sp-2);height:24px;align-items:center;padding:0 var(--sp-3);
+  font-family:var(--font-mono);font-size:var(--fs-s)}
+.gate .n{font-family:var(--font-sans);font-size:var(--fs-m);color:var(--text)}
+.gate .d{color:var(--text-3)}
+.gate.next{background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--line-strong)}
+.gate.next .d{color:var(--text)}
+.checks{padding:var(--sp-2) 0}
+.check{display:grid;grid-template-columns:80px 1fr;column-gap:var(--sp-2);padding:2px var(--sp-3);font-family:var(--font-sans);font-size:var(--fs-m);line-height:var(--lh)}
+.check .st{line-height:var(--lh)}
+.check .x{color:var(--text-3)}
+.pr{box-shadow:inset 0 0 0 1px var(--green-line)}
+.pr .pane-h{background:var(--green-tint);border-bottom-color:var(--green-line);height:40px;font-family:var(--font-sans);font-size:var(--fs-xl);gap:var(--sp-3)}
+.pr .pane-h .st{font-size:var(--fs-s)}
+.pr-body{padding:var(--sp-3) var(--sp-4) var(--sp-4);display:flex;flex-direction:column;gap:var(--sp-3);flex:1;min-height:0}
+.pr-row{display:grid;grid-template-columns:1fr auto;gap:var(--sp-3);align-items:end}
+.fld{display:flex;flex-direction:column;gap:var(--sp-1)}
+.fld .field input{font-family:var(--font-mono);font-size:var(--fs-m)}
+.select{height:var(--h-btn-l);display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2);min-width:160px;
+  background:var(--input);border:1px solid var(--line-strong);border-radius:var(--r-ctl);font-family:var(--font-mono);font-size:var(--fs-m)}
+.select .ic{margin-left:auto;color:var(--text-3)}
+.cbx{height:var(--h-btn-l);display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-sans);font-size:var(--fs-m)}
+.cbx input{width:16px;height:16px;margin:0;accent-color:var(--text)}
+.desc{flex:1;min-height:0;display:flex;flex-direction:column;gap:var(--sp-1)}
+.desc textarea{flex:1;min-height:0;resize:none;padding:var(--sp-2) var(--sp-3);background:var(--input);border:1px solid var(--line-strong);
+  border-radius:var(--r-ctl);font-family:var(--font-mono);font-size:var(--fs-s);line-height:var(--lh);color:var(--text);outline:none}
+.desc textarea:focus{border-color:var(--text-3)}
+.desc-h{display:flex;align-items:center;gap:var(--sp-1)}
+.desc-h .lbl{margin-right:auto}
+.pr-foot{display:flex;align-items:center;gap:var(--sp-2)}
+.pr-foot .note{margin-left:auto;text-align:right}
+.adv{flex:1;min-height:0;overflow:hidden;padding:var(--sp-3);display:flex;flex-direction:column;justify-content:flex-end;gap:var(--sp-3)}
+.instr{border:1px solid var(--line-strong);border-radius:var(--r-ctl);padding:var(--sp-2) var(--sp-3);background:var(--surface-2);display:flex;flex-direction:column;gap:var(--sp-2)}
+.instr .btn{align-self:flex-start}
+.adv-in{flex:none;padding:var(--sp-2) var(--sp-3) var(--sp-3);display:flex;flex-direction:column;gap:var(--sp-2)}
+.adv-in .field{height:auto;align-items:flex-start;padding:var(--sp-2)}
+.adv-in textarea{height:60px;resize:none;line-height:var(--lh)}
+.adv-in .row{display:flex;gap:var(--sp-2);justify-content:flex-end}
+
+/* ---------- Settings screen ---------- */
+.nav{padding:var(--sp-2) 0}
+.nav-i{display:flex;align-items:center;gap:var(--sp-3);height:32px;padding:0 var(--sp-3);margin:0 var(--sp-2) 2px;border-radius:var(--r-ctl);
+  font-family:var(--font-mono);font-size:var(--fs-m);color:var(--text-2);cursor:pointer;transition:background-color var(--t-fast) var(--ease)}
+.nav-i .ic{color:var(--text-3)}
+.nav-i:hover{background:var(--surface-2);color:var(--text)}
+.nav-i.sel{background:var(--surface-3);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-strong)}
+.nav-i.sel .ic{color:var(--text-2)}
+.set-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:1px;background:var(--line);flex:1;min-height:0}
+.set-grid .full{grid-column:1 / -1}
+.focused{box-shadow:inset 0 0 0 1px var(--line-strong)}
+.set-row{display:grid;grid-template-columns:160px 1fr;column-gap:var(--sp-4);padding:var(--sp-3) var(--sp-4);align-items:start}
+.set-row + .set-row{border-top:1px solid var(--line)}
+.set-row .lbl{line-height:var(--h-btn-l)}
+.seg-ctl{display:inline-flex;border:1px solid var(--line-strong);border-radius:var(--r-ctl);overflow:hidden}
+.seg-ctl button{height:30px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);font-size:var(--fs-m);color:var(--text-2);
+  transition:background-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.seg-ctl button + button{border-left:1px solid var(--line-strong)}
+.seg-ctl button:hover{color:var(--text)}
+.seg-ctl button[aria-pressed="true"]{background:var(--surface-3);color:var(--text)}
+.variants{display:flex;gap:var(--sp-4)}
+.variant{display:flex;flex-direction:column;gap:var(--sp-2);cursor:pointer}
+.variant .cap{display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-2)}
+.variant.sel .cap{color:var(--text)}
+.variant .cap .t3{margin-left:auto}
+.pv{width:216px;height:128px;border-radius:var(--r-prev);border:1px solid var(--line-strong);background:var(--line);overflow:hidden;
+  display:grid;grid-template-rows:10px 1fr;gap:1px;padding:0}
+.variant.sel .pv{box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--text-2)}
+.pv b{display:block;background:var(--surface-2)}
+.pv .g{display:grid;grid-template-columns:48px 1fr 52px;gap:1px;background:var(--line)}
+.pv .g > div{background:var(--surface);display:flex;flex-direction:column;gap:3px;padding:4px}
+.pv i{display:block;height:3px;border-radius:1px;background:var(--line-strong)}
+.pv i.s{width:60%} .pv i.m{width:80%}
+.pv .dc{height:22px;border:1px solid var(--amber-line);background:var(--amber-tint);border-radius:1px;flex:none}
+.pv .tm{flex:1;background:var(--term);border-radius:1px;display:flex;flex-direction:column;gap:3px;padding:3px}
+.pv-calm{background:var(--surface-2)}
+.pv-calm .g{grid-template-columns:52px 1fr;gap:6px;padding:6px;background:var(--surface-2)}
+.pv-calm .g > div{border-radius:4px}
+.pv-calm .g > div:nth-child(3){display:none}
+.pv-calm .dc{border-radius:3px;height:28px}
+.pv-hc .g{gap:2px;background:var(--text)}
+.pv-hc b{background:var(--text)}
+.pv-hc i{background:var(--text-2)}
+.pv-hc .dc{border-width:2px;border-color:var(--amber)}
+.meter-block{padding:var(--sp-3) var(--sp-4)}
+.meter-block + .meter-block{border-top:1px solid var(--line)}
+.m-h{display:flex;align-items:baseline;gap:var(--sp-3);margin-bottom:var(--sp-2)}
+.m-h .n{font-family:var(--font-sans);font-size:var(--fs-l);font-weight:500}
+.m-h .v{font-family:var(--font-mono);font-size:var(--fs-xl);font-weight:500;margin-left:auto}
+.m-h .rs{font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3);min-width:120px;text-align:right}
+.track{position:relative;height:8px;background:var(--open-cell);border-radius:2px}
+.track .f{position:absolute;inset:0 auto 0 0;width:var(--v);background:var(--text-2);border-radius:2px 0 0 2px}
+.track .tk{position:absolute;top:-4px;bottom:-4px;left:var(--at);width:1px;background:var(--text-3)}
+.tick-l{position:relative;height:var(--h-row);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-3)}
+.tick-l span{position:absolute;left:var(--at);transform:translateX(-50%);top:2px}
+.rule{display:flex;align-items:center;gap:var(--sp-2);font-family:var(--font-sans);font-size:var(--fs-m);height:36px}
+.num-f{width:56px;height:28px;display:inline-flex;align-items:center;justify-content:flex-end;padding:0 var(--sp-2);background:var(--input);
+  border:1px solid var(--line-strong);border-radius:var(--r-ctl);font-family:var(--font-mono);font-size:var(--fs-m)}
+.models{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:var(--fs-s)}
+.models th{text-align:left;font-weight:400;color:var(--text-3);height:32px;padding:0 var(--sp-4);border-bottom:1px solid var(--line)}
+.models td{height:40px;padding:0 var(--sp-4);border-bottom:1px solid var(--line)}
+.models td:first-child{font-family:var(--font-sans);font-size:var(--fs-m);color:var(--text)}
+.models tr:last-child td{border-bottom:0}
+.mini{height:28px;display:inline-flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2);min-width:112px;background:var(--input);
+  border:1px solid var(--line-strong);border-radius:var(--r-ctl);font-size:var(--fs-m)}
+.mini .ic{margin-left:auto;width:14px;height:14px;color:var(--text-3)}
+.ovr{margin-left:var(--sp-2);font-family:var(--font-mono);font-size:var(--fs-s);color:var(--text-2);border:1px solid var(--line-strong);border-radius:var(--r-key);padding:0 var(--sp-1);height:20px;display:inline-flex;align-items:center}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></symbol>
+    <symbol id="i-term" viewBox="0 0 24 24"><path d="m4 17 6-5-6-5M12 19h8"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></symbol>
+    <symbol id="i-circle-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-diff" viewBox="0 0 24 24"><path d="M12 3v14M5 10h14M5 21h14"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+    <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M8 16h8"/></symbol>
+    <symbol id="i-pet" viewBox="0 0 10 10">
+      <path d="M3 1h4v1h1v3H2V2h1z M3 3h1v1H3z" fill="currentColor" stroke="none" fill-rule="evenodd"/>
+      <path d="M6 3h1v1H6z" fill="var(--surface)" stroke="none"/>
+      <path d="M3 3h1v1H3z" fill="var(--surface)" stroke="none"/>
+      <path d="M1 5h8v1H8v2H7V6H6v3H5V6H4v2H3V6H2v1H1z" fill="currentColor" stroke="none"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="stage">
+  <nav class="demo" aria-label="Demo controls">
+    <span>06 Terminal native</span>
+    <span class="sep"></span>
+    <div class="demo-group" role="group" aria-label="Screen">
+      <button data-screen-btn="1" title="Session with a permission request">1 Permission</button>
+      <button data-screen-btn="2" title="Dangerous command">2 Danger</button>
+      <button data-screen-btn="3" title="Review detail with PR draft">3 Review</button>
+      <button data-screen-btn="4" title="Settings">4 Settings</button>
+    </div>
+    <span class="sep"></span>
+    <div class="demo-group" role="group" aria-label="Mode">
+      <button data-mode-btn="light">Light</button>
+      <button data-mode-btn="dark">Dark</button>
+    </div>
+    <span class="sep"></span>
+    <span>Demo keys 1 to 4, D</span>
+  </nav>
+
+  <div class="fit" id="fit">
+  <div class="win" id="win">
+
+    <header class="titlebar">
+      <div class="brand">Orchtopus</div>
+      <button class="palette" type="button"><svg class="ic"><use href="#i-search"/></svg><span>Jump to a session or run an action</span><kbd>Ctrl+K</kbd></button>
+      <div class="tb-right">
+        <button class="tb-btn" type="button"><svg class="ic"><use href="#i-inbox"/></svg>Inbox <span class="n">2</span><kbd>Ctrl+I</kbd></button>
+        <button class="tb-btn" type="button" data-go="4" id="tb-settings"><svg class="ic"><use href="#i-sliders"/></svg>Settings<kbd>Ctrl+,</kbd></button>
+        <div class="winctl" aria-hidden="true">
+          <span><svg class="ic"><use href="#i-minus"/></svg></span>
+          <span><svg class="ic" style="width:14px;height:14px"><use href="#i-max"/></svg></span>
+          <span><svg class="ic"><use href="#i-x"/></svg></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================== SCREEN 1: permission ===================== -->
+    <section class="screen" data-screen="1" aria-label="Session with a permission request">
+      <div class="body sess-layout">
+        <div class="col">
+          <div class="pane">
+            <div class="pane-h">Sessions<span class="meta">5 <kbd>Alt+1…5</kbd></span></div>
+            <div class="group-h"><span>acme-app</span><span>4</span></div>
+            <div class="sess sel" data-go="1">
+              <span class="st c-amber">needs you</span><span class="name">report-export</span><span class="key"><kbd>Alt+1</kbd></span>
+              <span class="br">feat/report-export</span><span class="pg">12/15</span>
+            </div>
+            <div class="sess">
+              <span class="st c-blue">running</span><span class="name">upload-fix</span><span class="key"><kbd>Alt+2</kbd></span>
+              <span class="br">fix/upload</span><span class="pg">4/7</span>
+            </div>
+            <div class="sess">
+              <span class="st c-green">PR draft</span><span class="name">image-resize</span><span class="key"><kbd>Alt+3</kbd></span>
+              <span class="br">feat/image-resize</span><span class="pg">done</span>
+            </div>
+            <div class="sess" data-go="2">
+              <span class="st c-blue">running</span><span class="name">i18n-de</span><span class="key"><kbd>Alt+4</kbd></span>
+              <span class="br">chore/i18n-de</span><span class="pg">2/6</span>
+            </div>
+            <div class="group-h"><span>docs-site</span><span>1</span></div>
+            <div class="sess">
+              <span class="st t3">idle</span><span class="name">changelog</span><span class="key"><kbd>Alt+5</kbd></span>
+              <span class="br">docs/changelog</span><span class="pg">3/3</span>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-h">Inbox <span class="meta">2 <kbd>Ctrl+I</kbd></span></div>
+            <div class="inbox-row"><span class="st c-amber">permission</span><span class="who">report-export</span><span class="t3">1 min</span></div>
+            <div class="inbox-row" style="margin-bottom:var(--sp-2)"><span class="st c-green">PR draft</span><span class="who">image-resize</span><span class="t3">done</span></div>
+          </div>
+          <div class="pane grow">
+            <div class="pane-h">Activity <span class="meta">all sessions</span></div>
+            <div class="log">
+              <div><span class="t3">14:32</span><span>report-export</span><span class="t2">permission requested</span></div>
+              <div><span class="t3">14:31</span><span>upload-fix</span><span class="t2">task 4 of 7 started</span></div>
+              <div><span class="t3">14:29</span><span>i18n-de</span><span class="t2">task 2 of 6 started</span></div>
+              <div><span class="t3">14:24</span><span>report-export</span><span class="t2">task 11 of 15 done</span></div>
+              <div><span class="t3">14:18</span><span>image-resize</span><span class="t2">PR draft ready</span></div>
+              <div><span class="t3">14:05</span><span>changelog</span><span class="t2">3 of 3 done, idle</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="s-head">
+            <div class="s-title">
+              <div class="l1"><span class="nm">report-export</span><span class="st c-amber">needs you</span></div>
+              <div class="l2"><span>feat/report-export</span><span>·</span><span>acme-app</span></div>
+            </div>
+            <div class="s-actions">
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-pause"/></svg>Pause<kbd>Alt+P</kbd></button>
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-folder"/></svg>Explorer<kbd>Alt+E</kbd></button>
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-code"/></svg>VS Code<kbd>Alt+V</kbd></button>
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-term"/></svg>Terminal<kbd>Alt+T</kbd></button>
+            </div>
+          </div>
+          <div class="also">
+            <span class="t3">Also waiting</span><span>image-resize</span><span class="st c-green">PR draft</span><kbd>Alt+3</kbd>
+            <span class="right">Next in inbox</span>
+          </div>
+
+          <div class="pane dec dec-amber" role="region" aria-label="Permission request">
+            <div class="pane-h">
+              <span class="st c-amber">permission</span>
+              <span>Bash command needs permission</span>
+              <span class="meta">Waiting 1 min · falls back to the terminal prompt in 9 min</span>
+            </div>
+            <div class="dec-body">
+              <div class="cmd"><span class="p">$</span><span>npm install csv-parse@5.6.0 --save</span></div>
+              <div class="row2">
+                <span class="lbl">What it does</span>
+                <p class="read">Downloads csv-parse 5.6.0 from the npm registry and adds it to <code>package.json</code>. The package can run install scripts. Only this worktree is affected.</p>
+              </div>
+              <div class="row2">
+                <span class="lbl">Facts</span>
+                <div class="facts"><span class="fact">network</span><span class="fact">changes package.json</span><span class="fact">install scripts</span></div>
+              </div>
+              <div class="actions">
+                <button class="btn btn-l btn-p" type="button">Allow once<kbd>Enter</kbd></button>
+                <button class="btn btn-l" type="button">Always allow in this project<kbd>A</kbd></button>
+                <button class="btn btn-l" type="button">Deny<kbd>N</kbd></button>
+                <button class="btn btn-l" type="button">Ask the advisor<kbd>B</kbd></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="pane grow">
+            <div class="pane-h">Terminal <span class="t3" style="font-weight:400">claude · report-export</span><span class="meta">read only while a decision waits <kbd>Ctrl+`</kbd></span></div>
+            <div class="term"><pre><span class="t3">●</span> Task 9 of 15 · Remember the last filter
+  <span class="t3">└</span> <span class="t2">Done · 2 files changed</span>
+<span class="t3">●</span> Bash<span class="t2">(npm test -- filters)</span>
+  <span class="t3">└</span> <span class="c-green">9 passed</span> <span class="t2">in 1.1 s</span>
+<span class="t3">●</span> Task 10 of 15 · Handle empty results
+  <span class="t3">└</span> <span class="t2">Done · 1 file changed</span>
+<span class="t3">●</span> Task 11 of 15 · Handle time zones in filters
+  <span class="t3">└</span> <span class="t2">Done · 2 files changed · tests</span> <span class="c-green">22 passed</span>
+<span class="t3">●</span> Task 12 of 15 · Normalise date ranges
+<span class="t3">●</span> Skill<span class="t2">(superpowers:test-driven-development)</span>
+  <span class="t3">└</span> <span class="t2">Loaded skill</span>
+<span class="t3">●</span> Read<span class="t2">(src/export/date-range.ts)</span>
+  <span class="t3">└</span> <span class="t2">Read 84 lines</span>
+<span class="t3">●</span> Agent<span class="t2">(test-writer)</span>
+  <span class="t3">└</span> <span class="t2">Subagent running · tests for normaliseRange()</span>
+<span class="t3">●</span> Edit<span class="t2">(src/export/date-range.ts)</span>
+  <span class="t3">└</span> <span class="t2">18 additions, 6 removals</span>
+<span class="t3">●</span> Bash<span class="t2">(npm test -- date-range)</span>
+  <span class="t3">└</span> <span class="c-green">14 passed</span> <span class="t2">in 1.8 s</span>
+<span class="t3">●</span> The round-trip test reads the exported CSV back in. Installing a parser.
+<span class="t3">●</span> Bash<span class="t2">(npm install csv-parse@5.6.0 --save)</span>
+  <span class="t3">└</span> <span class="c-amber">waiting for permission</span></pre></div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="pane">
+            <div class="pane-h">Progress <span class="meta">task 12 of 15</span></div>
+            <div class="pane-b">
+              <div class="task-now">Normalise date ranges</div>
+              <div class="cells" style="grid-template-columns:repeat(15,1fr)" aria-label="Task 12 of 15">
+                <i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="d"></i><i class="r"></i><i></i><i></i><i></i>
+              </div>
+              <div class="phases">
+                <div class="phase"><svg class="ic"><use href="#i-check"/></svg>Brainstorm<span class="w t3">done</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-circle-dot"/></svg>Execute<span class="w c-blue">running</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-check"/></svg>Spec<span class="w t3">done</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-circle"/></svg>Review<span class="w t3">open</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-check"/></svg>Plan<span class="w t3">done</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-circle"/></svg>Finish<span class="w t3">open</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-h">Session</div>
+            <div class="pane-b">
+              <dl class="kv" style="margin:0">
+                <dt>Subagents</dt><dd>1 active</dd>
+                <dt>Git</dt><dd>5 ahead, 0 behind <span class="t2">develop</span></dd>
+                <dt>Context</dt><dd>41 % used<div class="meter" style="--v:41%"><i></i></div></dd>
+              </dl>
+            </div>
+          </div>
+          <div class="pane grow">
+            <div class="pane-h">Side chat <span class="meta">read only <kbd>Ctrl+J</kbd></span></div>
+            <div class="chat">
+              <p class="note">Answers questions about this session. It cannot run commands or decide.</p>
+              <div class="msg"><span class="who">you</span><p>Why does it need csv-parse?</p></div>
+              <div class="msg"><span class="who">helper</span><p>Task 12 adds a round-trip test: export a report, read the CSV back, compare the date ranges. The plan names csv-parse for reading the file.</p></div>
+            </div>
+            <div class="chat-in">
+              <svg class="pet" aria-label="Orchtopus pet"><use href="#i-pet"/></svg>
+              <label class="field"><input type="text" placeholder="Ask about this session"><kbd>Enter</kbd></label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="statusbar">
+        <span class="seg focus"><span class="t3">Focus</span>decision</span>
+        <span class="seg"><span class="c-amber">1 needs you</span><span class="c-blue gap">2 running</span><span class="c-green gap">1 PR draft</span><span class="t3 gap">1 idle</span></span>
+        <span class="seg"><kbd>Alt+1…5</kbd>session<kbd class="gap">Tab</kbd>next pane<kbd class="gap">Ctrl+K</kbd>palette</span>
+        <span class="seg r">Claude Code connected · 5 sessions · Git updated 3 s ago</span>
+      </footer>
+    </section>
+
+    <!-- ===================== SCREEN 2: danger ===================== -->
+    <section class="screen" data-screen="2" aria-label="Dangerous command">
+      <div class="body sess-layout">
+        <div class="col">
+          <div class="pane">
+            <div class="pane-h">Sessions<span class="meta">5 <kbd>Alt+1…5</kbd></span></div>
+            <div class="group-h"><span>acme-app</span><span>4</span></div>
+            <div class="sess" data-go="1">
+              <span class="st c-blue">running</span><span class="name">report-export</span><span class="key"><kbd>Alt+1</kbd></span>
+              <span class="br">feat/report-export</span><span class="pg">12/15</span>
+            </div>
+            <div class="sess">
+              <span class="st c-blue">running</span><span class="name">upload-fix</span><span class="key"><kbd>Alt+2</kbd></span>
+              <span class="br">fix/upload</span><span class="pg">4/7</span>
+            </div>
+            <div class="sess">
+              <span class="st c-green">PR draft</span><span class="name">image-resize</span><span class="key"><kbd>Alt+3</kbd></span>
+              <span class="br">feat/image-resize</span><span class="pg">done</span>
+            </div>
+            <div class="sess sel" data-go="2">
+              <span class="st c-red">danger</span><span class="name">i18n-de</span><span class="key"><kbd>Alt+4</kbd></span>
+              <span class="br">chore/i18n-de</span><span class="pg">2/6</span>
+            </div>
+            <div class="group-h"><span>docs-site</span><span>1</span></div>
+            <div class="sess">
+              <span class="st t3">idle</span><span class="name">changelog</span><span class="key"><kbd>Alt+5</kbd></span>
+              <span class="br">docs/changelog</span><span class="pg">3/3</span>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-h">Inbox <span class="meta">2 <kbd>Ctrl+I</kbd></span></div>
+            <div class="inbox-row"><span class="st c-red">danger</span><span class="who">i18n-de</span><span class="t3">now</span></div>
+            <div class="inbox-row" style="margin-bottom:var(--sp-2)"><span class="st c-green">PR draft</span><span class="who">image-resize</span><span class="t3">done</span></div>
+          </div>
+          <div class="pane grow">
+            <div class="pane-h">Activity <span class="meta">all sessions</span></div>
+            <div class="log">
+              <div><span class="t3">14:41</span><span>i18n-de</span><span class="t2">dangerous command</span></div>
+              <div><span class="t3">14:40</span><span>i18n-de</span><span class="t2">push rejected</span></div>
+              <div><span class="t3">14:36</span><span>report-export</span><span class="t2">allowed once</span></div>
+              <div><span class="t3">14:31</span><span>upload-fix</span><span class="t2">task 4 of 7 started</span></div>
+              <div><span class="t3">14:18</span><span>image-resize</span><span class="t2">PR draft ready</span></div>
+              <div><span class="t3">14:05</span><span>changelog</span><span class="t2">3 of 3 done, idle</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="s-head">
+            <div class="s-title">
+              <div class="l1"><span class="nm">i18n-de</span><span class="st c-red">danger</span></div>
+              <div class="l2"><span>chore/i18n-de</span><span>·</span><span>acme-app</span></div>
+            </div>
+            <div class="s-actions">
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-pause"/></svg>Pause<kbd>Alt+P</kbd></button>
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-folder"/></svg>Explorer<kbd>Alt+E</kbd></button>
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-code"/></svg>VS Code<kbd>Alt+V</kbd></button>
+              <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-term"/></svg>Terminal<kbd>Alt+T</kbd></button>
+            </div>
+          </div>
+          <div class="also">
+            <span class="t3">Also waiting</span><span>image-resize</span><span class="st c-green">PR draft</span><kbd>Alt+3</kbd>
+            <span class="right">Next in inbox</span>
+          </div>
+
+          <div class="pane dec dec-red" role="region" aria-label="Dangerous command">
+            <div class="pane-h">
+              <span class="st c-red">danger</span>
+              <span>Dangerous command</span>
+              <span class="meta">Waiting 20 s · session paused until you decide</span>
+            </div>
+            <div class="dec-body">
+              <div class="cmd"><span class="p">$</span><span>git push --force origin chore/i18n-de</span></div>
+              <div class="row2">
+                <span class="lbl">What it does</span>
+                <p class="read">Replaces the remote branch with your local one. Commits that exist only on the remote are lost. <code>main</code> and <code>develop</code> are not touched.</p>
+              </div>
+              <div class="row2">
+                <span class="lbl">Facts</span>
+                <div class="facts"><span class="fact">force push</span><span class="fact">rewrites remote branch</span></div>
+              </div>
+              <div class="actions">
+                <button class="hold" type="button" data-hold aria-describedby="hold-hint"><span class="hold-label">Hold to allow once</span><span class="sub">press 1 s</span></button>
+                <button class="btn btn-l" type="button">Deny<kbd>N</kbd></button>
+                <button class="btn btn-l" type="button">Ask the advisor<kbd>B</kbd></button>
+                <span class="hint" id="hold-hint"><svg class="ic"><use href="#i-lock"/></svg>Not available by hotkey or remote</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pane grow">
+            <div class="pane-h">Terminal <span class="t3" style="font-weight:400">claude · i18n-de</span><span class="meta">read only while a decision waits <kbd>Ctrl+`</kbd></span></div>
+            <div class="term"><pre><span class="t3">&gt;</span> Continue with the plan for i18n-de
+<span class="t3">●</span> Skill<span class="t2">(superpowers:executing-plans)</span>
+  <span class="t3">└</span> <span class="t2">Loaded skill</span>
+<span class="t3">●</span> Task 1 of 6 · Extract settings strings
+  <span class="t3">└</span> <span class="t2">Done · 4 files changed</span>
+<span class="t3">●</span> Task 2 of 6 · Add German strings for settings
+<span class="t3">●</span> Read<span class="t2">(locales/en/settings.json)</span>
+  <span class="t3">└</span> <span class="t2">Read 212 lines</span>
+<span class="t3">●</span> Agent<span class="t2">(translator)</span>
+  <span class="t3">└</span> <span class="t2">Subagent running · German strings for settings</span>
+<span class="t3">●</span> Write<span class="t2">(locales/de/settings.json)</span>
+  <span class="t3">└</span> <span class="t2">Wrote 212 lines</span>
+<span class="t3">●</span> Bash<span class="t2">(npm run i18n:check)</span>
+  <span class="t3">└</span> <span class="c-green">0 missing keys</span>
+<span class="t3">●</span> Bash<span class="t2">(git commit -m "chore(i18n): add German settings strings")</span>
+  <span class="t3">└</span> <span class="t2">1 file changed</span>
+<span class="t3">●</span> Bash<span class="t2">(git push origin chore/i18n-de)</span>
+  <span class="t3">└</span> <span class="c-red">! [rejected] chore/i18n-de -&gt; chore/i18n-de (non-fast-forward)</span>
+<span class="t3">●</span> The remote branch has commits that are not in the local branch. Pushing with force.
+<span class="t3">●</span> Bash<span class="t2">(git push --force origin chore/i18n-de)</span>
+  <span class="t3">└</span> <span class="c-red">waiting for permission, dangerous command</span></pre></div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="pane">
+            <div class="pane-h">Progress <span class="meta">task 2 of 6</span></div>
+            <div class="pane-b">
+              <div class="task-now">Add German strings for settings</div>
+              <div class="cells" style="grid-template-columns:repeat(6,1fr)" aria-label="Task 2 of 6">
+                <i class="d"></i><i class="r"></i><i></i><i></i><i></i><i></i>
+              </div>
+              <div class="phases">
+                <div class="phase"><svg class="ic"><use href="#i-check"/></svg>Brainstorm<span class="w t3">done</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-circle-dot"/></svg>Execute<span class="w c-blue">running</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-check"/></svg>Spec<span class="w t3">done</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-circle"/></svg>Review<span class="w t3">open</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-check"/></svg>Plan<span class="w t3">done</span></div>
+                <div class="phase"><svg class="ic"><use href="#i-circle"/></svg>Finish<span class="w t3">open</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-h">Session</div>
+            <div class="pane-b">
+              <dl class="kv" style="margin:0">
+                <dt>Subagents</dt><dd>1 active</dd>
+                <dt>Git</dt><dd>3 ahead, 0 behind <span class="t2">develop</span></dd>
+                <dt>Context</dt><dd>23 % used<div class="meter" style="--v:23%"><i></i></div></dd>
+              </dl>
+            </div>
+          </div>
+          <div class="pane grow">
+            <div class="pane-h">Side chat <span class="meta">read only <kbd>Ctrl+J</kbd></span></div>
+            <div class="chat">
+              <p class="note">Answers questions about this session. It cannot run commands or decide.</p>
+              <div class="msg"><span class="who">you</span><p>Why was the normal push rejected?</p></div>
+              <div class="msg"><span class="who">helper</span><p>The remote branch has commits that your local branch does not have. A force push would remove them. Pulling first keeps them.</p></div>
+            </div>
+            <div class="chat-in">
+              <svg class="pet" aria-label="Orchtopus pet"><use href="#i-pet"/></svg>
+              <label class="field"><input type="text" placeholder="Ask about this session"><kbd>Enter</kbd></label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="statusbar">
+        <span class="seg focus"><span class="t3">Focus</span>decision</span>
+        <span class="seg"><span class="c-red">1 danger</span><span class="c-blue gap">2 running</span><span class="c-green gap">1 PR draft</span><span class="t3 gap">1 idle</span></span>
+        <span class="seg"><kbd>Alt+1…5</kbd>session<kbd class="gap">Tab</kbd>next pane<kbd class="gap">Ctrl+K</kbd>palette</span>
+        <span class="seg r">Claude Code connected · 5 sessions · Git updated 3 s ago</span>
+      </footer>
+    </section>
+
+    <!-- ===================== SCREEN 3: review ===================== -->
+    <section class="screen" data-screen="3" aria-label="Review detail with PR draft">
+      <div class="body wide-layout">
+        <div class="col">
+          <div class="pane">
+            <div class="pane-h">Sessions<span class="meta">5 <kbd>Alt+1…5</kbd></span></div>
+            <div class="group-h"><span>acme-app</span><span>4</span></div>
+            <div class="sess sel" data-go="3">
+              <span class="st c-green">review</span><span class="name">report-export</span><span class="key"><kbd>Alt+1</kbd></span>
+              <span class="br">feat/report-export</span><span class="pg">15/15</span>
+            </div>
+            <div class="sess">
+              <span class="st c-blue">running</span><span class="name">upload-fix</span><span class="key"><kbd>Alt+2</kbd></span>
+              <span class="br">fix/upload</span><span class="pg">4/7</span>
+            </div>
+            <div class="sess">
+              <span class="st c-green">PR draft</span><span class="name">image-resize</span><span class="key"><kbd>Alt+3</kbd></span>
+              <span class="br">feat/image-resize</span><span class="pg">done</span>
+            </div>
+            <div class="sess" data-go="2">
+              <span class="st c-blue">running</span><span class="name">i18n-de</span><span class="key"><kbd>Alt+4</kbd></span>
+              <span class="br">chore/i18n-de</span><span class="pg">2/6</span>
+            </div>
+            <div class="group-h"><span>docs-site</span><span>1</span></div>
+            <div class="sess">
+              <span class="st t3">idle</span><span class="name">changelog</span><span class="key"><kbd>Alt+5</kbd></span>
+              <span class="br">docs/changelog</span><span class="pg">3/3</span>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-h">Inbox <span class="meta">2 <kbd>Ctrl+I</kbd></span></div>
+            <div class="inbox-row"><span class="st c-green">review</span><span class="who">report-export</span><span class="t3">now</span></div>
+            <div class="inbox-row" style="margin-bottom:var(--sp-2)"><span class="st c-green">PR draft</span><span class="who">image-resize</span><span class="t3">done</span></div>
+          </div>
+          <div class="pane grow">
+            <div class="pane-h">Activity <span class="meta">all sessions</span></div>
+            <div class="log">
+              <div><span class="t3">15:20</span><span>report-export</span><span class="t2">ready for review</span></div>
+              <div><span class="t3">15:19</span><span>report-export</span><span class="t2">council 4 of 4</span></div>
+              <div><span class="t3">15:12</span><span>report-export</span><span class="t2">task 15 of 15 done</span></div>
+              <div><span class="t3">14:52</span><span>i18n-de</span><span class="t2">task 2 of 6 resumed</span></div>
+              <div><span class="t3">14:31</span><span>upload-fix</span><span class="t2">task 4 of 7 started</span></div>
+              <div><span class="t3">14:18</span><span>image-resize</span><span class="t2">PR draft ready</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="s-head">
+            <button class="btn btn-ghost" type="button" data-go="1"><svg class="ic"><use href="#i-back"/></svg>Back<kbd>Esc</kbd></button>
+            <div class="s-title">
+              <div class="l1"><span class="nm">Review · report-export</span><span class="st c-green">ready for review</span></div>
+              <div class="l2"><span>feat/report-export → develop</span><span>·</span><span>acme-app</span></div>
+            </div>
+            <div class="s-actions">
+              <button class="btn btn-ghost" type="button" data-go="1"><svg class="ic"><use href="#i-x"/></svg>Close<kbd>Ctrl+W</kbd></button>
+            </div>
+          </div>
+
+          <div class="review-grid">
+            <div class="col">
+              <div class="pane">
+                <div class="pane-h">What was done <span class="meta">15 of 15 tasks</span></div>
+                <ol class="tasks">
+                  <li><span>01</span><span>Add export endpoint</span></li>
+                  <li><span>02</span><span>Define report query types</span></li>
+                  <li><span>03</span><span>Parse date filter parameters</span></li>
+                  <li><span>04</span><span>Validate date ranges</span></li>
+                  <li><span>05</span><span>Write CSV export</span></li>
+                  <li><span>06</span><span>Stream large reports</span></li>
+                  <li><span>07</span><span>Add export button to the reports page</span></li>
+                  <li><span>08</span><span>Build date filter controls</span></li>
+                  <li><span>09</span><span>Remember the last filter</span></li>
+                  <li><span>10</span><span>Handle empty results</span></li>
+                  <li><span>11</span><span>Handle time zones in filters</span></li>
+                  <li><span>12</span><span>Normalise date ranges</span></li>
+                  <li><span>13</span><span>Add CSV round-trip test</span></li>
+                  <li><span>14</span><span>Update API docs</span></li>
+                  <li><span>15</span><span>Remove the feature flag</span></li>
+                </ol>
+                <div class="links">
+                  <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-diff"/></svg>Diff <span class="t3">3 files</span><kbd>Alt+F</kbd></button>
+                  <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-history"/></svg>Session history<kbd>Alt+H</kbd></button>
+                  <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-code"/></svg>Open worktree in VS Code<kbd>Alt+V</kbd></button>
+                </div>
+              </div>
+              <div class="pane grow">
+                <div class="pane-h">Gates <span class="meta">8 of 10 passed</span></div>
+                <div class="gates">
+                  <div class="gate"><span class="st c-violet">approved</span><span class="n">Spec</span><span class="d">you</span></div>
+                  <div class="gate"><span class="st c-violet">approved</span><span class="n">Plan</span><span class="d">you</span></div>
+                  <div class="gate"><span class="st c-green">passed</span><span class="n">Tests</span><span class="d">60 passed</span></div>
+                  <div class="gate"><span class="st c-green">passed</span><span class="n">Lint and types</span><span class="d"></span></div>
+                  <div class="gate"><span class="st c-green">passed</span><span class="n">Secret scan</span><span class="d"></span></div>
+                  <div class="gate"><span class="st c-green">passed</span><span class="n">Dependency audit</span><span class="d"></span></div>
+                  <div class="gate"><span class="st c-green">passed</span><span class="n">Review council</span><span class="d">4 of 4</span></div>
+                  <div class="gate"><span class="st t2">note</span><span class="n">Git check</span><span class="d">1 note</span></div>
+                  <div class="gate next"><span class="st">open</span><span class="n">Release PR</span><span class="d">you</span></div>
+                  <div class="gate"><span class="st t3">later</span><span class="n">CI</span><span class="d">after PR</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col">
+              <div class="pane pr grow" role="region" aria-label="PR draft">
+                <div class="pane-h"><span class="st c-green">PR draft</span><span>Not created yet</span><span class="meta" style="font-family:var(--font-mono);font-size:var(--fs-s)">written by Claude, editable</span></div>
+                <div class="pr-body">
+                  <div class="fld">
+                    <span class="lbl">Title</span>
+                    <label class="field"><input type="text" value="feat(export): export reports with date filters"></label>
+                  </div>
+                  <div class="pr-row">
+                    <div class="fld">
+                      <span class="lbl">Target branch</span>
+                      <div class="select">develop<svg class="ic"><use href="#i-chev"/></svg></div>
+                    </div>
+                    <label class="cbx"><input type="checkbox" checked>Draft PR</label>
+                  </div>
+                  <div class="desc">
+                    <div class="desc-h">
+                      <span class="lbl">Description</span>
+                      <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-refresh"/></svg>Regenerate description<kbd>Alt+R</kbd></button>
+                      <button class="btn btn-ghost" type="button"><svg class="ic"><use href="#i-copy"/></svg>Copy<kbd>Alt+C</kbd></button>
+                    </div>
+<textarea spellcheck="false">## What
+Export reports as CSV with a date filter. The filter
+normalises date ranges and handles time zones.
+
+## Why
+Reports could only be read in the app. An export lets
+people take a date range into other tools.
+
+## Tests
+- 60 tests pass, including a CSV round-trip test
+- Lint and types pass
+
+## Checklist
+- [x] Spec and plan approved
+- [x] Secret scan and dependency audit passed
+- [ ] Consider splitting filter and export (Git check)
+- [ ] Two code quality notes from the review council</textarea>
+                  </div>
+                  <div class="pr-foot">
+                    <button class="btn btn-l btn-p" type="button">Release and create PR<kbd>Ctrl+Enter</kbd></button>
+                    <p class="note">Orchtopus never merges.<br>You merge on GitHub or GitLab.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col">
+                <div class="pane">
+                  <div class="pane-h">Review council <span class="meta">4 of 4</span></div>
+                  <div class="checks">
+                    <div class="check"><span class="st c-green">pass</span><span>Spec compliance</span></div>
+                    <div class="check"><span class="st c-green">pass</span><span>Code quality <span class="x">· 2 notes for the checklist</span></span></div>
+                    <div class="check"><span class="st c-green">pass</span><span>Tests</span></div>
+                    <div class="check"><span class="st t3">not needed</span><span>Security <span class="x">· no sensitive paths</span></span></div>
+                  </div>
+                </div>
+                <div class="pane">
+                  <div class="pane-h">Git check <span class="meta">1 note</span></div>
+                  <div class="checks">
+                    <div class="check"><span class="st c-green">ok</span><span>Branch name</span></div>
+                    <div class="check"><span class="st c-green">ok</span><span>Commits</span></div>
+                    <div class="check"><span class="st c-green">ok</span><span>Target <span class="mono" style="font-size:var(--fs-s)">develop</span></span></div>
+                    <div class="check"><span class="st t2">note</span><span>This PR mixes two topics. Consider splitting.</span></div>
+                  </div>
+                  <div style="padding:0 var(--sp-3) var(--sp-3)">
+                    <button class="btn" type="button">Ask the advisor to draft a split<kbd>B</kbd></button>
+                  </div>
+                </div>
+              <div class="pane grow">
+                <div class="pane-h">Advisor <span class="meta">for this change <kbd>Ctrl+J</kbd></span></div>
+                <div class="adv">
+                  <div class="msg"><span class="who">you</span><p>Can the date filter ship without the CSV export?</p></div>
+                  <div class="msg"><span class="who">advisor</span><p>Yes. Tasks 3, 4, 8, 9, 11 and 12 only touch the filter. They can go first as their own PR.</p></div>
+                  <div class="msg"><span class="who">you</span><p>Write that as an instruction for the session.</p></div>
+                  <div class="msg"><span class="who">advisor</span>
+                    <div class="instr">
+                      <p>Move the filter tasks to <code>feat/report-filters</code>, keep the export here, run the tests on both branches.</p>
+                      <button class="btn" type="button"><svg class="ic"><use href="#i-send"/></svg>Send to session<kbd>Alt+S</kbd></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="adv-in">
+                  <label class="field"><textarea placeholder="Ask, or write an instruction"></textarea></label>
+                  <div class="row">
+                    <button class="btn" type="button"><svg class="ic"><use href="#i-send"/></svg>Send to session<kbd>Alt+S</kbd></button>
+                    <button class="btn" type="button">Ask<kbd>Enter</kbd></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="statusbar">
+        <span class="seg focus"><span class="t3">Focus</span>PR draft</span>
+        <span class="seg"><span class="c-green">1 review</span><span class="c-blue gap">2 running</span><span class="c-green gap">1 PR draft</span><span class="t3 gap">1 idle</span></span>
+        <span class="seg"><kbd>Esc</kbd>back<kbd class="gap">Tab</kbd>next pane<kbd class="gap">Ctrl+K</kbd>palette</span>
+        <span class="seg r">Claude Code connected · 5 sessions · Git updated 3 s ago</span>
+      </footer>
+    </section>
+
+    <!-- ===================== SCREEN 4: settings ===================== -->
+    <section class="screen" data-screen="4" aria-label="Settings">
+      <div class="body wide-layout">
+        <div class="col">
+          <div class="pane grow">
+            <div class="pane-h">Settings <span class="meta">global <kbd>Ctrl+,</kbd></span></div>
+            <div class="nav">
+              <div class="nav-i"><svg class="ic"><use href="#i-sliders"/></svg>General</div>
+              <div class="nav-i sel"><svg class="ic"><use href="#i-contrast"/></svg>Appearance</div>
+              <div class="nav-i"><svg class="ic"><use href="#i-cpu"/></svg>Models</div>
+              <div class="nav-i"><svg class="ic"><use href="#i-gauge"/></svg>Usage</div>
+              <div class="nav-i"><svg class="ic"><use href="#i-bell"/></svg>Notifications</div>
+              <div class="nav-i"><svg class="ic"><use href="#i-keyboard"/></svg>Keyboard</div>
+              <div class="nav-i"><svg class="ic"><use href="#i-lock"/></svg>Privacy</div>
+              <div class="nav-i"><svg class="ic"><use href="#i-folder"/></svg>Projects</div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-b"><p class="note">Settings are global. A row marked <span class="ovr" style="margin:0">override</span> is changed in a project; open Projects to see it.</p></div>
+          </div>
+        </div>
+
+        <div class="col">
+          <div class="s-head">
+            <button class="btn btn-ghost" type="button" data-go="1"><svg class="ic"><use href="#i-back"/></svg>Sessions<kbd>Esc</kbd></button>
+            <div class="s-title">
+              <div class="l1"><span class="nm">Appearance</span></div>
+              <div class="l2"><span>Changes apply instantly</span></div>
+            </div>
+          </div>
+          <div class="set-grid">
+            <div class="pane full focused">
+              <div class="pane-h">Appearance <span class="meta">focused</span></div>
+              <div class="set-row">
+                <span class="lbl">Mode</span>
+                <div class="seg-ctl" role="group" aria-label="Mode">
+                  <button type="button" data-set-mode="light"><svg class="ic"><use href="#i-sun"/></svg>Light</button>
+                  <button type="button" data-set-mode="dark"><svg class="ic"><use href="#i-moon"/></svg>Dark</button>
+                  <button type="button" data-set-mode="system"><svg class="ic"><use href="#i-monitor"/></svg>Like Windows</button>
+                </div>
+              </div>
+              <div class="set-row">
+                <span class="lbl">Design variant</span>
+                <div class="variants">
+                  <div class="variant sel">
+                    <div class="pv" aria-hidden="true"><b></b><div class="g">
+                      <div><i></i><i class="m"></i><i class="s"></i><i></i><i class="m"></i><i class="s"></i></div>
+                      <div><div class="dc"></div><div class="tm"><i class="m"></i><i class="s"></i><i></i><i class="m"></i></div></div>
+                      <div><i></i><i class="s"></i><i class="m"></i></div>
+                    </div></div>
+                    <span class="cap">Terminal native<span class="t3">current</span></span>
+                  </div>
+                  <div class="variant">
+                    <div class="pv pv-calm" aria-hidden="true"><b></b><div class="g">
+                      <div><i></i><i class="m"></i><i class="s"></i></div>
+                      <div><div class="dc"></div><div class="tm"><i class="m"></i><i class="s"></i></div></div>
+                      <div></div>
+                    </div></div>
+                    <span class="cap">Calm panels</span>
+                  </div>
+                  <div class="variant">
+                    <div class="pv pv-hc" aria-hidden="true"><b></b><div class="g">
+                      <div><i></i><i class="m"></i><i class="s"></i><i></i></div>
+                      <div><div class="dc"></div><div class="tm"><i class="m"></i><i class="s"></i><i></i></div></div>
+                      <div><i></i><i class="s"></i></div>
+                    </div></div>
+                    <span class="cap">High contrast</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pane">
+              <div class="pane-h">Usage <span class="meta">subscription limits</span></div>
+              <div class="meter-block">
+                <div class="m-h"><span class="n">5-hour window</span><span class="v">46 %</span><span class="rs">resets 16:40</span></div>
+                <div class="track"><span class="f" style="--v:46%"></span><span class="tk" style="--at:70%"></span><span class="tk" style="--at:90%"></span></div>
+                <div class="tick-l"><span style="--at:70%">70</span><span style="--at:90%">90</span></div>
+              </div>
+              <div class="meter-block">
+                <div class="m-h"><span class="n">Weekly</span><span class="v">31 %</span><span class="rs">resets Mon 09:00</span></div>
+                <div class="track"><span class="f" style="--v:31%"></span><span class="tk" style="--at:70%"></span><span class="tk" style="--at:90%"></span></div>
+                <div class="tick-l"><span style="--at:70%">70</span><span style="--at:90%">90</span></div>
+              </div>
+              <div class="meter-block">
+                <div class="rule">Pause background jobs at<span class="num-f">70</span>%</div>
+                <div class="rule">Ask before new sessions at<span class="num-f">90</span>%</div>
+              </div>
+            </div>
+
+            <div class="pane">
+              <div class="pane-h">Models per role <span class="meta">model · effort</span></div>
+              <table class="models">
+                <thead><tr><th>Role</th><th>Model</th><th>Effort</th></tr></thead>
+                <tbody>
+                  <tr><td>Main session</td><td><span class="mini">Opus<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">high<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td>Planning</td><td><span class="mini">Opus<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">high<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td>Review council<span class="ovr">override · acme-app</span></td><td><span class="mini">Sonnet<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">medium<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td>Security reviewer</td><td><span class="mini">Opus<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">high<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td>Advisor and side chat</td><td><span class="mini">Sonnet<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">medium<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td>Wiki</td><td><span class="mini">Sonnet<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">medium<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                  <tr><td>Summaries</td><td><span class="mini">Haiku<svg class="ic"><use href="#i-chev"/></svg></span></td><td><span class="mini">low<svg class="ic"><use href="#i-chev"/></svg></span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="statusbar">
+        <span class="seg focus"><span class="t3">Focus</span>settings · Appearance</span>
+        <span class="seg"><span class="c-amber">1 needs you</span><span class="c-blue gap">2 running</span><span class="c-green gap">1 PR draft</span><span class="t3 gap">1 idle</span></span>
+        <span class="seg"><kbd>↑↓</kbd>move<kbd class="gap">Enter</kbd>open<kbd class="gap">Esc</kbd>back<kbd class="gap">Ctrl+K</kbd>palette</span>
+        <span class="seg r">Claude Code connected · 5 sessions · Git updated 3 s ago</span>
+      </footer>
+    </section>
+
+  </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var state = { screen: 1, mode: 'dark', system: false };
+
+  function readHash(){
+    var p = new URLSearchParams(location.hash.replace(/^#/, ''));
+    var s = parseInt(p.get('screen'), 10);
+    var m = p.get('mode');
+    state.screen = (s >= 1 && s <= 4) ? s : 1;
+    state.mode = (m === 'light' || m === 'dark') ? m : 'dark';
+  }
+  function writeHash(){
+    var h = '#screen=' + state.screen + '&mode=' + state.mode;
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+  function apply(){
+    root.setAttribute('data-mode', state.mode);
+    document.querySelectorAll('.screen').forEach(function(el){
+      el.classList.toggle('on', +el.getAttribute('data-screen') === state.screen);
+    });
+    document.querySelectorAll('[data-screen-btn]').forEach(function(b){
+      b.setAttribute('aria-pressed', String(+b.getAttribute('data-screen-btn') === state.screen));
+    });
+    document.querySelectorAll('[data-mode-btn]').forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-mode-btn') === state.mode));
+    });
+    document.querySelectorAll('[data-set-mode]').forEach(function(b){
+      var v = b.getAttribute('data-set-mode');
+      b.setAttribute('aria-pressed', String(state.system ? v === 'system' : v === state.mode));
+    });
+    document.getElementById('tb-settings').classList.toggle('on', state.screen === 4);
+    writeHash();
+  }
+  function go(n){ state.screen = n; apply(); }
+  function setMode(m){ state.mode = m; apply(); }
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-screen-btn],[data-mode-btn],[data-set-mode],[data-go]');
+    if (!t) return;
+    if (t.hasAttribute('data-screen-btn')) go(+t.getAttribute('data-screen-btn'));
+    else if (t.hasAttribute('data-mode-btn')) { state.system = false; setMode(t.getAttribute('data-mode-btn')); }
+    else if (t.hasAttribute('data-set-mode')) {
+      var v = t.getAttribute('data-set-mode');
+      if (v === 'system') { state.system = true; setMode(matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); }
+      else { state.system = false; setMode(v); }
+    }
+    else if (t.hasAttribute('data-go')) go(+t.getAttribute('data-go'));
+  });
+
+  document.addEventListener('keydown', function(e){
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key >= '1' && e.key <= '4') { go(+e.key); }
+    else if (e.key === 'd' || e.key === 'D') { state.system = false; setMode(state.mode === 'dark' ? 'light' : 'dark'); }
+  });
+
+  window.addEventListener('hashchange', function(){ readHash(); apply(); });
+
+  /* Fit the 1440 x 900 frame into the viewport */
+  var fit = document.getElementById('fit'), win = document.getElementById('win'), demo = document.querySelector('.demo');
+  function scale(){
+    var k = Math.min((window.innerWidth - 32) / 1440, (window.innerHeight - 44 - demo.offsetHeight) / 900, 1);
+    win.style.transform = 'scale(' + k + ')';
+    fit.style.width = (1440 * k) + 'px';
+    fit.style.height = (900 * k) + 'px';
+  }
+  window.addEventListener('resize', scale);
+
+  /* Hold to allow once: pointer only, 1 second */
+  document.querySelectorAll('[data-hold]').forEach(function(b){
+    var timer = null, resetTimer = null, label = b.querySelector('.hold-label');
+    function reset(){ b.classList.remove('holding', 'done'); label.textContent = 'Hold to allow once'; }
+    function start(e){
+      if (e.button !== 0) return;
+      clearTimeout(resetTimer); b.classList.remove('done');
+      b.setPointerCapture && b.setPointerCapture(e.pointerId);
+      b.classList.add('holding'); label.textContent = 'Keep holding';
+      timer = setTimeout(function(){
+        timer = null; b.classList.remove('holding'); b.classList.add('done'); label.textContent = 'Allowed once';
+        resetTimer = setTimeout(reset, 2000);
+      }, 1000);
+    }
+    function cancel(){ if (timer) { clearTimeout(timer); timer = null; reset(); } }
+    b.addEventListener('pointerdown', start);
+    b.addEventListener('pointerup', cancel);
+    b.addEventListener('pointercancel', cancel);
+    b.addEventListener('lostpointercapture', cancel);
+    b.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); });
+    b.addEventListener('click', function(e){ e.preventDefault(); });
+  });
+
+  readHash(); apply(); scale();
+})();
+</script>
+</body>
+</html>
