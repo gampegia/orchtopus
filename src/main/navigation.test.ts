@@ -18,8 +18,8 @@ describe('originOf', () => {
 });
 
 describe('isAllowedRedirect', () => {
-  const dev = { startupOrigin: 'http://localhost:5173', allowReloadNavigation: true };
-  const built = { startupOrigin: APP_ORIGIN, allowReloadNavigation: false };
+  const dev = { startupUrl: 'http://localhost:5173/', allowReloadNavigation: true };
+  const built = { startupUrl: BUILT_RENDERER_URL, allowReloadNavigation: false };
 
   it.each([
     [dev, 'http://localhost:5173/index.html'],
@@ -44,28 +44,32 @@ describe('isAllowedRedirect', () => {
 
 describe('isAllowedNavigation', () => {
   const devUrl = 'http://localhost:5173/';
-  const dev = { startupOrigin: 'http://localhost:5173', allowReloadNavigation: true };
-  const built = { startupOrigin: APP_ORIGIN, allowReloadNavigation: false };
+  const dev = { startupUrl: devUrl, allowReloadNavigation: true };
+  const built = { startupUrl: BUILT_RENDERER_URL, allowReloadNavigation: false };
 
   // Vite's full reload sets location to the page it is on.
-  it('allows a dev server reload of the current page', () => {
-    expect(isAllowedNavigation(devUrl, devUrl, dev)).toBe(true);
-    expect(isAllowedNavigation(`${devUrl}#top`, devUrl, dev)).toBe(true);
+  it('allows a dev server reload of the page the window loaded first', () => {
+    expect(isAllowedNavigation(devUrl, dev)).toBe(true);
+    expect(isAllowedNavigation(`${devUrl}#top`, dev)).toBe(true);
   });
 
   it.each([
-    ['another page on the dev server', 'http://localhost:5173/other.html', devUrl],
-    ['the same page with a query', 'http://localhost:5173/?x=1', devUrl],
-    ['another origin', 'https://example.com/', devUrl],
-    ['a current page that is not on the startup origin', 'about:blank', 'about:blank'],
-    ['an unparseable target', 'not a url', devUrl],
-  ])('refuses %s in dev', (_label, target, current) => {
-    expect(isAllowedNavigation(target, current, dev)).toBe(false);
+    ['another page on the dev server', 'http://localhost:5173/other.html'],
+    ['the same page with a query', 'http://localhost:5173/?x=1'],
+    ['another origin', 'https://example.com/'],
+    ['about:blank', 'about:blank'],
+    ['an unparseable target', 'not a url'],
+  ])('refuses %s in dev', (_label, target) => {
+    expect(isAllowedNavigation(target, dev)).toBe(false);
   });
 
-  it('refuses every navigation, the current page too, outside dev', () => {
-    const page = BUILT_RENDERER_URL;
-    expect(isAllowedNavigation(page, page, built)).toBe(false);
-    expect(isAllowedNavigation(`${APP_ORIGIN}/?navigated`, page, built)).toBe(false);
+  it('refuses a startup URL that is not on an origin', () => {
+    const blank = { startupUrl: 'about:blank', allowReloadNavigation: true };
+    expect(isAllowedNavigation('about:blank', blank)).toBe(false);
+  });
+
+  it('refuses every navigation, the startup page too, outside dev', () => {
+    expect(isAllowedNavigation(BUILT_RENDERER_URL, built)).toBe(false);
+    expect(isAllowedNavigation(`${APP_ORIGIN}/?navigated`, built)).toBe(false);
   });
 });

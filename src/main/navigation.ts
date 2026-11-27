@@ -1,7 +1,7 @@
 /** Where the main window started and whether a reload by navigation is expected there. */
 export interface NavigationPolicy {
-  /** `scheme://host[:port]` of the page the main window loaded first. */
-  readonly startupOrigin: string;
+  /** The URL the main window loaded first (the built page or the dev server page). */
+  readonly startupUrl: string;
   /** True for the Vite dev server only: its full reload navigates to the current page. */
   readonly allowReloadNavigation: boolean;
 }
@@ -33,19 +33,18 @@ function documentUrl(value: string): string | null {
 
 /** A redirect may only stay on the origin the window started on. */
 export function isAllowedRedirect(target: string, policy: NavigationPolicy): boolean {
-  return originOf(target) === policy.startupOrigin;
+  const origin = originOf(policy.startupUrl);
+  return origin !== null && originOf(target) === origin;
 }
 
 /**
- * Navigation is refused, except that the dev server may reload the page the window is on
- * (same URL, fragment ignored) when that page is on the startup origin.
+ * Navigation is refused, except that the dev server may reload the page the window loaded first
+ * (same URL, fragment ignored). The comparison is against the startup URL, not the current URL:
+ * `history.pushState` changes the current URL without a navigation, and must not widen the
+ * exception. A page that pushes another URL therefore cannot be reloaded by the dev server.
  */
-export function isAllowedNavigation(
-  target: string,
-  current: string,
-  policy: NavigationPolicy,
-): boolean {
+export function isAllowedNavigation(target: string, policy: NavigationPolicy): boolean {
   if (!policy.allowReloadNavigation) return false;
-  const page = documentUrl(current);
-  return page !== null && documentUrl(target) === page && originOf(page) === policy.startupOrigin;
+  const page = documentUrl(policy.startupUrl);
+  return page !== null && originOf(page) !== null && documentUrl(target) === page;
 }

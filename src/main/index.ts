@@ -25,7 +25,7 @@ const renderer = resolveRendererTarget({
 app.on('web-contents-created', (_event, contents) => {
   hardenWebContents(
     contents,
-    { startupOrigin: renderer.origin, allowReloadNavigation: renderer.devServer },
+    { startupUrl: renderer.url, allowReloadNavigation: renderer.devServer },
     warn,
   );
 });

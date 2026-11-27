@@ -115,3 +115,10 @@ test('navigation to another page stays denied with the dev server', async () => 
   expect(outcome.committed).toBe(false);
   expect(outcome.after).toBe(outcome.before);
 });
+
+// The reload exception follows the URL the window loaded first, not one set by pushState.
+test('a reload after history.pushState stays denied with the dev server', async () => {
+  const outcome = await navigateBy("history.pushState(null, '', '/pushed'); location.reload()");
+  expect(outcome.committed).toBe(false);
+  expect(outcome.after).toBe(`${devUrl}pushed`);
+});

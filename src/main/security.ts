@@ -35,7 +35,7 @@ export function urlForLog(value: string): string {
 /**
  * Blocks navigation (main frame and subframes), redirects off the startup origin, webview
  * attachment, Bluetooth device selection and new windows for a web contents. The only allowed
- * navigation is a dev server reload of the current page (see `isAllowedNavigation`).
+ * navigation is a dev server reload of the startup page (see `isAllowedNavigation`).
  */
 export function hardenWebContents(
   contents: WebContents,
@@ -44,7 +44,7 @@ export function hardenWebContents(
 ): void {
   contents.on('will-navigate', (event) => {
     const { url } = event;
-    if (isAllowedNavigation(url, contents.getURL(), policy)) return;
+    if (isAllowedNavigation(url, policy)) return;
     event.preventDefault();
     log(`Blocked navigation to ${urlForLog(url)}`);
   });

@@ -7,8 +7,8 @@ import { CONTENT_SECURITY_POLICY, denyAllPermissions, hardenWebContents } from '
 type Listener = (event: { preventDefault: () => void; url?: string }, ...args: unknown[]) => void;
 
 const builtPage = BUILT_RENDERER_URL;
-const builtPolicy = { startupOrigin: APP_ORIGIN, allowReloadNavigation: false };
-const devPolicy = { startupOrigin: 'http://localhost:5173', allowReloadNavigation: true };
+const builtPolicy = { startupUrl: BUILT_RENDERER_URL, allowReloadNavigation: false };
+const devPolicy = { startupUrl: 'http://localhost:5173/', allowReloadNavigation: true };
 
 function fakeContents(currentUrl = builtPage) {
   const listeners = new Map<string, Listener>();
@@ -91,6 +91,15 @@ describe('hardenWebContents', () => {
     const devPage = 'http://localhost:5173/';
     expect(fire('will-navigate', devPage, devPolicy, devPage)).not.toHaveBeenCalled();
     expect(fire('will-navigate', 'https://example.com/', devPolicy, devPage)).toHaveBeenCalled();
+  });
+
+  // history.pushState changes getURL() without a navigation; the exception must not follow it.
+  it('compares a dev reload against the startup URL, not the current URL', () => {
+    const pushed = 'http://localhost:5173/other.html';
+    expect(fire('will-navigate', pushed, devPolicy, pushed)).toHaveBeenCalledOnce();
+    expect(
+      fire('will-navigate', 'http://localhost:5173/', devPolicy, pushed),
+    ).not.toHaveBeenCalled();
   });
 
   it('allows will-redirect to the startup origin only', () => {
