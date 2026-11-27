@@ -92,6 +92,30 @@ test('opens one window titled Orchtopus that shows the name', async () => {
     .toEqual([true]);
 });
 
+test('serves the built renderer from app://orchtopus', async () => {
+  expect(page.url()).toBe('app://orchtopus/index.html');
+  expect(await page.evaluate(() => window.location.origin)).toBe('app://orchtopus');
+  const response = await page.evaluate(async () => {
+    const result = await fetch('/index.html');
+    return { status: result.status, type: result.headers.get('content-type') };
+  });
+  expect(response).toEqual({ status: 200, type: 'text/html; charset=utf-8' });
+});
+
+test('the app protocol serves nothing outside the renderer folder', async () => {
+  // out/main/index.js exists next to out/renderer; encoded separators must not reach it.
+  const statuses = await page.evaluate(async () => {
+    const paths = [
+      '/..%2Fmain%2Findex.js',
+      '/%2e%2e%2fmain%2findex.js',
+      '/..%5Cmain%5Cindex.js',
+      '/missing.js',
+    ];
+    return Promise.all(paths.map(async (path) => (await fetch(path)).status));
+  });
+  expect(statuses).toEqual([404, 404, 404, 404]);
+});
+
 for (const mode of ['light', 'dark'] as const) {
   test(`paints surface.page and text.primary in ${mode} mode`, async () => {
     await electronApp().evaluate(({ nativeTheme }, source) => {

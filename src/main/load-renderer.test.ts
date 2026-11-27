@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isLocalDevServerUrl, loadRenderer } from './load-renderer';
+import { APP_ORIGIN } from '../shared/app-origin';
+import { isLocalDevServerUrl, loadRenderer, resolveRendererTarget } from './load-renderer';
 
 describe('isLocalDevServerUrl', () => {
   it.each([
@@ -30,87 +31,68 @@ describe('isLocalDevServerUrl', () => {
   });
 });
 
-function fakeWindow() {
-  return {
-    loadURL: vi.fn(() => Promise.resolve()),
-    loadFile: vi.fn(() => Promise.resolve()),
-  };
-}
+const builtPage = `${APP_ORIGIN}/index.html`;
 
-const indexPath = 'out/renderer/index.html';
-
-describe('loadRenderer', () => {
-  it('loads a local dev server URL when unpackaged', async () => {
-    const window = fakeWindow();
+describe('resolveRendererTarget', () => {
+  it('uses a local dev server URL when unpackaged, in its parsed form', () => {
     const warn = vi.fn();
-    await loadRenderer(window, {
-      packaged: false,
-      rendererUrl: 'http://localhost:5173/',
-      indexPath,
-      warn,
-    });
-    expect(window.loadURL).toHaveBeenCalledWith('http://localhost:5173/');
-    expect(window.loadFile).not.toHaveBeenCalled();
+    expect(
+      resolveRendererTarget({ packaged: false, rendererUrl: 'http://LOCALHOST:5173', warn }),
+    ).toEqual({ url: 'http://localhost:5173/', origin: 'http://localhost:5173', devServer: true });
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('loads the file and warns when the URL is not a local dev server', async () => {
-    const window = fakeWindow();
+  it('uses the built page and warns when the URL is not a local dev server', () => {
     const warn = vi.fn();
-    await loadRenderer(window, {
-      packaged: false,
-      rendererUrl: 'https://example.com/',
-      indexPath,
-      warn,
-    });
-    expect(window.loadURL).not.toHaveBeenCalled();
-    expect(window.loadFile).toHaveBeenCalledWith(indexPath);
+    expect(
+      resolveRendererTarget({ packaged: false, rendererUrl: 'https://example.com/', warn }),
+    ).toEqual({ url: builtPage, origin: APP_ORIGIN, devServer: false });
     expect(warn).toHaveBeenCalledOnce();
   });
 
-  it('ignores the URL when packaged', async () => {
-    const window = fakeWindow();
+  it('ignores the URL when packaged', () => {
     const warn = vi.fn();
-    await loadRenderer(window, {
-      packaged: true,
-      rendererUrl: 'http://localhost:5173/',
-      indexPath,
-      warn,
-    });
-    expect(window.loadURL).not.toHaveBeenCalled();
-    expect(window.loadFile).toHaveBeenCalledWith(indexPath);
+    expect(
+      resolveRendererTarget({ packaged: true, rendererUrl: 'http://localhost:5173/', warn }),
+    ).toEqual({ url: builtPage, origin: APP_ORIGIN, devServer: false });
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it('loads the file when no URL is set', async () => {
+  it('uses the built page when no URL is set', () => {
+    expect(
+      resolveRendererTarget({ packaged: false, rendererUrl: undefined, warn: vi.fn() }),
+    ).toEqual({ url: builtPage, origin: APP_ORIGIN, devServer: false });
+  });
+});
+
+describe('loadRenderer', () => {
+  function fakeWindow() {
+    return { loadURL: vi.fn(() => Promise.resolve()) };
+  }
+
+  it('loads the given URL', async () => {
     const window = fakeWindow();
-    await loadRenderer(window, {
-      packaged: false,
-      rendererUrl: undefined,
-      indexPath,
-      warn: vi.fn(),
-    });
-    expect(window.loadFile).toHaveBeenCalledWith(indexPath);
+    await loadRenderer(window, builtPage, vi.fn());
+    expect(window.loadURL).toHaveBeenCalledWith(builtPage);
   });
 
   it('passes a load failure on to the caller', async () => {
     const window = fakeWindow();
-    window.loadFile.mockReturnValueOnce(Promise.reject(new Error('ERR_FILE_NOT_FOUND')));
-    await expect(
-      loadRenderer(window, { packaged: true, rendererUrl: undefined, indexPath, warn: vi.fn() }),
-    ).rejects.toThrow('ERR_FILE_NOT_FOUND');
+    window.loadURL.mockReturnValueOnce(Promise.reject(new Error('ERR_FILE_NOT_FOUND')));
+    await expect(loadRenderer(window, builtPage, vi.fn())).rejects.toThrow('ERR_FILE_NOT_FOUND');
   });
 
   // A reload or a newer navigation replaces the first load; the window still shows a page.
-  it('ignores a load that a newer navigation aborted', async () => {
+  it('logs and ignores a load that a newer navigation aborted', async () => {
     const window = fakeWindow();
-    const aborted = Object.assign(new Error('ERR_ABORTED (-3) loading file'), {
+    const log = vi.fn();
+    const aborted = Object.assign(new Error('ERR_ABORTED (-3) loading app://orchtopus/'), {
       code: 'ERR_ABORTED',
       errno: -3,
     });
-    window.loadFile.mockReturnValueOnce(Promise.reject(aborted));
-    await expect(
-      loadRenderer(window, { packaged: true, rendererUrl: undefined, indexPath, warn: vi.fn() }),
-    ).resolves.toBeUndefined();
+    window.loadURL.mockReturnValueOnce(Promise.reject(aborted));
+    await expect(loadRenderer(window, builtPage, log)).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledOnce();
+    expect(log.mock.calls[0]?.[0]).toContain('ERR_ABORTED');
   });
 });
