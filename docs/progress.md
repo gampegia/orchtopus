@@ -14,11 +14,16 @@ Agents used in this session: mockup and prototype analysis 2× Sonnet; concept t
 
 ## Next
 
-1. Step 4, design exploration: choose the UI library with `pick-ui-library`, produce the mockup directions in `docs/design/explorations/`, compare, iterate, then write `DESIGN.md`.
-2. M0 (tooling, CI) can run in parallel with the design step.
-3. M1 starts with a spike on background sessions, hooks and status line on Windows.
+1. M0: repository tooling (Electron app starts, lint, types and tests in CI). Brainstorm, spec, plan, then build.
+2. M1 starts with a spike on background sessions, hooks and status line on Windows (see the table of assumptions in the product spec, section 10).
 
-Step 3 is done: the product design spec is in `docs/specs/2026-11-26-orchtopus-product-design.md` (approved by the user on 2026-11-26). Agents for step 3: research 1x Sonnet (medium), builder check 1x Opus (high), article summary 1x web-fetch.
+Step 3 is done: the product design spec is merged (`docs/specs/2026-11-26-orchtopus-product-design.md`).
+
+Step 4 is done: the user chose the direction **Lagoon** (round 2, variant B) with the octopus from variant A and the "Then" strip from variant C. `DESIGN.md` holds direction, tokens, components, motion rules and theme structure. Reference mockup: `docs/design/reference/lagoon.html`, tokens: `docs/design/reference/lagoon.tokens.json`. All explorations stay in `docs/design/explorations/` (open `index.html` and `round-2.html` through a local web server, because the pages embed the mockups in frames).
+
+UI libraries chosen with the user: base-ui, cmdk, Sonner, zustand, shiki, plain CSS with CSS variables, react-resizable-panels; later as needed Virtuoso, dnd kit, recharts, motion.
+
+Agents for step 4: 8x Opus (high) for round 1, 3x Opus (high) for round 2, 1x Opus (high) for the reference mockup and `DESIGN.md`, reviews by Opus (spec) and Sonnet (UI and privacy).
 
 ## Decisions by the user (session 1)
 
@@ -28,6 +33,9 @@ Step 3 is done: the product design spec is in `docs/specs/2026-11-26-orchtopus-p
 - Nothing in the user's project repositories if avoidable. Storage location should be selectable.
 - GitLab is required (available on another machine of the user, not on this one).
 - Mockups in the pack are inspiration. More and more varied design explorations are wanted, made with the design skills, realistic for the workflow.
+- Since 2026-11-27 the lead merges every PR of this repository itself after a review by a suitable agent with no open blocking findings.
+- The octopus is an animated, customisable character with styles and accessories; interactions get a motion pass.
+- Messages to the user end with a clear line: what is needed from the user, or that it is for information only.
 
 ## Findings: Claude Code internals
 
