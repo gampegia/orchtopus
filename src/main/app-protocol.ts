@@ -1,5 +1,6 @@
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { APP_HOST, APP_SCHEME } from '../shared/app-origin';
+import { CONTENT_SECURITY_POLICY } from './security';
 
 /**
  * Registration for the app scheme, passed to `protocol.registerSchemesAsPrivileged` before the
@@ -93,6 +94,12 @@ export function resolveAppPath(value: string, root: string): string | null {
   return file;
 }
 
+/**
+ * The CSP sent with HTML pages. The header adds `frame-ancestors`, which a `<meta>` CSP ignores,
+ * so no other page can frame the app.
+ */
+export const DOCUMENT_CONTENT_SECURITY_POLICY = `${CONTENT_SECURITY_POLICY}; frame-ancestors 'none'`;
+
 export type ReadFile = (path: string) => Promise<Uint8Array>;
 
 function plainResponse(status: number): Response {
@@ -114,12 +121,14 @@ export function createAppProtocolHandler(
     } catch {
       return plainResponse(404);
     }
-    return new Response(request.method === 'HEAD' ? null : body, {
-      status: 200,
-      headers: {
-        'Content-Type': contentTypeFor(file),
-        'X-Content-Type-Options': 'nosniff',
-      },
-    });
+    const contentType = contentTypeFor(file);
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      'X-Content-Type-Options': 'nosniff',
+    };
+    if (contentType.startsWith('text/html')) {
+      headers['Content-Security-Policy'] = DOCUMENT_CONTENT_SECURITY_POLICY;
+    }
+    return new Response(request.method === 'HEAD' ? null : body, { status: 200, headers });
   };
 }

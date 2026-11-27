@@ -7,6 +7,7 @@ import {
   createAppProtocolHandler,
   resolveAppPath,
 } from './app-protocol';
+import { CONTENT_SECURITY_POLICY } from './security';
 
 const root = resolve('out/renderer');
 
@@ -111,6 +112,20 @@ describe('createAppProtocolHandler', () => {
     expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
     expect(response.headers.get('x-content-type-options')).toBe('nosniff');
     expect(await response.text()).toBe('<!doctype html>');
+  });
+
+  it('sends the CSP with frame-ancestors on HTML responses only', async () => {
+    const { handle } = handlerWith({
+      [join(root, 'index.html')]: '<!doctype html>',
+      [join(root, 'main.js')]: '',
+    });
+    const page = await handle(new Request('app://orchtopus/'));
+    expect(page.headers.get('content-security-policy')).toBe(
+      `${CONTENT_SECURITY_POLICY}; frame-ancestors 'none'`,
+    );
+    const script = await handle(new Request('app://orchtopus/main.js'));
+    expect(script.status).toBe(200);
+    expect(script.headers.get('content-security-policy')).toBeNull();
   });
 
   it('answers 404 for a missing file', async () => {

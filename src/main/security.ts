@@ -3,7 +3,8 @@ import { isAllowedNavigation, isAllowedRedirect, type NavigationPolicy } from '.
 
 /**
  * The renderer's Content Security Policy. It has no `frame-ancestors`: a `<meta>` CSP ignores
- * that directive and logs a console error.
+ * that directive and logs a console error. The app protocol adds it in the header it sends with
+ * HTML pages (see `DOCUMENT_CONTENT_SECURITY_POLICY`).
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
