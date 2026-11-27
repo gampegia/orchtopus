@@ -37,11 +37,12 @@ Agents for M0: implementers 10x Opus (medium) plus fix rounds, task reviews 10x 
 ### M1 spike (2026-11-27)
 
 - Findings: `docs/spikes/2026-11-27-m1-claude-code-internals.md`. Harness to rerun the experiments: `spikes/m1-claude-code/` (see its README). Tested on Claude Code 2.1.332, Windows 11.
-- Result: M1 uses the background-session adapter (`claude --bg`, one app-owned `claude attach` PTY per session). The child-process fallback is not needed. D1 of the addendum (auto mode by default) stands for everything that was tested.
-- Confirmed: `--bg` survives the death of its parent and reattaches with live output; the base setup flags work with `--bg` and persist over attach, resume and respawn; status line runs unattached; `PermissionRequest` http hook (allow, deny, timeout, receiver down); `PreToolUse` hold, park and one-time release; `onFailure: "block"` on crash and timeout; skill name in `tool_input.skill`; `Stop` hook with `stop_hook_active`; `SessionStart` and `PreCompact` context; deny rules and hook denies in auto mode; side chat fork idle and mid-turn.
-- Not confirmed: a classifier block and the `PermissionDenied` payload (none provoked), classifier cost (not measurable), maximum hook wait beyond 600 s, automatic compaction, `/goal` through the PTY, PTY input mid-turn, the background-session git behaviour (worktree, automatic commit, push and draft PR).
+- Result: M1 uses the background-session adapter (`claude --bg`, one app-owned `claude attach` PTY per session). The child-process fallback is not needed. D1 of the addendum (auto mode by default) stands provisionally: addendum item 1 (classifier) is open, not passed.
+- After a review of the verdicts against the logs, the findings were reworded to what was observed, and three reruns closed gaps: R1 (system prompt flags and plugin survive a resume without flags and a respawn), R2 (`onFailure: "block"` blocks a crashing hook in auto mode), R3 (a deny rule wins over a hook `allow` for Bash).
+- Confirmed: `--bg` survives the death of its parent (one run, plain Node parent, not Electron) and reattaches with live output; the base setup flags work with `--bg` and persist over attach, resume without flags and respawn; status line runs unattached; `PermissionRequest` http hook (allow, deny, timeout, receiver down); `PreToolUse` hold, park and exact-match one-time release (mechanics); `onFailure: "block"` on crash (manual and auto mode) and timeout (manual mode); skill name in `tool_input.skill`; `Stop` hook with `stop_hook_active`; `SessionStart` and `PreCompact` context; deny rules and hook denies in auto mode; side chat fork idle and mid-turn.
+- Not confirmed: a classifier block, the `PermissionDenied` payload and the effect of `autoMode.environment` (no classifier decision provoked), classifier cost (not measurable), that models never work around a parked command (3 single runs, no Opus), `onFailure: "block"` with `exit 1` and with a timeout in auto mode, a deny rule for the SSH key folder, the `--strict-mcp-config` effect on the side chat (not in the logs), maximum hook wait beyond 600 s, automatic compaction, `/goal` through the PTY, PTY input mid-turn, the background-session git behaviour for edits inside the repository (worktree, automatic commit, push and draft PR).
 
-Agents for the spike: 1x Opus (high) for harness, experiments and findings. Lead: Fable.
+Agents for the spike: 1x Opus (high) for harness, experiments and findings; 1x Opus for the review fixes and reruns R1 to R3. Lead: Fable.
 
 ### M0 versions
 
@@ -151,9 +152,11 @@ Installed: Claude Code 2.1.332 (updated by the user on 2026-11-27; this section 
 - **Addendum on Claude Code best practices** (`docs/specs/2026-11-27-claude-code-best-practices-addendum.md`): approved by the user on 2026-11-27 with the merge of pull request 6. It overrides the product spec where they differ (auto mode by default, minimum Claude Code 2.1.302, Stop hook check, simpler context management, extended learnings). It adds five questions to the M1 spike. D1 (auto mode) still depends on the spike. Read it before the M1 spec.
 - From the spike, to settle in the M1 spec:
   - Background sessions, per the docs, move into `.claude/worktrees/` inside the repository and commit, push and open a draft PR when they finish. Decide whether to pass `worktree.bgIsolation: "none"` plus a workflow instruction, and test it before code depends on it.
-  - A rule for stale `working` in `claude agents --json` (after Esc on a prompt and after a `Stop` hook continuation).
+  - A rule for stale `working` / `idle` in `claude agents --json` (after Esc on a prompt and after a `Stop` hook continuation). The same value appears briefly at process start, so the rule needs a time or hook condition. `blocked` / `idle` is not a reliable "asked a question"; `stopped` appears after `claude stop`.
   - The terminal permission prompt is live while the `PermissionRequest` hook waits: the card must close when the terminal answers first.
-  - The classifier inbox (`PermissionDenied`) and the "auto mode paused" state rest on the docs only. Build them so they degrade to nothing if the hook never fires.
+  - The classifier inbox (`PermissionDenied`), the "auto mode paused" state and the effect of `autoMode.environment` rest on the docs only. Build them so they degrade to nothing if the hook never fires. D1 stands provisionally until a classifier decision is observed.
+  - Parked dangerous commands: keep the spec's pause-session fallback as an option; not working around a park was seen in 3 single runs only.
+  - Side chat: recheck that `--strict-mcp-config` empties the tool list before relying on it.
 - Local API token: per app start or per installation.
 
 ## Gotchas

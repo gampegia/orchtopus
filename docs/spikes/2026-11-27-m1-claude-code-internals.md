@@ -8,26 +8,33 @@
 - Test project: `<scratch>\acme-app` (`<scratch>` = `%TEMP%\orchtopus-spike`), one commit, ignored dummy `.env`, local bare remote. All settings, logs and inputs in `<scratch>\config` and `<scratch>\logs`
 - Models: `haiku` (Haiku 5.5), effort low; Sonnet 5.5 for one repeat of Q7
 - **Observed** means seen in hook payloads, `claude agents --json`, `claude logs`, status line input or the PTY screen. **Docs** means only read in the documentation.
+- Reruns R1 to R3 (after a review of the verdicts against the logs) closed gaps in Q2, Q8 and Q12. They ran with the fixed harness: `bg.mjs --resume` passes no flag that is not given, and the `danger` hook fails closed when `policy.json` cannot be read.
+
+Confounds:
+
+- Test sessions loaded the user's own plugins and user-level instructions. One user plugin registers hooks on `SessionStart`, `UserPromptSubmit`, `Stop`, `Notification` and `SessionEnd`; none of the user's enabled plugins registers a `PreToolUse` hook.
+- "Auto mode is the default" (Q12) is the observed default on this machine; the user settings have no `defaultMode`.
+- The Q7 run whose PTY log is labelled `sonnet-test` ran on Haiku: `/model` had been mangled by Git Bash path conversion, and the status line shows `claude-haiku-5-5` for that turn. The Q7 list below is right (Haiku twice, Sonnet once); the log label is not.
 
 ## Summary
 
 | Q | Question | Verdict | Consequence |
 |---|---|---|---|
-| 1 | `--bg` lifecycle, parent death, reattach, `agents --json` | confirmed | Background adapter holds; read state from `agents --json` plus hooks, not `state` alone |
-| 2 | Flags with `--bg`, after attach, resume, respawn | confirmed, `--session-id` ignored | Base setup through flags works; take the session id from `agents --json`, not from `--session-id` |
+| 1 | `--bg` lifecycle, parent death, reattach, `agents --json` | confirmed (parent death: one run, plain Node parent) | Background adapter holds; read state from `agents --json` plus hooks and time, not `state` alone |
+| 2 | Flags with `--bg`, after attach, resume, respawn | confirmed (R1), `--session-id` ignored | Base setup through flags works and survives a resume without flags; take the session id from `agents --json`, not from `--session-id` |
 | 3 | Two attached clients | fails | The app is the only PTY owner of a session; other clients go through the local API |
 | 4 | Sending input | partly | Input only through the attached PTY; `claude --resume <id> "<msg>"` is refused for a running session |
 | 5 | Status line in background sessions | confirmed | Assumption holds; limits are "unknown" until the first API response of each process |
 | 6 | `PermissionRequest` http hook | confirmed, max wait not found | Cards work; the terminal prompt is live while the hook waits |
-| 7 | `PreToolUse` hold, park, one-time release | confirmed | Hold and park as specified; no fallback needed |
-| 8 | Failing `PreToolUse` hook, `onFailure: "block"` | confirmed | Without `onFailure` the call proceeds; with `"block"` crash and timeout block |
+| 7 | `PreToolUse` hold, park, one-time release | mechanics confirmed; model compliance seen in 3 single runs | Hold, park and exact-match release work; keep the spec's pause-session fallback as an option |
+| 8 | Failing `PreToolUse` hook, `onFailure: "block"` | confirmed (crash: manual and auto mode; timeout: manual mode) | Without `onFailure` the call proceeds; with `"block"` crash and timeout block; `exit 1` with `"block"` untested |
 | 9 | Skill visibility | confirmed | Phase from hooks for both paths; fallback not needed |
 | 10 | `Stop` hook in `--bg` | confirmed | D4 works |
 | 11 | `SessionStart`, `PreCompact` | confirmed (manual compaction only) | D7 works |
-| 12 | Auto mode with hooks, deny rules, `autoMode` | confirmed | D1 safety layer holds in auto mode |
+| 12 | Auto mode with hooks, deny rules, `autoMode` | partly | Hooks, deny rules and `onFailure: "block"` hold in auto mode; the effect of `autoMode.environment` on the classifier was not observed |
 | 13 | `PermissionRequest` and `PermissionDenied` in auto mode | partly | No classifier block provoked; `PermissionDenied` inbox unverified |
 | 14 | Classifier cost | inconclusive | Not measurable through documented interfaces |
-| 15 | Side chat fork, idle and mid-turn | confirmed, with flag change | Add `--strict-mcp-config` to the side chat command |
+| 15 | Side chat fork, idle and mid-turn | confirmed, with flag change | Add `--strict-mcp-config` to the side chat command (its effect is not preserved in the logs; recheck) |
 | 16 | `/goal` in `--bg` | partly | Works as first prompt; state only readable from the screen |
 
 ## Session lifecycle
@@ -42,24 +49,24 @@ after kill: {"state":"working","status":"busy","pid":<w>} ... {"state":"done","s
 claude daemon status: origin: transient — started on-demand by `claude --bg` (pid …)
 ```
 
-The supervisor and the worker are not in the caller's process tree, so a tree kill of the app leaves them running. `claude attach <id>` in node-pty showed the full conversation, the status line and, for a new prompt, the live spinner (`✽ Burrowing… · esc to interrupt`). A turn kept running after `Ctrl+Z` detached. The supervisor stops itself when no sessions remain.
+This is one run with a plain Node parent, not an Electron app. The supervisor and the worker were not in that parent's process tree, so the tree kill left them running. `claude attach <id>` in node-pty showed the full conversation, the status line and, for a new prompt, the live spinner (`✽ Burrowing… · esc to interrupt`). A turn kept running after `Ctrl+Z` detached. The supervisor stops itself when no sessions remain.
 
-`claude agents --json --all --cwd <test repo>` entry (observed fields): `pid`, `id`, `cwd`, `kind` (`background`, and `interactive` for a running `-p` fork), `startedAt`, `sessionId`, `name`, `status`, `state`, `waitingFor`. The short `id` is the first 8 characters of `sessionId`.
+`claude agents --json --all --cwd <test repo>` entry (observed fields): `pid`, `id`, `cwd`, `kind` (`background`, and `interactive` for a running `-p` fork or PTY session), `startedAt`, `sessionId`, `name`, `status`, `state`, `waitingFor`. The short `id` is the first 8 characters of `sessionId`. Entries with `kind: "interactive"` have no `state` field, only `pid` and `status`.
 
-Values seen over the sessions' lives (1 s polling, changes visible on the next poll):
+Values seen over the sessions' lives (`agents.jsonl` and `agents-watch.out`, 1 s polling, changes visible on the next poll; 10 background worker processes in 8 sessions):
 
 | Situation | `state` / `status` / `waitingFor` |
 |---|---|
-| process starting | `working` / absent |
+| process starting | `working` / absent; at 2 of 10 process starts also `working` / `idle` for about 1 s before `busy` |
 | turn running, also while a `PreToolUse` hook holds a command | `working` / `busy` |
 | turn finished | `done` / `idle` |
 | permission prompt open | `blocked` / `waiting` / `permission prompt` |
 | `/model` confirmation dialog open | `blocked` / `waiting` / `dialog open` |
-| turn ended asking the user (parked command), or after an API error (network down) | `blocked` / `idle` |
-| after `claude stop` | `done` / absent |
+| turn ended asking the user for something (8 turns, among them parked commands and refused `.env` reads), after an API error (network down), and once after a turn that only reported a blocked hook (a near-identical report a minute earlier gave `done`) | `blocked` / `idle` |
+| after `claude stop` | `stopped` / absent for the 2 sessions that were `blocked` / `idle` at stop; `done` / absent for the 6 that were `done` / `idle` (and for the R1 session) |
 | after Esc on a permission prompt, and after a turn continued by a `Stop` hook | `working` / `idle`, stays so |
 
-The last row is stale: the turn had ended. The adapter must combine `state` with `status` and the `Stop` hook. A held dangerous command shows no `waitingFor`; the app knows it from its own hook.
+The last row is stale: the turn had ended. Since `working` / `idle` also appears briefly at a process start, "stale" needs a time or hook condition (for example: no `PreToolUse`, `PostToolUse` or status line input for some seconds after `Stop`). `blocked` / `idle` does not mean "asked a question" with certainty. The adapter must combine `state` with `status` and the `Stop` hook. A held dangerous command shows no `waitingFor`; the app knows it from its own hook.
 
 ### Q2. Flags with `--bg`
 
@@ -72,22 +79,28 @@ claude --bg --settings <scratch>/config/settings/full.json --model haiku --effor
   --agents '{"orch-probe":{…}}' --plugin-dir <scratch>/config/plugin/orch-spike "<probe prompt>"
 ```
 
-| Flag | Evidence | After attach | After stop + `claude --bg --resume <uuid>` without flags | After `claude respawn` |
+| Flag | Evidence | After attach | After stop + `claude --bg --resume <uuid>` without flags (R1) | After `claude respawn` (R1) |
 |---|---|---|---|---|
 | `--settings` | hooks and status line fire | yes | yes | yes |
-| `--append-system-prompt-file` | answer `ORCH_SYSPROMPT_FILE_OK` | yes | yes (see note) | yes (see note) |
-| `--append-system-prompt` | answer `ORCH_SYSPROMPT_INLINE_OK` | yes | yes (see note) | yes (see note) |
-| `--agents` | `PreToolUse` `Agent` with `subagent_type: "orch-probe"`, reply `ORCH_AGENT_OK` | yes | yes | yes |
-| `--plugin-dir` | skill listed as `orch-spike:orch-probe`, `Skill` call | yes | yes | yes |
+| `--append-system-prompt-file` | answer `ORCH_SYSPROMPT_FILE_OK` | yes | yes (marker not in the history before) | yes, but the marker was in the history by then |
+| `--append-system-prompt` | answer `ORCH_SYSPROMPT_INLINE_OK` | yes | yes (marker not in the history before) | yes, but the marker was in the history by then |
+| `--agents` | `PreToolUse` `Agent` with `subagent_type: "orch-probe"`, reply `ORCH_AGENT_OK` | yes | yes in the first run, whose resume argv was not logged; not asked in R1 | yes in the first run; not asked in R1 |
+| `--plugin-dir` | `Skill` call with `skill: "orch-spike:orch-probe"`, `Loaded skill`, reply `ORCH_SKILL_OK` | yes | yes | yes |
 | `--permission-mode manual` | `permission_mode: "default"` in every payload, footer `⏸ manual mode on` | yes | yes | yes |
-| `--model`, `--effort`, `--name` | status line `claude-haiku-5-5`, `effort.level: "low"`, `session_title: "report-export"` | yes | yes | yes |
+| `--model`, `--effort`, `--name` | status line `claude-haiku-5-5`, `effort.level: "low"`, `session_title: "report-export"` | yes | model and effort yes (R1 passed no `--name`) | model and effort yes |
 | `--session-id` | `warning: --bg manages the session id; ignoring --session-id` | — | — | — |
 
-Resume printed: `note: woke session <id> with its saved options (--settings, --effort, --permission-mode, --name, --append-system-prompt-file, --append-system-prompt, --agents, --plugin-dir, --model).` `SessionStart` fired with `source: "resume"` after resume and respawn.
+R1: a `--bg` session with `--append-system-prompt-file`, `--append-system-prompt`, `--agents` and `--plugin-dir` got the unrelated first prompt `Reply with the single word READY.`, so no marker entered the history. Then `claude stop`, and `bg.mjs --resume <uuid>`, whose logged argv was exactly `claude --bg --resume <uuid>`. It printed:
 
-Note: the system prompt is recorded on the first request and reused until compaction (docs, `--system-prompt-snapshot`), so the marker answers after resume can come from that record or from the history. Hooks, agents, plugin and mode are proven live by payloads.
+```
+note: woke session <id> with its saved options (--settings, --effort, --permission-mode, --append-system-prompt-file, --append-system-prompt, --agents, --plugin-dir, --model).
+```
 
-For the adapter: pass the base setup once at `--bg`; Claude Code keeps it across stop, resume and respawn. Read the session uuid from `agents --json`.
+`SessionStart` fired with `source: "resume"`. Only then the session was asked for both markers and the skill: it called `Skill` (`orch-spike:orch-probe`) and answered `ORCH_SYSPROMPT_INLINE_OK` and `ORCH_SYSPROMPT_FILE_OK`. After `claude respawn <id>` (`SessionStart` `source: "resume"` again) it answered a reworded question with both markers and called the skill again.
+
+Two documented mechanisms can carry the system prompt across resume: the saved options in the note above, and the system-prompt snapshot (`--system-prompt-snapshot`, on by default; per `--help` it records the prompt on the first request and resends it as-is on every request and resume until compaction). R1 does not tell them apart. The plugin is proven live after resume and respawn by the `Skill` call.
+
+For the adapter: pass the base setup once at `--bg`; Claude Code keeps it across stop, resume without flags and respawn. Read the session uuid from `agents --json`.
 
 ### Q3. Two clients attached at once
 
@@ -110,7 +123,7 @@ For the adapter: the only input path to a running background session is the atta
 
 ### Q5. Status line from `--settings` in background sessions
 
-Observed in 37 status line runs over 5 sessions. It runs attached and unattached (first turns of `--bg` sessions ran with nothing attached). Fields that arrived:
+Observed in 150 status line runs over 10 sessions (9 background, 1 interactive PTY session), counted in `statusline.jsonl`; with the reruns R1 to R3, 181 runs over 13 sessions. It runs attached and unattached (first turns of `--bg` sessions ran with nothing attached). Fields that arrived:
 
 ```
 session_id, transcript_path, cwd, scratchpad_dir, prompt_id, effort{level}, session_name, model{id,display_name},
@@ -165,19 +178,21 @@ Observed:
   - After parking, `agents --json` shows `blocked / idle` (the turn ended with a question).
 - Exact match: the payload carries `session_id`, `tool_input.command` and `cwd`. A release bound to those three, then the prompt `I approved it in Orchtopus. Run the same command again now.`: the model sent the identical command and the hook released it in 5 ms.
 
-For the adapter: hold, park and the one-time release work as specified. Show "needs you" from the app's own hook state, since `agents --json` shows nothing during the hold.
+For the adapter: hold, park and the exact-match one-time release are proven mechanically. That the model does not work around a parked command was seen in 3 single runs (Haiku twice, Sonnet once, no Opus), which is not enough to drop the spec's pause-session fallback; keep it as an option. Show "needs you" from the app's own hook state, since `agents --json` shows nothing during the hold.
 
 ### Q8. Failing `PreToolUse` hooks
 
-Observed, each with `echo ORCH_FAIL_PROBE_<case>`, hook `timeout: 5`:
+Observed in a `--bg` session in manual mode (`permission_mode: "default"`), each with `echo ORCH_FAIL_PROBE_<case>`. The hooks had `timeout: 5`: that session used the settings variant `perm20` (`make-settings.mjs --perm-timeout 20 --fail-timeout 5`), not the README default of 10 s; in the `sleep` case `PostToolUse` came 5 s after `PreToolUse`.
 
 | Hook behaviour | `onFailure` unset | `onFailure: "block"` |
 |---|---|---|
-| throws (exit 1, stack trace) | command ran; `PreToolUse:Bash hook failed  Error: ORCH_SPIKE intentional hook crash` | blocked: `PreToolUse:Bash hook error: failed; blocking because onFailure is "block"` |
+| throws (exit 1, stack trace) | command ran; `PreToolUse:Bash hook failed  Error: ORCH_SPIKE intentional hook crash` | blocked: `PreToolUse:Bash hook error: failed; blocking because onFailure is "block"` (manual mode; auto mode in R2) |
 | `exit 1`, no output | command ran; `hook failed  No stderr output` | not tested (docs: blocks like a crash) |
-| sleeps past the timeout | command ran after the timeout, no notice | blocked: `… timed out; blocking because onFailure is "block"` |
+| sleeps past the timeout | command ran after the timeout, no notice | blocked: `… timed out; blocking because onFailure is "block"` (manual mode only) |
 
-For the adapter: addendum item 3 holds. Fallback from spec section 10 is not needed for the command hook with `onFailure: "block"`.
+R2, auto mode: a `--bg --permission-mode auto` session, the `failblock` hook (`timeout: 10`, `onFailure: "block"`) set to crash, prompt `Run exactly this shell command …: echo ORCH_FAIL_PROBE_auto_block`. Every `PreToolUse` payload had `permission_mode: "auto"`. The screen showed `Not run · permission denied │ Reason: PreToolUse:Bash hook error: failed; blocking because onFailure is "block"`, and no `PostToolUse` followed. The model did not try another route.
+
+For the adapter: addendum item 3 holds for a crash in manual and auto mode and for a timeout in manual mode. `exit 1` with `"block"` and a timeout in auto mode are untested. Fallback from spec section 10 is not needed for the command hook with `onFailure: "block"` in the tested cases.
 
 ### Q9. Skill visibility
 
@@ -221,11 +236,20 @@ Settings (`make-settings.mjs --allow-env-read`):
 
 Observed in a `--bg --permission-mode auto` session and an interactive PTY session with `--permission-mode auto`:
 
-- Hooks fire with `permission_mode: "auto"`; footer `⏵⏵ auto mode on`. Without the flag, both interactive and `--bg` sessions also start in auto mode (built-in default on 2.1.332).
+- Hooks fire with `permission_mode: "auto"`; footer `⏵⏵ auto mode on`. Without the flag, both interactive and `--bg` sessions also started in auto mode. That is the observed default on this machine (the user settings have no `defaultMode`), not a documented default.
 - Read tool on `.env`: `File is in a directory that is denied by your permission settings`. No `PreToolUse` input was logged for this call (twice).
-- `cat .env` through Bash (after the model first refused on its own): `Not run · permission denied · rule from command line arguments │ Reason: Permission to use Bash with command cat .env has been denied.` `PreToolUse` fired first. The deny rule beat both allow rules. The canary value never appeared on screen.
+- `cat .env` through Bash (after the model first refused on its own): `Not run · permission denied · rule from command line arguments │ Reason: Permission to use Bash with command cat .env has been denied.` `PreToolUse` fired first. These settings deny only `Read(...)` rules and allow `Bash(cat .env)`, so the `Read(./.env)` deny also covered the Bash `cat`; the deny rule beat both allow rules. The canary value never appeared on screen.
 - `PreToolUse` deny (parked danger command) holds in auto mode, same text as Q7.
-- `claude --settings <file> auto-mode config` shows the environment entry. `claude auto-mode config --settings <file>` fails with `unknown option '--settings'`.
+- `onFailure: "block"` on a crashing hook holds in auto mode (R2, see Q8).
+- `claude --settings <file> auto-mode config` shows the environment entry, so `autoMode.environment` loads. Its effect on the classifier was not observed: no classifier decision was provoked (Q13). `claude auto-mode config --settings <file>` fails with `unknown option '--settings'`.
+
+R3, hook `allow` against a deny rule (manual mode): settings `make-settings.mjs --name denyhook --deny-env-bash` deny `Read(./.env)` and `Bash(cat .env)`; the `pre-tool` hook answered `allow` for every call. Prompt: run `cat .env`, then read `.env` with the Read tool.
+
+- Bash `cat .env`: the hook logged the call and answered `allow`; the screen showed `permission denied · rule from command line arguments │ Reason: Permission to use Bash with command cat .env has been denied.` No `PostToolUse` followed. The deny rule won over the hook's `allow`.
+- Read `.env`: `File is in a directory that is denied by your permission settings`, and again no `PreToolUse` input, so the hook never had the chance to allow it.
+- The canary string appears in neither `claude logs` nor the hook log.
+
+Not tested: a deny rule for the SSH key folder (for example `Read(~/.ssh/**)`).
 
 ### Q13. `PermissionRequest` and `PermissionDenied` in auto mode
 
@@ -263,10 +287,10 @@ claude -p --resume <uuid> --fork-session --tools "" --model haiku --output-forma
 ```
 
 - Idle source session: answered from the history (`The node command printed 42, and the last number I counted to was 20.`), new session id, cost about $0.008.
-- `--tools ""` left the account's MCP connector tools in the `init` event's `tools` list. With `--strict-mcp-config` added, `tools: []`.
-- Source mid-turn (30 s `node -e` timer running): the fork answered in 5.6 s with a new session id; it saw the history up to the pending tool call and misreported it as interrupted. The source turn finished normally (`PostToolUse` and `Stop` in the source session, no extra prompt), kept its session id, and `agents --json` showed the fork only while it ran (`kind: "interactive"`).
+- `--tools ""` left the account's MCP connector tools in the `init` event's `tools` list. With `--strict-mcp-config` added, `tools: []`. Both were read from the fork's stdout during the run; neither `init` event is preserved in the logs, so this needs a recheck before the side chat relies on it.
+- Source mid-turn (30 s `node -e` timer running): the fork answered in 5.6 s with a new session id; it saw the history up to the pending tool call and misreported it as interrupted. "Source untouched" rests on the source session's hook log: between the timer's `PreToolUse` and its `Stop` it shows only the `PostToolUse` of that command, no extra `UserPromptSubmit` and no other tool call, all under the source's unchanged session id. The fork ran without the hook settings, so it does not appear in the hook log; `agents --json` showed it only while it ran (`kind: "interactive"`). For the idle case only the fork's answer was checked.
 
-For the adapter: the side chat command needs `--strict-mcp-config`. Tell the side chat that the last tool call may still be running.
+For the adapter: the side chat command probably needs `--strict-mcp-config` (recheck). Tell the side chat that the last tool call may still be running.
 
 ### Q16. `/goal` in a `--bg` session
 
@@ -285,7 +309,7 @@ Observed: `claude --bg … "/goal git status has been run in this repo and its b
 9. `UserPromptSubmit` also fires for a background subagent's `<task-notification>` (documented, but easy to misread as user input).
 10. On attach after a pause, the session posts a model-written `※ recap` (extra usage per attach).
 11. `--tools ""` does not remove MCP connector tools (Q15).
-12. Background sessions carry built-in git instructions: the model refused a force push to `main` on its own. Docs add that a `--bg` session moves into `.claude/worktrees/` inside the repository before its first edit, and commits, pushes and opens a draft PR when it finishes, unless instructions say otherwise or `worktree.bgIsolation` is `"none"`. Not exercised here (no prompt edited files); it collides with "nothing in the user's repositories" and with the release gate.
+12. Background sessions carry built-in git instructions: the model refused a force push to `main` on its own. Docs add that a `--bg` session moves into `.claude/worktrees/` inside the repository before its first edit, and commits, pushes and opens a draft PR when it finishes, unless instructions say otherwise or `worktree.bgIsolation` is `"none"`. Weak evidence only: one `--bg` session (auto mode) used the Write tool on a file outside the repository (`<scratch>\outside\note.txt`, Q13); afterwards there was no `.claude/worktrees` folder, `git worktree list` showed only the main worktree, and `git status` was clean. An edit inside the repository was never prompted, so the documented behaviour stays untested. It collides with "nothing in the user's repositories" and with the release gate.
 13. `claude auto-mode config` takes `--settings` only before the subcommand.
 14. `claude --bg` needs workspace trust for the folder; the trust was accepted once for `<scratch>\acme-app` through the PTY (stored in `~/.claude.json`).
 
@@ -297,17 +321,22 @@ Adapter rules from the spike:
 
 - Session id: read `sessionId` from `agents --json`; do not pass `--session-id`.
 - Never send `/model`, and do not send other commands that write user settings.
-- Side chat: add `--strict-mcp-config`.
+- Side chat: add `--strict-mcp-config` (recheck its effect first, Q15).
 - Start sessions inside Orchtopus' own worktree, and decide in the M1 spec whether to pass `worktree.bgIsolation: "none"` and a workflow instruction against automatic commits, pushes and draft PRs (surprise 12).
 - Wait for the TUI before writing keys to a fresh PTY.
 
-**D1 (auto mode by default) stands** for what was tested: hooks, deny rules (also against allow rules), `PreToolUse` deny, `onFailure: "block"` and `autoMode.environment` all work in auto mode, interactive and `--bg`. Addendum items 1 and 2 did not fail.
+**D1 (auto mode by default) stands provisionally.** Observed in auto mode, interactive and `--bg`: hooks fire, deny rules win (also against allow rules), a `PreToolUse` deny holds, and `onFailure: "block"` blocks a crashing hook (R2; a timeout with `"block"` was tested in manual mode only). `autoMode.environment` loads (shown by `auto-mode config`); its effect on the classifier was not observed. Addendum item 1 is open, not passed: no classifier decision was provoked. Addendum item 2 did not fail.
 
 Open risks:
 
-1. The classifier path is unverified: no block was provoked, so the `PermissionDenied` inbox entry and the "auto mode paused" state rest on the docs only.
+1. The classifier path is unverified: no block was provoked, so the `PermissionDenied` inbox entry, the "auto mode paused" state and the effect of `autoMode.environment` rest on the docs only (addendum item 1 open).
 2. Classifier cost is unknown.
-3. The background-session git behaviour (surprise 12) is untested.
-4. Stale `working` in `agents --json` needs a rule in the state machine.
+3. The background-session git behaviour (surprise 12) is untested for edits inside the repository.
+4. `working` / `idle` in `agents --json` is stale after some turns and also appears briefly at process start; `blocked` / `idle` is not a reliable "asked a question". The state machine needs time and hook conditions.
 5. Maximum `PermissionRequest` hook wait is unknown beyond the 600 s default.
 6. Automatic compaction, `PreCompact` summary instructions, `/goal` through the PTY and PTY input mid-turn are untested.
+7. `onFailure: "block"` is untested for `exit 1` and for a timeout in auto mode.
+8. A hook `allow` lost to a deny rule for Bash (R3); for the Read tool the hook never ran. A deny rule for the SSH key folder is untested.
+9. Not working around a parked command rests on 3 single runs (Haiku twice, Sonnet once, no Opus); the pause-session fallback stays an option (Q7).
+10. Survival of parent death was shown once with a plain Node parent, not with Electron (Q1).
+11. The `--strict-mcp-config` effect on the side chat's tool list is not preserved in the logs (Q15).
