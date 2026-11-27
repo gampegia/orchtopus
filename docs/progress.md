@@ -14,8 +14,22 @@ Agents used in this session: mockup and prototype analysis 2× Sonnet; concept t
 
 ## Next
 
-1. M0: repository tooling (Electron app starts, lint, types and tests in CI). Brainstorm, spec, plan, then build.
-2. M1 starts with a spike on background sessions, hooks and status line on Windows (see the table of assumptions in the product spec, section 10).
+**Build M0 now.** Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md` (11 tasks, approved by the user on 2026-11-27).
+
+How to run it:
+1. Create a worktree and branch `feat/m0-tooling` from `main`.
+2. Use superpowers:subagent-driven-development: one `implementer` agent per plan task (Opus, medium), in order, each task ends with green checks and a commit. Review after each task as the skill describes; follow-ups go to the same agent.
+3. When all tasks are done: `code-reviewer` and `security-reviewer` (Opus, high) on the whole branch, `spec-reviewer` (Sonnet) against the M0 spec, privacy review before the push.
+4. Open the PR, wait for CI on GitHub to be green, then merge (the lead merges after a review without open blocking findings).
+5. Update this file, then ask the user to run `/clear` before M1.
+
+Things the plan leaves to find out during M0: whether Electron exposes `node:sqlite` (task 8 reports it), and whether the prebuilt binaries of `node-pty` and `better-sqlite3` load in Electron on Windows without a rebuild.
+
+After M0: M1 starts with a spike on background sessions, hooks and status line on Windows (see the table of assumptions in the product spec, section 10).
+
+Known gap after M0: CI does not build or start the packaged app (`npm run package`); it is checked locally only. Add a packaged-app check to CI when an installer is introduced.
+
+Backlog ideas live in `docs/backlog.md` (first entry: Logitech MX Master 4 integration).
 
 Step 3 is done: the product design spec is merged (`docs/specs/2026-11-26-orchtopus-product-design.md`).
 

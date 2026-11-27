@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Reviews correctness, structure, error handling and tests of a change.
 model: opus
+effort: high
 ---
 
 Review the diff for correctness, edge cases, error handling, structure, naming and test quality.
