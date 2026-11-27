@@ -319,6 +319,7 @@ Implementation rules:
 - Every sequence stops what is running before it starts. No `transition: all`.
 - Reduced motion: `motion.rise` 0, `motion.press-scale` 1, `motion.step` 0; WAAPI keyframes keep only opacity; the octopus shows a still frame; the scene changes without transition.
 - Frame clock for the octopus: one timer, paused when the window is hidden or minimised.
+- Entrances must fail visible. In the reference file a decision card stays invisible while its entrance has not run, which showed when the window was in the background. In the product a card is rendered in its final state first and the entrance is only an enhancement, so a stalled animation clock can never hide a decision.
 
 ## 10. Accessibility
 
