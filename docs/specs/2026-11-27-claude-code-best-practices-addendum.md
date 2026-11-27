@@ -1,7 +1,7 @@
 # Addendum: alignment with current Claude Code best practices
 
 Date: 2026-11-27
-Status: proposed, waiting for the user's approval
+Status: approved (2026-11-27, by the user with the merge of pull request 6)
 Parent: `docs/specs/2026-11-26-orchtopus-product-design.md`. Where this addendum and the parent differ, the addendum wins once it is approved.
 
 ## Intent
