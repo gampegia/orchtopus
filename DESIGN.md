@@ -138,7 +138,7 @@ Detail views keep the session list:
 |---|---|---|
 | Session row and arm | Name (14/500), progress (mono 12), state word in its signal colour; arm from the mantle to a lamp at `layout.lamp-x` | Hover: `surface.hover`. Selected: `surface.selected` + `shadow.row`. Waiting rows get a soft halo behind the lamp (not animated). Idle uses a ring lamp. Click selects; no press scale on list rows. |
 | Decision card: permission | Signal label (lamp + "Permission"), title, wait time and fallback, command box, what it does, facts with icons, actions | Primary "Allow once" (Enter), "Always allow in this project", "Deny" (Esc), ghost "Ask the advisor". |
-| Decision card: danger | Alert icon + "Danger", command, consequences, facts | Only the hold button allows. "Deny" (Esc). Hint with lock icon: "Not available by hotkey or remote". No "always allow". The card shows how long it waits and that the command is denied if nobody answers; it never falls back to the terminal prompt. |
+| Decision card: danger | Alert icon + "Danger", command, consequences, facts | Only the hold button allows. "Deny" (Esc). Hint with lock icon: "Not available by hotkey or remote". No "always allow". The card has no deadline and says so ("Paused until you decide"); it never falls back to the terminal prompt. |
 | Decision card: PR draft | Label + "Not created yet", title field, target branch, Draft PR check, editable description, actions, never-merges note | Primary "Release and create PR", secondary "Regenerate". |
 | Decision card: spec or plan | Violet label "Plan" or "Spec", title, summary, link to the full document | Primary "Approve", "Ask for changes", ghost "Ask the advisor". |
 | Hold-to-allow button | Danger-tinted button, label "Hold to allow once", "1 s" | Pointer only. Fill grows left to right in 1000 ms linear; release before the end snaps back in 200 ms. Enter and Space do nothing. After success: "Allowed once · sent to <session>". |
@@ -328,7 +328,7 @@ Implementation rules:
 - Everything works by keyboard: screens, rows, actions, settings. The one deliberate exception is the hold button for dangerous commands, which needs a pointer; denying it works by keyboard. Shortcuts are shown as keycaps where they apply. Focus is visible on every element (2 px `focus.ring`, offset 2).
 - **Dangerous commands can be allowed only with the held button in the app.** Never by hotkey, never by the API for remote clients, pad or watch. The button ignores Enter and Space. The hint "Not available by hotkey or remote" is always visible next to it.
 - Notifications and the inbox only open the card. They never carry Allow or Deny.
-- A dangerous command that is not answered in time, or that arrives while the app is not reachable, is denied. It never falls back to the terminal prompt, where a single key would allow it.
+- A dangerous command waits until the user decides. It is parked, never allowed by timeout, and never falls back to the terminal prompt, where a single key would allow it. While it is parked the session shows "needs you" and the card stays open.
 - The octopus and the scene are `aria-hidden`; the octopus has a title that names its state for pointer users.
 - Windows "reduce motion" and a high-contrast mode are respected; a high-contrast theme is a theme folder like any other.
 

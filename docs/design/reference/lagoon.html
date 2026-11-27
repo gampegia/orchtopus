@@ -1258,7 +1258,7 @@ html.instant *, html.instant *::before, html.instant *::after { transition: none
               <header class="dc-head">
                 <span class="sig-label"><svg class="ic sm"><use href="#i-alert"/></svg>Danger</span>
                 <h2>Dangerous command</h2>
-                <span class="dc-meta num" id="danger-meta">Waiting 2 min · denied if not answered in 8 min</span>
+                <span class="dc-meta num" id="danger-meta">Waiting 2 min · paused until you decide</span>
               </header>
               <div class="cmd">
                 <span class="prompt">$</span>
@@ -2452,7 +2452,7 @@ html.instant *, html.instant *::before, html.instant *::after { transition: none
     hold.classList.remove("done");
     label.textContent = "Hold to allow once";
     sec.textContent = "1 s";
-    document.getElementById("danger-meta").textContent = "Waiting 2 min · denied if not answered in 8 min";
+    document.getElementById("danger-meta").textContent = "Waiting 2 min · paused until you decide";
     overrides = null;
     LISTS[2].rows = base.map(r => r[1] === "i18n-de" ? DANGER_ROW : r);
     LISTS[2].head = "head-alarmed";
