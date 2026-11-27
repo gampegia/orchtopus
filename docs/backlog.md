@@ -2,6 +2,27 @@
 
 Ideas that are not part of a milestone yet. Each entry says what it is, what was found out, and what it would need. An idea moves into a milestone spec only after the user says so.
 
+## Plans and specs that are quick to review
+
+Added 2026-11-27. Status: idea, to be evaluated.
+
+**Problem:** plans and specs that the user must approve are often long, dense and tiring to read (the M1 plan has about 750 lines). A long review is easy to put off or to skim, and then the approval means little.
+
+**Idea 1, smaller review packages:** split what the user must read into short parts, for example several 2-minute reads instead of one long one. Possible shapes:
+
+- A one-page summary per plan for the user (what gets built, what the risks are, which decisions are the user's), with the full plan kept for the agents.
+- Approval per part (for example per group of tasks or per milestone phase) instead of one approval for everything.
+- Only the parts that need a human decision are marked for review; the rest is "for information".
+
+**Idea 2, nicer presentation:** show plans and specs so they are pleasant to read: rendered page with headings, short sections, diagrams of the flow, progress per task, colour labels that say what needs the user (red) and what is information (green), collapsed details.
+
+**Where it applies:**
+
+- Our own workflow in this repository (the lead's specs and plans).
+- The product: the spec and plan view of M3 (F38 to F41, F50) shows superpowers plans to the user. The same ideas would make that view better.
+
+**To evaluate:** whether smaller approvals still catch cross-task problems; how much extra work the summary costs per plan; whether superpowers' plan format allows a separate user summary without changing the skill; which presentation (rendered Markdown in the app, an artifact page, a generated HTML file) fits best.
+
 ## Logitech MX Master 4 integration
 
 Added 2026-11-27. Status: idea, researched once.
