@@ -245,7 +245,7 @@ External tools are called as installed binaries and are never bundled. What happ
 | A session can be forked for the side chat while it is in the middle of a turn | Fresh call with a condensed context |
 | A `PreToolUse` hook can hold a dangerous command while the card is open, and a parked command is not repeated or worked around by the session | Park dangerous commands at once (no hook wait) with the same instruction; if sessions still work around a parked command, pause the session through the adapter until the user decides |
 | A command released by the user can be matched to the next attempt of exactly the same command for one run | If the session retries with a different command text, that is a new card and the user holds again |
-| A `PreToolUse` hook that errors or is killed lets the tool call proceed, so the hook itself must never fail | Deny dangerous patterns in the `PermissionRequest` hook as a second line, and keep them out of every allow rule |
+| A `PreToolUse` hook that errors or is killed lets the tool call proceed, so the hook itself must never fail | Deny dangerous patterns in the `PermissionRequest` hook as a second line, and keep them out of every allow rule. That hook is an http hook and fails open when the app is not reachable, so it does not cover that case; there the local command hook is the only guard |
 
 **Other open points**
 
