@@ -40,6 +40,15 @@ Child `claude` processes get a clean environment: `CLAUDECODE`, `CLAUDE_CODE_*`,
 | `parent-kill.mjs [--wait 15] -- "<prompt>"` | Start a background session from a parent, kill the parent's process tree, watch the session |
 | `repo-check.mjs` | `git status --ignored`, worktrees, `.claude` folder in the test project |
 | `cleanup.mjs [--dry-run]` | Stop and `claude rm` only sessions listed in `started.jsonl` under the scratch folder |
+| `experiments/ask.mjs <id> <run> "<prompt>" [--snaps 10,25] [--keys '<json>']` | Attach, send one prompt, snapshot at offsets, detach with `Ctrl+Z` |
+| `experiments/q03-two-clients.mjs <id>` | Two clients attached to one session |
+| `lib/logs-text.mjs <id> [lines]` | `claude logs <id>` rendered as plain text |
+
+Gotchas found while running it:
+
+- In Git Bash, set `MSYS_NO_PATHCONV=1` before passing a prompt that starts with `/`; otherwise `/model sonnet` reaches Claude as `C:/Program Files/Git/model sonnet`.
+- Never send `/model` to a session: it also saves the model as the user's default in `~/.claude/settings.json`.
+- Wait about 6 s after starting or attaching before sending keys; keys sent earlier are dropped.
 
 Hook labels in the `full` settings: `session-start`, `prompt-submit` (+ http), `prompt-expansion`, `pre-tool`, `danger` (Bash/PowerShell, `onFailure: block`, timeout 120 s), `fail` (timeout 10 s), `failblock` (timeout 10 s, `onFailure: block`), `post-tool` (+ http), PermissionRequest (http + `perm-request`), `perm-denied`, `notification`, `stop`, `pre-compact`, `session-end`. All default to logging only.
 
