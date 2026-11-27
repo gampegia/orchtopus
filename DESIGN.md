@@ -85,7 +85,7 @@ Text contrast on `surface.panel`: primary 15.9 (light) / 15.3 (dark), secondary 
 | Group | Tokens |
 |---|---|
 | Radius | `radius.key` 4 · `radius.small` 6 · `radius.control` 8 · `radius.bar` 10 · `radius.window` 12 · `radius.panel` 16 · `radius.round` 50 % |
-| Space (4 px grid) | `space.0-5` 2 · `space.1` 4 · `space.1-5` 6 · `space.2` 8 · `space.3` 12 · `space.4` 16 · `space.5` 20 · `space.6` 24 · `space.8` 32 · `space.10` 40 · `space.12` 48 |
+| Space (4 px grid with 2 and 6 px half-steps) | `space.0-5` 2 · `space.1` 4 · `space.1-5` 6 · `space.2` 8 · `space.3` 12 · `space.4` 16 · `space.5` 20 · `space.6` 24 · `space.8` 32 · `space.10` 40 · `space.12` 48 |
 | Layout | `layout.edge` 16 · `layout.gap` 16 · `layout.gap-inner` 12 · `layout.icon-gap` 10 · `layout.list-inset` 40 · `layout.lamp-x` 48 · `layout.mantle-inset` 10 |
 | Size | `size.titlebar` 48 · `size.statusbar` 32 · `size.sidebar` 264 · `size.rail` 312 · `size.header` 64 · `size.strip` 40 · `size.row` 52 · `size.nav-row` 36 · `size.list-row` 28 · `size.control` 36 / `-small` 32 / `-tiny` 28 · `size.command` 44 · `size.keycap` 18 · `size.icon` 16 / 14 / 12 · `size.lamp` 8 / 6 |
 | Lines | `border.width` 1 · `border.width-strong` 2 · `icon.stroke` 1.5 · `arm.stroke` 1.5 · `arm.reach-stroke` 2 · `focus.width` 2 · `focus.offset` 2 |
@@ -138,7 +138,7 @@ Detail views keep the session list:
 |---|---|---|
 | Session row and arm | Name (14/500), progress (mono 12), state word in its signal colour; arm from the mantle to a lamp at `layout.lamp-x` | Hover: `surface.hover`. Selected: `surface.selected` + `shadow.row`. Waiting rows get a soft halo behind the lamp (not animated). Idle uses a ring lamp. Click selects; no press scale on list rows. |
 | Decision card: permission | Signal label (lamp + "Permission"), title, wait time and fallback, command box, what it does, facts with icons, actions | Primary "Allow once" (Enter), "Always allow in this project", "Deny" (Esc), ghost "Ask the advisor". |
-| Decision card: danger | Alert icon + "Danger", command, consequences, facts | Only the hold button allows. "Deny" (Esc). Hint with lock icon: "Not available by hotkey or remote". No "always allow". |
+| Decision card: danger | Alert icon + "Danger", command, consequences, facts | Only the hold button allows. "Deny" (Esc). Hint with lock icon: "Not available by hotkey or remote". No "always allow". The card shows how long it waits and that the command is denied if nobody answers; it never falls back to the terminal prompt. |
 | Decision card: PR draft | Label + "Not created yet", title field, target branch, Draft PR check, editable description, actions, never-merges note | Primary "Release and create PR", secondary "Regenerate". |
 | Decision card: spec or plan | Violet label "Plan" or "Spec", title, summary, link to the full document | Primary "Approve", "Ask for changes", ghost "Ask the advisor". |
 | Hold-to-allow button | Danger-tinted button, label "Hold to allow once", "1 s" | Pointer only. Fill grows left to right in 1000 ms linear; release before the end snaps back in 200 ms. Enter and Space do nothing. After success: "Allowed once · sent to <session>". |
@@ -322,10 +322,12 @@ Implementation rules:
 
 ## 10. Accessibility
 
-- Text contrast at least WCAG AA (4.5:1) in light and dark, measured in all screens of the reference file. Weakest text pair: muted on raised, 4.78 (light).
+- Text contrast at least WCAG AA (4.5:1) in light and dark, measured in all screens of the reference file. Weakest text pairs: secondary text on the full hold fill, 4.52 (light), then muted on raised, 4.78 (light).
 - State is never shown by colour alone: every lamp sits next to a word, idle is a ring, danger has an icon, the scene light is repeated in the title note and the status bar.
-- Everything works by keyboard: screens, rows, actions, settings. Shortcuts are shown as keycaps where they apply. Focus is visible on every element (2 px `focus.ring`, offset 2).
+- Everything works by keyboard: screens, rows, actions, settings. The one deliberate exception is the hold button for dangerous commands, which needs a pointer; denying it works by keyboard. Shortcuts are shown as keycaps where they apply. Focus is visible on every element (2 px `focus.ring`, offset 2).
 - **Dangerous commands can be allowed only with the held button in the app.** Never by hotkey, never by the API for remote clients, pad or watch. The button ignores Enter and Space. The hint "Not available by hotkey or remote" is always visible next to it.
+- Notifications and the inbox only open the card. They never carry Allow or Deny.
+- A dangerous command that is not answered in time, or that arrives while the app is not reachable, is denied. It never falls back to the terminal prompt, where a single key would allow it.
 - The octopus and the scene are `aria-hidden`; the octopus has a title that names its state for pointer users.
 - Windows "reduce motion" and a high-contrast mode are respected; a high-contrast theme is a theme folder like any other.
 
@@ -371,7 +373,7 @@ Passes:
 - Direction written; every pass followed it (spacing, colour, icons, copy, type, layout, details, visuals, motion).
 - 4 px grid; equal things have equal sizes (rows 52, controls 36, gates 28).
 - One neutral ramp tinted toward water, three text roles, one accent (sea-glass) used for focus, selection and switches.
-- No hue gradients on surfaces, no gradient text, no glows, no coloured shadows.
+- No hue gradients on surfaces, no gradient text, no glows except the scene light and lamp halos, no coloured shadows except the signal ring on a decision card.
 - No emoji. One icon set (Lucide strokes, 1.5) at 16, 14 and 12.
 - Figtree 400–600, sentence case, no uppercase tracked labels, no italic.
 - No exclamation marks, no trailing periods on labels, no greeting headline, no claims.
