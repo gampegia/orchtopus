@@ -1,0 +1,110 @@
+import { extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { APP_HOST, APP_SCHEME } from '../shared/app-origin';
+
+/**
+ * Registration for the app scheme, passed to `protocol.registerSchemesAsPrivileged` before the
+ * app is ready. `standard` gives pages a real origin (so CSP `'self'` means this origin only) and
+ * relative URLs; `secure` makes it a secure context. It does not bypass CSP.
+ */
+export const APP_SCHEME_PRIVILEGES = {
+  scheme: APP_SCHEME,
+  privileges: { standard: true, secure: true, supportFetchAPI: true },
+} as const;
+
+const CONTENT_TYPES: Readonly<Record<string, string>> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.map': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.wasm': 'application/wasm',
+};
+
+/** The Content-Type for a served file, by extension; unknown types are not sniffed. */
+export function contentTypeFor(path: string): string {
+  return CONTENT_TYPES[extname(path).toLowerCase()] ?? 'application/octet-stream';
+}
+
+/** A decoded path segment that cannot name a parent, a drive, a separator or a device. */
+function isPlainSegment(segment: string): boolean {
+  return segment !== '' && segment !== '.' && segment !== '..' && !/[\\/:\0]/.test(segment);
+}
+
+/**
+ * Maps an app URL to a file inside `root`, or null when the URL is not on the app origin or
+ * would leave the root (encoded dot segments, separators, drive letters, NUL, bad escapes).
+ * The root path itself maps to index.html.
+ */
+export function resolveAppPath(value: string, root: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== `${APP_SCHEME}:` || url.host !== APP_HOST) return null;
+
+  const raw = url.pathname === '/' ? ['index.html'] : url.pathname.slice(1).split('/');
+  const segments: string[] = [];
+  for (const part of raw) {
+    let segment: string;
+    try {
+      segment = decodeURIComponent(part);
+    } catch {
+      return null;
+    }
+    if (!isPlainSegment(segment)) return null;
+    segments.push(segment);
+  }
+
+  const base = resolve(root);
+  const file = join(base, ...segments);
+  const inside = relative(base, file);
+  if (inside === '' || inside.startsWith('..') || isAbsolute(inside)) return null;
+  return file;
+}
+
+export type ReadFile = (path: string) => Promise<Uint8Array>;
+
+function plainResponse(status: number): Response {
+  return new Response(null, { status, headers: { 'X-Content-Type-Options': 'nosniff' } });
+}
+
+/** A `protocol.handle` handler that serves GET and HEAD requests for files inside `root`. */
+export function createAppProtocolHandler(
+  root: string,
+  readFile: ReadFile,
+): (request: Request) => Promise<Response> {
+  return async (request) => {
+    if (request.method !== 'GET' && request.method !== 'HEAD') return plainResponse(405);
+    const file = resolveAppPath(request.url, root);
+    if (file === null) return plainResponse(404);
+    let body: Uint8Array;
+    try {
+      body = await readFile(file);
+    } catch {
+      return plainResponse(404);
+    }
+    return new Response(request.method === 'HEAD' ? null : body, {
+      status: 200,
+      headers: {
+        'Content-Type': contentTypeFor(file),
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  };
+}
