@@ -290,11 +290,21 @@ describe('removeWorktree', () => {
       branch: 'orch/report-export',
       base: 'main',
     });
+    // An unrelated stale worktree of the user (e.g. on an unmounted drive) must survive.
+    const other = await createWorktree({
+      root: r.root,
+      task: 'upload-fix',
+      branch: 'orch/upload-fix',
+      base: 'main',
+    });
+    rmSync(other.path, { recursive: true, force: true });
     rmSync(path, { recursive: true, force: true });
     expect(git(r.root, ['worktree', 'list', '--porcelain'])).toContain('report-export');
 
     expect(await removeWorktree(r.root, path)).toBe('removed');
-    expect(git(r.root, ['worktree', 'list', '--porcelain'])).not.toContain('report-export');
+    const listed = git(r.root, ['worktree', 'list', '--porcelain']);
+    expect(listed).not.toContain('report-export');
+    expect(listed).toContain('upload-fix');
     expect(git(r.root, ['branch', '--list', 'orch/report-export'])).toContain('orch/report-export');
     expect(await removeWorktree(r.root, path)).toBe('removed');
   });
