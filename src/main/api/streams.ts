@@ -18,7 +18,14 @@ export type TerminalStreamHandler = (terminalId: string, socket: WebSocket) => v
 export interface StreamHub {
   /** True when the path is a stream this hub serves right now. */
   accepts(path: string): boolean;
-  handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer, token: string): void;
+  /** `path` is the request path the server already parsed from `req.url`. */
+  handleUpgrade(
+    req: IncomingMessage,
+    socket: Duplex,
+    head: Buffer,
+    token: string,
+    path: string,
+  ): void;
   publish(message: StreamMessage): void;
   registerTerminalStream(handler: TerminalStreamHandler): void;
   /** Closes every stream opened with a token other than `current`. */
@@ -54,8 +61,7 @@ export function createStreamHub(options: { snapshot: () => AppSnapshot }): Strea
     accepts: (path) =>
       path === EVENTS_PATH || (terminalHandler !== null && TERMINAL_PATH.test(path)),
 
-    handleUpgrade: (req, socket, head, token) => {
-      const path = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    handleUpgrade: (req, socket, head, token, path) => {
       wss.handleUpgrade(req, socket, head, (ws) => {
         track(ws, token);
         if (path === EVENTS_PATH) {

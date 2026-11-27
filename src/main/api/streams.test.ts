@@ -1,3 +1,4 @@
+import { connect as netConnect } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import type { StreamMessage } from '../../shared/api-types';
@@ -107,6 +108,43 @@ describe('event stream', () => {
     const test = (api = await startTestApi());
     expect(await refusedWith(connect(test, '/v1/nothing'))).toBe(404);
     expect(await refusedWith(connect(test, '/v1/terminals/t1'))).toBe(404);
+  });
+
+  it('answers 400 to an authorised upgrade whose target is not a valid URL', async () => {
+    const test = (api = await startTestApi());
+    const port = String(test.server.port);
+    const request = [
+      'GET //[ HTTP/1.1',
+      `Host: 127.0.0.1:${port}`,
+      `Origin: ${TEST_ORIGIN}`,
+      'Connection: Upgrade',
+      'Upgrade: websocket',
+      'Sec-WebSocket-Version: 13',
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+      `Sec-WebSocket-Protocol: orchtopus.v1, orchtopus.token.${test.server.token()}`,
+      '',
+      '',
+    ].join('\r\n');
+    const response = await new Promise<string>((resolve, reject) => {
+      const socket = netConnect(test.server.port, '127.0.0.1', () => {
+        socket.write(request);
+      });
+      let text = '';
+      socket.on('data', (chunk: Buffer) => {
+        text += chunk.toString('latin1');
+      });
+      socket.on('end', () => {
+        resolve(text);
+      });
+      socket.on('close', () => {
+        resolve(text);
+      });
+      socket.on('error', reject);
+    });
+    expect(response.split('\r\n')[0]).toBe('HTTP/1.1 400 Bad Request');
+    // The server is still alive and serving.
+    const health = await test.request('/v1/health');
+    expect(health.status).toBe(200);
   });
 
   it('hands terminal upgrades to the registered handler', async () => {

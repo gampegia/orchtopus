@@ -262,12 +262,18 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
       rejectUpgrade(socket, decision.status);
       return;
     }
-    const path = new URL(req.url ?? '/', `http://${HOST}`).pathname;
+    let path: string;
+    try {
+      path = new URL(req.url ?? '/', `http://${HOST}`).pathname;
+    } catch {
+      rejectUpgrade(socket, 400);
+      return;
+    }
     if (!hub.accepts(path)) {
       rejectUpgrade(socket, 404);
       return;
     }
-    hub.handleUpgrade(req, socket, head, decision.token);
+    hub.handleUpgrade(req, socket, head, decision.token, path);
   });
 
   try {
