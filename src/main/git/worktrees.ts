@@ -151,15 +151,25 @@ export async function createWorktree(input: {
   const path = worktreePath(input.root, input.task);
 
   const existing = (await listWorktrees(input.root)).find((w) => samePath(w.path, path));
+  let reattach = false;
   if (existing !== undefined) {
-    if (existing.branch === `refs/heads/${input.branch}`) return { path };
-    throw new Error(`The worktree ${input.task} exists on another branch.`);
+    if (existing.branch !== `refs/heads/${input.branch}`) {
+      throw new Error(`The worktree ${input.task} exists on another branch.`);
+    }
+    if (existsSync(path)) return { path };
+    // Registered but the folder is gone (crash, or deleted by hand): drop only this
+    // entry's metadata (never `git worktree prune`) and check the branch out again.
+    const removed = await runGit(['worktree', 'remove', path], { cwd: input.root });
+    if (removed.code !== 0) {
+      throw new Error(`git worktree remove failed: ${redactUrls(removed.stderr.trim())}`);
+    }
+    reattach = true;
   }
 
-  const res = await runGit(
-    ['worktree', 'add', '--quiet', '--no-track', '-b', input.branch, path, input.base],
-    { cwd: input.root },
-  );
+  const args = reattach
+    ? ['worktree', 'add', '--quiet', path, input.branch]
+    : ['worktree', 'add', '--quiet', '--no-track', '-b', input.branch, path, input.base];
+  const res = await runGit(args, { cwd: input.root });
   if (res.code !== 0) {
     throw new Error(`git worktree add failed: ${redactUrls(res.stderr.trim())}`);
   }

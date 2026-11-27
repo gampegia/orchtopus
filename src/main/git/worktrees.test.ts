@@ -144,6 +144,22 @@ describe('createWorktree', () => {
     expect(second.path).toBe(first.path);
   });
 
+  it('recreates the folder of a registered worktree whose folder is gone, keeping the branch', async () => {
+    const r = await repo();
+    await ensureWorktreesExcluded(r.root);
+    const input = { root: r.root, task: 'upload-fix', branch: 'orch/upload-fix', base: 'main' };
+    const { path } = await createWorktree(input);
+    writeFileSync(join(path, 'note.txt'), 'work\n');
+    git(path, ['add', 'note.txt']);
+    git(path, ['commit', '--quiet', '-m', 'work on the task']);
+    rmSync(path, { recursive: true, force: true });
+
+    const again = await createWorktree(input);
+    expect(again.path).toBe(path);
+    expect(existsSync(join(path, 'note.txt'))).toBe(true);
+    expect(git(path, ['symbolic-ref', '--short', 'HEAD'])).toBe('orch/upload-fix');
+  });
+
   it('refuses an invalid task name', async () => {
     const r = await repo();
     await expect(
