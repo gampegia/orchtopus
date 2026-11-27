@@ -131,7 +131,7 @@ The UI and the API know only the `AgentAdapter` interface. M1 has one implementa
   - `--append-system-prompt-file <file>` with the workflow instruction (section 5);
   - `--agents` and `--plugin-dir` only when Orchtopus has something to pass (nothing in M1; the plumbing exists);
   - `--model` and `--effort` only when the start dialog sets them; otherwise Claude Code's defaults apply;
-  - `--permission-mode auto`, or `default` if the user chose manual mode in the start dialog (D1); never `bypassPermissions`;
+  - `--permission-mode auto`, or `manual` if the user chose manual mode in the start dialog (D1; hook payloads then report `permission_mode: "default"`); never `bypassPermissions`;
   - model, effort and mode are chosen per session in M1. The start dialog remembers the last values per project in `project.json`; per-project and per-role defaults with their own UI come with the settings screen (M6) and models per role (M5);
   - `--name <task>`;
   - the first prompt, if the user gave one.
@@ -174,7 +174,7 @@ Sources: `claude agents --json --all` polled about every second, hook events, st
 | needs you | amber | `blocked` / `waiting` (permission prompt or dialog in the terminal), or `blocked` / `idle` (the turn ended with a question or an error) |
 | idle | neutral | `done` / `idle`; also `working` / `idle` when a `Stop` event came and no further event followed for a few seconds (the stale case from the spike) |
 | stopped | neutral, hollow | `stopped`; `done` with no `status` (seen after `claude stop`); or the session is missing from `agents --json` while the store still has it |
-| failed | red | `failed`, or the start failed; the reason is shown in the session header |
+| failed | red | `failed`, or the start failed; the reason is shown in the session header. After a reboot the docs say a session shows `failed` for up to 48 hours: opening such a session resumes it like a stopped one |
 
 - `working` / `idle` right after a process start is treated as running until the rule above applies.
 - `needs you` from `blocked` / `idle` is not always a real question (spike Q1). M1 shows it anyway, because an error also needs the user; M2 refines it.
