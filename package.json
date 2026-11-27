@@ -19,7 +19,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "smoke:native": "electron scripts/smoke-native.js",
-    "package": "npm run build && electron-builder --dir"
+    "package": "npm run build && electron-builder --dir",
+    "audit": "npm audit --audit-level=high"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
