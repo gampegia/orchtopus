@@ -1,6 +1,6 @@
 # Progress
 
-Last update: 2026-11-27 (M0 built on branch `feat/m0-tooling`, lead: Fable)
+Last update: 2026-11-27 (M1 spike done on branch `spike/m1-claude-code-internals`, lead: Fable)
 
 ## Done
 
@@ -33,6 +33,15 @@ Last update: 2026-11-27 (M0 built on branch `feat/m0-tooling`, lead: Fable)
   - Document `ORCHTOPUS_BACKGROUND_WINDOW` in the README.
 
 Agents for M0: implementers 10x Opus (medium) plus fix rounds, task reviews 10x Sonnet (medium), final reviews code and security Opus (high), spec, UI and privacy Sonnet, fix wave Opus (medium), re-review Opus (high), docs Sonnet. Lead: Fable. Tasks 7b to 10 and the final review ran as workflows.
+
+### M1 spike (2026-11-27)
+
+- Findings: `docs/spikes/2026-11-27-m1-claude-code-internals.md`. Harness to rerun the experiments: `spikes/m1-claude-code/` (see its README). Tested on Claude Code 2.1.332, Windows 11.
+- Result: M1 uses the background-session adapter (`claude --bg`, one app-owned `claude attach` PTY per session). The child-process fallback is not needed. D1 of the addendum (auto mode by default) stands for everything that was tested.
+- Confirmed: `--bg` survives the death of its parent and reattaches with live output; the base setup flags work with `--bg` and persist over attach, resume and respawn; status line runs unattached; `PermissionRequest` http hook (allow, deny, timeout, receiver down); `PreToolUse` hold, park and one-time release; `onFailure: "block"` on crash and timeout; skill name in `tool_input.skill`; `Stop` hook with `stop_hook_active`; `SessionStart` and `PreCompact` context; deny rules and hook denies in auto mode; side chat fork idle and mid-turn.
+- Not confirmed: a classifier block and the `PermissionDenied` payload (none provoked), classifier cost (not measurable), maximum hook wait beyond 600 s, automatic compaction, `/goal` through the PTY, PTY input mid-turn, the background-session git behaviour (worktree, automatic commit, push and draft PR).
+
+Agents for the spike: 1x Opus (high) for harness, experiments and findings. Lead: Fable.
 
 ### M0 versions
 
@@ -69,11 +78,11 @@ Agents used in session 1: mockup and prototype analysis 2× Sonnet; concept tran
 
 ## Next
 
-**M1 is next.** M0 is done. Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md`.
+**M1 spec is next** (brainstorming, then spec, then plan). The M1 spike is done; read its findings first. M0 is done. Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md`.
 
 Before M1 code: go through "Left for later PRs" under the M0 entry and do the small ones (dev reload check, redirect handling, CI concurrency) in one PR.
 
-M1 starts with the spike on background sessions, hooks and status line on Windows (see the table of assumptions in the product spec, section 10). Start the next lead session with the folder `orchtopus` as working directory so the project agents in `.claude/agents/` load.
+The M1 spec must settle the points under "Open decisions" that the spike raised. Start the next lead session with the folder `orchtopus` as working directory so the project agents in `.claude/agents/` load.
 
 Known gap after M0: CI does not build or start the packaged app (`npm run package`); it is checked locally only. Add a packaged-app check to CI when an installer is introduced.
 
@@ -101,7 +110,7 @@ Agents for step 4: 8x Opus (high) for round 1, 3x Opus (high) for round 2, 1x Op
 
 ## Findings: Claude Code internals
 
-Installed: Claude Code 2.1.292 (docs changelog is at 2.1.331). Items marked *test* are not confirmed by the docs and need a spike in M1.
+Installed: Claude Code 2.1.332 (updated by the user on 2026-11-27; this section was written against 2.1.292). The items marked *test* are answered in `docs/spikes/2026-11-27-m1-claude-code-internals.md`. Where that document and this section differ, the spike document wins. Known corrections: `claude --resume <id> "<message>"` is refused for a running background session (input goes through the attached PTY only); a typed `/skill` is visible to hooks (`UserPromptSubmit`, `UserPromptExpansion`); `--session-id` is ignored with `--bg`; a second `claude attach` takes the session over.
 
 **Session lifecycle (recommended: background sessions)**
 - `claude --bg` sessions run under Claude Code's own supervisor and survive a closed terminal or app. `claude attach <id>` in our PTY shows them. `claude agents --json [--all]` lists them with `state` (working, blocked, done, failed, stopped) and `status` (busy, waiting, idle).
@@ -140,10 +149,19 @@ Installed: Claude Code 2.1.292 (docs changelog is at 2.1.331). Items marked *tes
 ## Open decisions
 
 - **Addendum on Claude Code best practices** (`docs/specs/2026-11-27-claude-code-best-practices-addendum.md`): approved by the user on 2026-11-27 with the merge of pull request 6. It overrides the product spec where they differ (auto mode by default, minimum Claude Code 2.1.302, Stop hook check, simpler context management, extended learnings). It adds five questions to the M1 spike. D1 (auto mode) still depends on the spike. Read it before the M1 spec.
-- Session lifecycle, side chat and enforcement follow the spec; the M1 spike verifies the items marked *test*.
+- From the spike, to settle in the M1 spec:
+  - Background sessions, per the docs, move into `.claude/worktrees/` inside the repository and commit, push and open a draft PR when they finish. Decide whether to pass `worktree.bgIsolation: "none"` plus a workflow instruction, and test it before code depends on it.
+  - A rule for stale `working` in `claude agents --json` (after Esc on a prompt and after a `Stop` hook continuation).
+  - The terminal permission prompt is live while the `PermissionRequest` hook waits: the card must close when the terminal answers first.
+  - The classifier inbox (`PermissionDenied`) and the "auto mode paused" state rest on the docs only. Build them so they degrade to nothing if the hook never fires.
 - Local API token: per app start or per installation.
 
 ## Gotchas
+
+- Never send `/model` into a session: it saves the model as the user's default for new sessions. Set the model with `--model` at start. The same care applies to every slash command that writes user settings.
+- `--tools ""` keeps MCP connector tools. The side chat command needs `--strict-mcp-config` as well.
+- `claude --bg` needs workspace trust for the folder (stored in the user's `~/.claude.json`). The add-project step must handle an untrusted folder.
+- Keys written to a fresh `claude attach` PTY before the TUI has rendered are dropped. Wait for the prompt box.
 
 - Anthropic's Agent SDK terms do not allow third-party products to offer claude.ai login. Orchtopus therefore drives the user's own installed `claude` CLI and never handles the login itself. Keep it that way and do not switch to the SDK without an API key.
 - Transcript JSONL files and `~/.claude/jobs/` are internal formats. Do not parse them.
