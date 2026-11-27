@@ -2,7 +2,7 @@
 
 Orchtopus is a Windows desktop app that runs and supervises several [Claude Code](https://code.claude.com/docs) sessions across your projects. It shows what each session is doing, collects everything that needs you in one inbox, and holds the work at gates: spec, plan, tests, review, pull request.
 
-> **Status: early development.** There is no usable build yet. The repository currently holds the concept, the build plan and the design mockups.
+> **Status: early development.** The app opens an empty window; no feature works yet.
 
 ## Why
 
@@ -50,7 +50,20 @@ Screenshots follow with the first milestones. The early design mockups are in [`
 
 ## Development
 
-Orchtopus is built with Claude Code itself: a lead session plans and reviews, subagents implement with test-driven development in worktrees, and every change ends in a pull request. Build and test commands are added with milestone M0.
+Orchtopus is built with Claude Code itself: a lead session plans and reviews, subagents implement with test-driven development in worktrees, and every change ends in a pull request.
+
+### Set up and run
+
+Requirements: Windows 10 or 11 (x64), Node.js 24, Git.
+
+1. `npm ci`
+2. `npm run dev` opens the app with reload.
+3. `npm run check` runs lint, type check, unit tests and the build. Run it before every pull request.
+4. `npm run e2e` starts the built app with Playwright.
+
+Other scripts: `npm run smoke:native` (native modules load in Electron), `npm run audit`, `npm run package` (unsigned build in `release/win-unpacked/`). CI runs the same scripts on Windows for every pull request.
+
+Native modules (`node-pty`, `better-sqlite3`) ship prebuilt Node-API binaries for Windows x64, so no compiler is needed. If `npm ci` starts compiling them, install the Visual Studio C++ build tools with the Spectre-mitigated libraries.
 
 This is a public repository. Code, tests, fixtures and docs use generic demo names only (`acme-app`, `report-export`, …). Orchtopus keeps all project data in your user folder, never in a repository.
 

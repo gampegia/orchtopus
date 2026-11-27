@@ -66,4 +66,20 @@ Quality comes first; these rules cut waste, not care.
 - Dangerous commands can only be allowed by holding the button in the app. Never by hotkey, pad or watch.
 
 ## Commands
-Fill in during M0: install, dev, test, lint, typecheck, e2e, build.
+Node.js 24, npm. Run from the repository root.
+
+| Purpose | Command |
+|---|---|
+| Install | `npm ci` |
+| Dev (window with reload) | `npm run dev` |
+| All local checks: lint, type check, unit tests, build | `npm run check` |
+| Lint (ESLint and Prettier check) / fix formatting | `npm run lint` / `npm run format` |
+| Type check | `npm run typecheck` |
+| Unit tests (Vitest) | `npm test` |
+| End-to-end test of the built app (Playwright) | `npm run e2e` |
+| Native modules load in Electron (node-pty, better-sqlite3) | `npm run smoke:native` |
+| Dependency audit | `npm run audit` |
+| Build / preview the build | `npm run build` / `npm run start` |
+| Unsigned directory build in `release/win-unpacked/` | `npm run package` |
+
+CI (`.github/workflows/ci.yml`) calls only these npm scripts on `windows-latest`, plus gitleaks. Add a new check as an npm script first.
