@@ -1,0 +1,14 @@
+appId: app.orchtopus.desktop
+productName: Orchtopus
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+asarUnpack:
+  - node_modules/node-pty/**
+  - node_modules/better-sqlite3/**
+npmRebuild: false
+win:
+  target: dir
+  signAndEditExecutable: false

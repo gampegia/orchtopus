@@ -1,0 +1,25 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+.page {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.product-name {
+  margin: 0;
+  font-size: var(--type-heading);
+  line-height: var(--leading-heading);
+  font-weight: var(--weight-strong);
+}
