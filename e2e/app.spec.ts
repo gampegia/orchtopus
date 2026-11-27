@@ -37,8 +37,13 @@ function launchEnv(): Record<string, string> {
   };
 }
 
-let app: ElectronApplication;
+let app: ElectronApplication | undefined;
 let page: Page;
+
+function electronApp(): ElectronApplication {
+  if (app === undefined) throw new Error('Electron did not launch');
+  return app;
+}
 const consoleErrors: string[] = [];
 
 test.describe.configure({ mode: 'serial' });
@@ -46,12 +51,13 @@ test.describe.configure({ mode: 'serial' });
 test.beforeAll(async () => {
   const executablePath = process.env['E2E_EXECUTABLE'];
   // Playwright emulates prefers-color-scheme: light by default; null lets nativeTheme decide.
-  app = await electron.launch(
+  const launched = await electron.launch(
     executablePath
       ? { executablePath, env: launchEnv(), colorScheme: null, timeout: 60_000 }
       : { args: ['.'], env: launchEnv(), colorScheme: null, timeout: 60_000 },
   );
-  page = await app.firstWindow();
+  app = launched;
+  page = await launched.firstWindow();
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
@@ -61,7 +67,8 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await app.close();
+  // A failed launch leaves app undefined; closing it would hide the launch error.
+  if (app !== undefined) await app.close();
 });
 
 test('starts without console errors', () => {
@@ -71,15 +78,23 @@ test('starts without console errors', () => {
 test('opens one window titled Orchtopus that shows the name', async () => {
   await expect(page).toHaveTitle('Orchtopus');
   await expect(page.getByRole('heading', { level: 1, name: 'Orchtopus' })).toBeVisible();
-  const titles = await app.evaluate(({ BrowserWindow }) =>
+  const titles = await electronApp().evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows().map((window) => window.getTitle()),
   );
   expect(titles).toEqual(['Orchtopus']);
+  // The window is created with show: false; only ready-to-show makes it visible.
+  await expect
+    .poll(() =>
+      electronApp().evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows().map((window) => window.isVisible()),
+      ),
+    )
+    .toEqual([true]);
 });
 
 for (const mode of ['light', 'dark'] as const) {
   test(`paints surface.page and text.primary in ${mode} mode`, async () => {
-    await app.evaluate(({ nativeTheme }, source) => {
+    await electronApp().evaluate(({ nativeTheme }, source) => {
       nativeTheme.themeSource = source;
     }, mode);
     await expect
@@ -93,6 +108,13 @@ for (const mode of ['light', 'dark'] as const) {
         }),
       )
       .toBe(rgb(mode, 'text.primary'));
+    await expect
+      .poll(() =>
+        electronApp().evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0]?.getBackgroundColor().toLowerCase(),
+        ),
+      )
+      .toBe(tokens[mode]['surface.page']?.toLowerCase());
   });
 }
 
@@ -117,7 +139,7 @@ test('renderer has no Node.js access and the preload exposes nothing', async () 
 });
 
 test('web preferences are hardened at runtime', async () => {
-  const preferences = await app.evaluate(({ BrowserWindow }) => {
+  const preferences = await electronApp().evaluate(({ BrowserWindow }) => {
     const contents = BrowserWindow.getAllWindows()[0]?.webContents as
       InspectableWebContents | undefined;
     const last = contents?.getLastWebPreferences();
@@ -150,15 +172,21 @@ test('content security policy blocks inline scripts', async () => {
 
 test('new windows are denied', async () => {
   expect(await page.evaluate(() => window.open('https://example.com/') !== null)).toBe(false);
-  expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+  expect(
+    await electronApp().evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length),
+  ).toBe(1);
+});
+
+test('permission requests are denied', async () => {
+  expect(await page.evaluate(() => Notification.requestPermission())).toBe('denied');
 });
 
 test('navigation is denied', async () => {
   // A local target keeps the network out of it. `did-stop-loading` ends both outcomes: a
   // prevented navigation stops without `did-navigate`, an allowed one commits first.
-  const outcome = await app.evaluate(
+  const outcome = await electronApp().evaluate(
     ({ BrowserWindow }) =>
-      new Promise<{ before: string; after: string; committed: boolean }>((resolve) => {
+      new Promise<{ before: string; after: string; committed: boolean }>((resolve, reject) => {
         const contents = BrowserWindow.getAllWindows()[0]?.webContents;
         if (!contents) throw new Error('No window');
         const before = contents.getURL();
@@ -170,7 +198,9 @@ test('navigation is denied', async () => {
         contents.once('did-stop-loading', () => {
           resolve({ before, after: contents.getURL(), committed });
         });
-        void contents.executeJavaScript(`window.location.href = ${JSON.stringify(target)};`);
+        contents
+          .executeJavaScript(`window.location.href = ${JSON.stringify(target)};`)
+          .catch(reject);
       }),
   );
   expect(outcome.committed).toBe(false);
