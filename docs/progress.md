@@ -139,6 +139,7 @@ Installed: Claude Code 2.1.292 (docs changelog is at 2.1.331). Items marked *tes
 
 ## Open decisions
 
+- **Addendum on Claude Code best practices** (`docs/specs/2026-11-27-claude-code-best-practices-addendum.md`): proposed on 2026-11-27, waiting for the user. Once its pull request is merged it is approved and overrides the product spec where they differ (auto mode by default, minimum Claude Code 2.1.302, Stop hook check, simpler context management, extended learnings). It adds five questions to the M1 spike. Read it before the M1 spec.
 - Session lifecycle, side chat and enforcement follow the spec; the M1 spike verifies the items marked *test*.
 - Local API token: per app start or per installation.
 
