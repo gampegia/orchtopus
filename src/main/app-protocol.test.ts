@@ -141,10 +141,13 @@ describe('createAppProtocolHandler', () => {
     expect(readFile).not.toHaveBeenCalled();
   });
 
-  it('answers 405 for anything but GET and HEAD', async () => {
-    const { handle, readFile } = handlerWith({ [join(root, 'index.html')]: 'x' });
-    const response = await handle(new Request('app://orchtopus/index.html', { method: 'POST' }));
-    expect(response.status).toBe(405);
-    expect(readFile).not.toHaveBeenCalled();
-  });
+  it.each(['POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'])(
+    'answers 405 for %s without reading',
+    async (method) => {
+      const { handle, readFile } = handlerWith({ [join(root, 'index.html')]: 'x' });
+      const response = await handle(new Request('app://orchtopus/index.html', { method }));
+      expect(response.status).toBe(405);
+      expect(readFile).not.toHaveBeenCalled();
+    },
+  );
 });

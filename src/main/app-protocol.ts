@@ -106,13 +106,13 @@ function plainResponse(status: number): Response {
   return new Response(null, { status, headers: { 'X-Content-Type-Options': 'nosniff' } });
 }
 
-/** A `protocol.handle` handler that serves GET and HEAD requests for files inside `root`. */
+/** A `protocol.handle` handler that serves GET requests for files in `root` (405 otherwise). */
 export function createAppProtocolHandler(
   root: string,
   readFile: ReadFile,
 ): (request: Request) => Promise<Response> {
   return async (request) => {
-    if (request.method !== 'GET' && request.method !== 'HEAD') return plainResponse(405);
+    if (request.method !== 'GET') return plainResponse(405);
     const file = resolveAppPath(request.url, root);
     if (file === null) return plainResponse(404);
     let body: Uint8Array;
@@ -129,6 +129,6 @@ export function createAppProtocolHandler(
     if (contentType.startsWith('text/html')) {
       headers['Content-Security-Policy'] = DOCUMENT_CONTENT_SECURITY_POLICY;
     }
-    return new Response(request.method === 'HEAD' ? null : body, { status: 200, headers });
+    return new Response(body, { status: 200, headers });
   };
 }
