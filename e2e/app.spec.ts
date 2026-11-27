@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   _electron as electron,
   expect,
@@ -12,10 +13,9 @@ import type { WebContents, WebPreferences } from 'electron';
 type InspectableWebContents = WebContents & { getLastWebPreferences(): WebPreferences | null };
 
 type Mode = 'light' | 'dark';
-const tokens = JSON.parse(readFileSync('themes/lagoon/tokens.json', 'utf8')) as Record<
-  Mode,
-  Record<string, string>
->;
+const tokens = JSON.parse(
+  readFileSync(join(__dirname, '../themes/lagoon/tokens.json'), 'utf8'),
+) as Record<Mode, Record<string, string>>;
 
 function rgb(mode: Mode, token: string): string {
   const hex = tokens[mode][token];
@@ -96,6 +96,8 @@ for (const mode of ['light', 'dark'] as const) {
   });
 }
 
+// Guards nodeIntegration and preload leaks only: app.enableSandbox() keeps Node out of the
+// renderer even with sandbox or contextIsolation off, so the next test checks those flags.
 test('renderer has no Node.js access and the preload exposes nothing', async () => {
   const globals = await page.evaluate(() => {
     const scope = globalThis as unknown as Record<string, unknown>;
@@ -146,13 +148,32 @@ test('content security policy blocks inline scripts', async () => {
   expect(ran).toBe(false);
 });
 
-test('new windows and navigation are denied', async () => {
+test('new windows are denied', async () => {
   expect(await page.evaluate(() => window.open('https://example.com/') !== null)).toBe(false);
-  const before = page.url();
-  await page.evaluate(() => {
-    window.location.href = 'https://example.com/';
-  });
-  await page.waitForTimeout(1_000);
-  expect(page.url()).toBe(before);
   expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+});
+
+test('navigation is denied', async () => {
+  // A local target keeps the network out of it. `did-stop-loading` ends both outcomes: a
+  // prevented navigation stops without `did-navigate`, an allowed one commits first.
+  const outcome = await app.evaluate(
+    ({ BrowserWindow }) =>
+      new Promise<{ before: string; after: string; committed: boolean }>((resolve) => {
+        const contents = BrowserWindow.getAllWindows()[0]?.webContents;
+        if (!contents) throw new Error('No window');
+        const before = contents.getURL();
+        const target = new URL('?navigated', before).href;
+        let committed = false;
+        contents.on('did-navigate', () => {
+          committed = true;
+        });
+        contents.once('did-stop-loading', () => {
+          resolve({ before, after: contents.getURL(), committed });
+        });
+        void contents.executeJavaScript(`window.location.href = ${JSON.stringify(target)};`);
+      }),
+  );
+  expect(outcome.committed).toBe(false);
+  expect(outcome.after).toBe(outcome.before);
+  expect(page.url()).toBe(outcome.before);
 });
