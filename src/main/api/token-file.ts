@@ -28,16 +28,20 @@ async function readToken(file: string): Promise<string | null> {
 }
 
 /**
- * Writes a new token through a temp file that is restricted before the rename, so the token is
- * never readable by others, not even for a moment.
+ * Writes a new token through a temp file that is created empty, restricted to the current user
+ * and only then filled, so the token is never readable by others, not even for a moment.
+ * The temp file must not exist yet ('wx'): a pre-created one could carry someone else's owner
+ * or explicit ACEs, which the restriction would not remove.
  */
 async function writeToken(file: string): Promise<string> {
   const token = randomBytes(32).toString('hex');
   await mkdir(dirname(file), { recursive: true });
   const temp = `${file}.${String(process.pid)}.tmp`;
+  await writeFile(temp, '', { flag: 'wx', mode: 0o600 });
   try {
-    await writeFile(temp, token, { encoding: 'utf8', mode: 0o600 });
     await restrictToCurrentUser(temp);
+    // 'r+' overwrites in place and keeps the restricted DACL.
+    await writeFile(temp, token, { encoding: 'utf8', flag: 'r+' });
     await rename(temp, file);
   } finally {
     await rm(temp, { force: true });

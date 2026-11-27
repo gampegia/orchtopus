@@ -1,10 +1,33 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { userInfo } from 'node:os';
 import { delimiter, join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeTempDir, type TempDir } from '../store/testing';
 import { ensureToken, renewToken, restrictToCurrentUser } from './token-file';
+
+/** ACEs of each file at the moment non-empty data was written to it through fs/promises. */
+const aclAtWrite = vi.hoisted(() => new Map<string, string[]>());
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return {
+    ...actual,
+    writeFile: async (...args: Parameters<typeof actual.writeFile>) => {
+      const [path, data] = args;
+      if (
+        process.platform === 'win32' &&
+        typeof path === 'string' &&
+        typeof data === 'string' &&
+        data.length > 0
+      ) {
+        // A file that does not exist yet gets the folder's inherited ACL on creation.
+        aclAtWrite.set(path, existsSync(path) ? acesOf(path) : ['(missing: inherited ACL)']);
+      }
+      return actual.writeFile(...args);
+    },
+  };
+});
 
 let temp: TempDir;
 
@@ -24,6 +47,7 @@ function acesOf(file: string): string[] {
 
 beforeEach(() => {
   temp = makeTempDir();
+  aclAtWrite.clear();
 });
 
 afterEach(() => {
@@ -56,6 +80,30 @@ describe('token file', () => {
     expect(readFileSync(file, 'utf8')).toBe(renewed);
     expect(await ensureToken(file)).toBe(renewed);
   });
+
+  it('fails and leaves a pre-existing temp file untouched', async () => {
+    const file = temp.file('api-token');
+    const planted = `${file}.${String(process.pid)}.tmp`;
+    writeFileSync(planted, 'planted');
+    await expect(renewToken(file)).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(readFileSync(planted, 'utf8')).toBe('planted');
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it.runIf(process.platform === 'win32')(
+    'restricts the temp file to the current user before the token is written',
+    async () => {
+      const file = temp.file('api-token');
+      await renewToken(file);
+      const temps = [...aclAtWrite.keys()].filter((path) => path.startsWith(`${file}.`));
+      expect(temps).toHaveLength(1);
+      const aces = aclAtWrite.get(temps[0] ?? '') ?? [];
+      expect(aces).toHaveLength(1);
+      expect(aces[0]?.toLowerCase()).toContain(userInfo().username.toLowerCase());
+      expect(acesOf(file)).toHaveLength(1);
+    },
+    30_000,
+  );
 
   it.runIf(process.platform === 'win32')(
     'restrictToCurrentUser leaves one ACE for the current user',
