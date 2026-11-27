@@ -21,6 +21,7 @@ test-results/
 .claude/worktrees/
 CLAUDE.local.md
 .worktrees/
+.superpowers/
 
 # Orchtopus user data never belongs in this repo
 .orchtopus/

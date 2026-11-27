@@ -1,0 +1,7 @@
+docs/
+themes/
+.claude/
+*.md
+package-lock.json
+skills-lock.json
+src/renderer/generated/
