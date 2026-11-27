@@ -10,26 +10,27 @@ Last update: 2026-11-27 (M0 built on branch `feat/m0-tooling`, lead: Fable)
 - Skills: unslop installed at project scope (`.claude/settings.json`), `pick-ui-library` installed to `.claude/skills/`. superpowers and i-have-adhd already exist at user scope.
 - Claude Code internals checked against the current docs (see below).
 
-### M0 tooling (2026-11-27, branch `feat/m0-tooling`, not merged yet)
+### M0 tooling (2026-11-27, merged through the pull request of branch `feat/m0-tooling`)
 
 - Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `typecheck`, `test`, `e2e`, `smoke:native`, `package`, `audit`. See `CLAUDE.md`, section "Commands".
 - CI on `windows-latest` (`npm ci`, `check`, `smoke:native`, `e2e`, `audit`) plus a gitleaks scan.
-- Security defaults for the Electron window, covered by unit tests and by 9 e2e tests. The e2e suite also passes against the packaged app in `release/win-unpacked/`.
-- Design tokens are built into CSS by a Vite plugin. 67 unit tests.
+- Security defaults for the Electron window, covered by unit tests and by 10 e2e tests. The e2e suite also passed against the packaged app in `release/win-unpacked/`.
+- Design tokens are built into CSS by a Vite plugin. 114 unit tests.
 - Unsigned directory build with `npm run package`.
-- Review: fix wave `7a33562` (pre-wave HEAD; after the identity rewrite the same tree is `ee061de`) to `fcdd9ea`.
-- Items left for later:
-  - `git config user.name` and `user.email` are not changed. The repo config is shared with the parent checkout and the global identity is the user's choice. The next commit with the current global config will again carry the personal address.
-  - `Menu.setApplicationMenu(null)` changes visible behaviour (no menu or reload in dev). devTools off in the packaged build covers the main risk.
-  - `allowScripts` policy: security-reviewer (add) and spec-reviewer (not needed) contradict. Needs a lead decision.
-  - Electron fuses: out of M0 scope per both reviewers.
-  - Custom `app://` protocol: before M1, not for M0.
-  - Packaged build e2e in CI: optional, needs a new CI step decision.
-  - `ORCHTOPUS_BACKGROUND_WINDOW` docs: belong in the README, which the fix wave did not touch.
-  - Figtree and JetBrains Mono font files: deferred to the font milestone.
-  - Refusing `url(`, `image-set(` and `!important` in token values: hygiene for future user-loadable themes, no open hole today.
-  - Named CSS colours (`white`) in renderer sources: no reliable regex without false hits in TSX text.
-- Residual findings of the re-review: the re-review did not return.
+- Final review: code, security, spec, UI and privacy reviewers on the whole branch, one fix wave (`ee061de` to `fcdd9ea`), re-review approved with no blocking finding.
+- The repository has a local git identity with the GitHub noreply address, so commits do not carry a personal e-mail.
+- Left for later PRs (none blocks M0):
+  - Check once by hand that a Vite full reload works in `npm run dev` (edit `index.html` or a `.tsx` file). `will-navigate` is denied for every navigation; if a reload is blocked, allow navigation to the current URL in unpackaged dev only.
+  - `will-redirect` is denied for every load, and `loadRenderer` ignores `ERR_ABORTED`. A dev server or protocol handler that redirects would give a blank window. Allow redirects to the startup origin or log ignored aborts.
+  - Pass the parsed URL (`new URL(value).href`) to `loadURL`, so the checked and the loaded value are the same.
+  - CI: a pending run on `main` can still be replaced by a newer one; give `main` runs their own concurrency group. Correct the comment in `ci.yml`.
+  - Custom `app://` protocol instead of `file://`, before M1 grows the renderer (CSP `self` under `file://` is broad).
+  - Electron fuses, before any release milestone.
+  - `npm` `allowScripts` policy. npm 11 skips the install scripts of node-pty and better-sqlite3; the prebuilds load and `smoke:native` guards it in CI.
+  - Packaged build e2e in CI.
+  - Refuse `url(`, `image-set(` and `!important` in token values, before themes can be loaded from user folders.
+  - `Menu.setApplicationMenu(null)`, bundled Figtree and JetBrains Mono font files, a check for named CSS colours in renderer sources.
+  - Document `ORCHTOPUS_BACKGROUND_WINDOW` in the README.
 
 Agents for M0: implementers 10x Opus (medium) plus fix rounds, task reviews 10x Sonnet (medium), final reviews code and security Opus (high), spec, UI and privacy Sonnet, fix wave Opus (medium), re-review Opus (high), docs Sonnet. Lead: Fable. Tasks 7b to 10 and the final review ran as workflows.
 
@@ -51,8 +52,8 @@ Exact pins in `package.json`. Source: the "Versions" table in `docs/plans/2026-1
 | eslint-config-prettier | 10.1.9 | Flat entry point `eslint-config-prettier/flat` |
 | globals | 17.14.0 | npm `latest` |
 | prettier | 3.10.1 | `lint` runs `prettier --check .` |
-| vitest | 5.1.2 | 67 unit tests pass |
-| @playwright/test | 1.65.1 | `_electron` is experimental; 9 e2e tests pass |
+| vitest | 5.1.2 | 114 unit tests pass |
+| @playwright/test | 1.65.1 | `_electron` is experimental; 10 e2e tests pass |
 | node-pty | 1.1.0 | `smoke:native` PASS; ships win32-x64 prebuilds |
 | better-sqlite3 | 13.2.0 | `smoke:native` PASS, sqlite 3.54.1; Node-API prebuilds inside the package |
 | electron-builder | 26.18.0 | `npm run package` builds `release/win-unpacked/` |
@@ -68,13 +69,9 @@ Agents used in session 1: mockup and prototype analysis 2× Sonnet; concept tran
 
 ## Next
 
-**M0 is built and reviewed; the PR is next.** Branch `feat/m0-tooling`. Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md`.
+**M1 is next.** M0 is done. Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md`.
 
-1. Run the privacy review on the branch diff.
-2. Push the branch and open the PR. Put the version table (see "M0 versions") in the PR description.
-3. Wait for green CI on GitHub, then merge (the lead merges after a review without open blocking findings).
-4. Decide the open items listed under the M0 entry, first the `allowScripts` policy.
-5. Ask the user to run `/clear` before M1.
+Before M1 code: go through "Left for later PRs" under the M0 entry and do the small ones (dev reload check, redirect handling, CI concurrency) in one PR.
 
 M1 starts with the spike on background sessions, hooks and status line on Windows (see the table of assumptions in the product spec, section 10). Start the next lead session with the folder `orchtopus` as working directory so the project agents in `.claude/agents/` load.
 
