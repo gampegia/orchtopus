@@ -21,7 +21,34 @@ export interface ThemeTokens {
 }
 
 const THEME_NAME = /^[a-z0-9-]+$/;
-const UNSAFE_VALUE = /[;{}<>\r\n]|\/\*/;
+const UNSAFE_VALUE = /[;{}<>\\\r\n\f]|\/\*/;
+const CLOSING_BRACKET: Readonly<Record<string, string>> = { '(': ')', '[': ']' };
+
+/** True when every quote is closed and every bracket outside a quote is balanced and nested. */
+function isBalanced(value: string): boolean {
+  const expected: string[] = [];
+  let quote: string | undefined;
+  for (const char of value) {
+    if (quote !== undefined) {
+      if (char === quote) {
+        quote = undefined;
+      }
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === '(' || char === '[') {
+      expected.push(CLOSING_BRACKET[char] ?? '');
+    } else if ((char === ')' || char === ']') && expected.pop() !== char) {
+      return false;
+    }
+  }
+  return quote === undefined && expected.length === 0;
+}
+
+function isUnsafeValue(value: string): boolean {
+  return UNSAFE_VALUE.test(value) || value.trim() === '' || !isBalanced(value);
+}
+
+const THEME_NAME_ERROR = 'Theme field "name" must be a string of a-z, 0-9 and -';
 const MODES: readonly ThemeMode[] = ['light', 'dark'];
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -53,7 +80,7 @@ export function parseTheme(value: unknown): ThemeTokens {
   }
   const { name, version } = value;
   if (typeof name !== 'string' || !THEME_NAME.test(name)) {
-    throw new Error('Theme field "name" must be a string of a-z, 0-9 and -');
+    throw new Error(THEME_NAME_ERROR);
   }
   if (typeof version !== 'string') {
     throw new Error('Theme field "version" must be a string');
@@ -104,7 +131,7 @@ function declarations(map: TokenMap, mode: ThemeMode, indent: string): string[] 
       throw new Error(`Tokens "${other}" and "${token}" map to the same CSS name ${name}`);
     }
     tokenByCssName.set(name, token);
-    if (UNSAFE_VALUE.test(value) || value.trim() === '') {
+    if (isUnsafeValue(value)) {
       throw new Error(`Token "${token}" in ${mode} has an unsafe value`);
     }
     return `${indent}${name}: ${value};`;
@@ -113,6 +140,10 @@ function declarations(map: TokenMap, mode: ThemeMode, indent: string): string[] 
 
 /** Builds the theme stylesheet: light tokens on `:root`, dark tokens in a dark media query. */
 export function buildThemeCss(theme: ThemeTokens): string {
+  // The name goes into a comment; a hand-built theme must not break out of it.
+  if (!THEME_NAME.test(theme.name)) {
+    throw new Error(THEME_NAME_ERROR);
+  }
   const missing = missingTokens(theme);
   const missingList = MODES.flatMap((mode) => missing[mode].map((token) => `${mode}: ${token}`));
   if (missingList.length > 0) {

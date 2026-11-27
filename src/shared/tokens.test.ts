@@ -3,6 +3,7 @@ import lagoonJson from '../../themes/lagoon/tokens.json';
 import {
   buildThemeCss,
   cssVarName,
+  isOptionalToken,
   missingTokens,
   parseTheme,
   tokenValue,
@@ -79,12 +80,67 @@ describe('tokenValue', () => {
   });
 });
 
+describe('isOptionalToken', () => {
+  it('is true for the scene group only', () => {
+    expect(isOptionalToken('scene.sky-top')).toBe(true);
+    expect(isOptionalToken('scenery.x')).toBe(false);
+    expect(isOptionalToken('surface.page')).toBe(false);
+  });
+});
+
 describe('buildThemeCss', () => {
-  const css = buildThemeCss(lagoon);
-  const [lightPart = '', darkPart = ''] = css.split('@media (prefers-color-scheme: dark)');
+  function lagoonParts(): [string, string] {
+    const [lightPart = '', darkPart = ''] = buildThemeCss(lagoon).split(
+      '@media (prefers-color-scheme: dark)',
+    );
+    return [lightPart, darkPart];
+  }
   const declarations = (part: string) => part.match(/^\s+--[a-z0-9-]+: .+;$/gm) ?? [];
 
+  it('writes the exact stylesheet for a small theme', () => {
+    const theme: ThemeTokens = {
+      name: 'acme-app',
+      version: '1.0.0',
+      light: { 'a.b': '1px' },
+      dark: { 'a.b': '2px' },
+    };
+    expect(buildThemeCss(theme)).toBe(
+      [
+        '/* Generated from themes/acme-app/tokens.json. Do not edit. */',
+        ':root {',
+        '  color-scheme: light dark;',
+        '  --a-b: 1px;',
+        '}',
+        '',
+        '@media (prefers-color-scheme: dark) {',
+        '  :root {',
+        '    --a-b: 2px;',
+        '  }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('refuses a theme name that is not a plain lower-case name', () => {
+    expect(() => buildThemeCss({ ...lagoon, name: 'x */ body {' })).toThrow('"name"');
+  });
+
+  it('builds the Lagoon theme', () => {
+    expect(() => buildThemeCss(lagoon)).not.toThrow();
+  });
+
+  it.each([
+    '"Figtree", "Segoe UI", sans-serif',
+    'rgba(0, 0, 0, 0.5)',
+    'cubic-bezier(0.2, 0, 0, 1)',
+  ])('accepts the value %j', (value) => {
+    const theme = withTokens('light', { ...lagoon.light, 'surface.page': value });
+    expect(buildThemeCss(theme)).toContain(`  --surface-page: ${value};`);
+  });
+
   it('writes light tokens on :root and dark tokens in a dark media query', () => {
+    const [lightPart, darkPart] = lagoonParts();
     expect(lightPart).toContain(':root {');
     expect(lightPart).toContain('  --surface-page: #e3e7e5;');
     expect(lightPart).toContain('  --text-primary: #17212a;');
@@ -93,6 +149,7 @@ describe('buildThemeCss', () => {
   });
 
   it('writes one declaration per token', () => {
+    const [lightPart, darkPart] = lagoonParts();
     expect(declarations(lightPart)).toHaveLength(Object.keys(lagoon.light).length);
     expect(declarations(darkPart)).toHaveLength(Object.keys(lagoon.dark).length);
   });
@@ -102,15 +159,24 @@ describe('buildThemeCss', () => {
     expect(() => buildThemeCss(theme)).toThrow('Theme "lagoon" misses tokens: dark: text.primary');
   });
 
-  it.each(['#fff; } body { display: none', '#fff\n', '   ', 'red /* x */', '<b>'])(
-    'refuses the unsafe value %j',
-    (value) => {
-      const theme = withTokens('light', { ...lagoon.light, 'surface.page': value });
-      expect(() => buildThemeCss(theme)).toThrow(
-        'Token "surface.page" in light has an unsafe value',
-      );
-    },
-  );
+  it.each([
+    '#fff; } body { display: none',
+    '#fff\n',
+    '   ',
+    'red /* x */',
+    '<b>',
+    'red\\',
+    'a\fb',
+    'calc(1px',
+    '1px)',
+    '[x',
+    '"Figtree',
+    "'x",
+    '(]',
+  ])('refuses the unsafe value %j', (value) => {
+    const theme = withTokens('light', { ...lagoon.light, 'surface.page': value });
+    expect(() => buildThemeCss(theme)).toThrow('Token "surface.page" in light has an unsafe value');
+  });
 
   it('refuses two tokens that map to the same CSS name', () => {
     const light = { ...lagoon.light, 'acme.report-export': '1px', 'acme-report.export': '2px' };
