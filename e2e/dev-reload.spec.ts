@@ -84,10 +84,14 @@ function navigateBy(script: string) {
         if (!contents) throw new Error('No window');
         const before = contents.getURL();
         let committed = false;
-        contents.once('did-navigate', () => {
+        const onNavigate = (): void => {
           committed = true;
-        });
+        };
+        contents.once('did-navigate', onNavigate);
         contents.once('did-stop-loading', () => {
+          // A denied navigation never fires did-navigate; drop the listener so it cannot leak
+          // into the next test.
+          contents.off('did-navigate', onNavigate);
           resolve({ before, after: contents.getURL(), committed });
         });
         contents.executeJavaScript(source).catch(reject);
