@@ -1,7 +1,15 @@
 // Shared helpers for the M1 spike harness: scratch paths, a clean child
 // environment, JSON-lines logging and a thin wrapper around the `claude` CLI.
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,9 +66,41 @@ export function readJson(file, fallback) {
   }
 }
 
+/** Like readJson, but tells the caller whether the file was read and parsed. */
+export function readJsonStrict(file) {
+  try {
+    return { ok: true, value: JSON.parse(readFileSync(file, 'utf8')) };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 export function writeJson(file, value) {
   ensureDir(dirname(file));
   writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
+}
+
+/**
+ * Writes JSON to a temp file next to `file`, then renames it over `file`, so
+ * a reader never sees a half-written file. On Windows the rename fails with
+ * EPERM or EBUSY while another process has the target open; retry briefly.
+ */
+export function writeJsonAtomic(file, value) {
+  ensureDir(dirname(file));
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n');
+  for (let attempt = 0; ; attempt++) {
+    try {
+      renameSync(tmp, file);
+      return;
+    } catch (err) {
+      if (attempt >= 20 || !['EPERM', 'EBUSY', 'EACCES'].includes(err.code)) {
+        rmSync(tmp, { force: true });
+        throw err;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 25);
+    }
+  }
 }
 
 /**

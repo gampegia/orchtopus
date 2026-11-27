@@ -4,6 +4,9 @@
 //
 // Usage in settings (exec form): node hook.mjs --label <label>
 //
+// If policy.json cannot be read or parsed, the `danger` label denies the call
+// (fail closed) and every other label falls back to `log`.
+//
 // Policy modes (policy.json: { "<label>": { "mode": ..., ... } }):
 //   log (default)  exit 0, no output
 //   deny           PreToolUse deny with `reason`
@@ -23,7 +26,14 @@
 // ends without a decision, the command is parked: denied with `parkReason`.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { appendJsonl, parseArgs, paths, readJson, writeJson } from './lib/common.mjs';
+import {
+  appendJsonl,
+  parseArgs,
+  paths,
+  readJson,
+  readJsonStrict,
+  writeJsonAtomic,
+} from './lib/common.mjs';
 
 const LOG = join(paths.logs, 'command-hooks.jsonl');
 const args = parseArgs(process.argv.slice(2));
@@ -42,7 +52,17 @@ try {
   input = { unparsed: raw };
 }
 const event = input.hook_event_name;
-const policy = readJson(paths.policy, {})[label] ?? { mode: 'log' };
+// A missing, malformed or half-written policy.json must not open the gate:
+// the `danger` label fails closed (denies), every other label only logs.
+const policyFile = readJsonStrict(paths.policy);
+const policy = policyFile.ok
+  ? (policyFile.value?.[label] ?? { mode: 'log' })
+  : label === 'danger'
+    ? { mode: 'deny', reason: 'Orchtopus could not read its policy; this command is blocked.' }
+    : { mode: 'log' };
+if (!policyFile.ok) {
+  appendJsonl(LOG, { phase: 'policy-unreadable', label, error: policyFile.error });
+}
 const t0 = Date.now();
 
 appendJsonl(LOG, { phase: 'in', label, event, mode: policy.mode, pid: process.pid, input });
@@ -99,7 +119,7 @@ async function danger() {
     if (hit) {
       hit.used = true;
       hit.usedAt = new Date().toISOString();
-      writeJson(paths.releases, releases);
+      writeJsonAtomic(paths.releases, releases);
       if (hit.action === 'deny') {
         return finish(0, {
           stdout: preToolUse('deny', 'The user denied this command.'),

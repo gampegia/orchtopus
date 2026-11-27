@@ -7,7 +7,7 @@
 // --last takes the key of the most recent held or parked command from the
 // command hook log.
 import { join } from 'node:path';
-import { parseArgs, paths, readJson, readJsonl, writeJson } from './lib/common.mjs';
+import { parseArgs, paths, readJson, readJsonl, writeJsonAtomic } from './lib/common.mjs';
 
 const a = parseArgs(process.argv.slice(2));
 let key;
@@ -29,5 +29,5 @@ const entry = {
   expiresAt: new Date(Date.now() + Number(a.minutes ?? 5) * 60_000).toISOString(),
 };
 releases.push(entry);
-writeJson(paths.releases, releases);
+writeJsonAtomic(paths.releases, releases);
 console.log(JSON.stringify(entry));

@@ -30,10 +30,10 @@ Child `claude` processes get a clean environment: `CLAUDECODE`, `CLAUDE_CODE_*`,
 |---|---|
 | `make-settings.mjs [--name full] [--compat] [--allow-env-read] [--no-bg-isolation] [--perm-timeout s] [--danger-timeout s] [--fail-timeout s] [--refresh s]` | Settings with logging hooks on every relevant event, deny rules for `.env`, `autoMode.environment`, status line |
 | `receiver.mjs [--port 47613]` | HTTP hook receiver on 127.0.0.1 with a bearer token; answers by `policy.json["http:<Event>"]` |
-| `hook.mjs --label <l>` | Command hook (exec form). Modes: `log`, `deny`, `allow`, `exit2`, `exit1`, `crash`, `sleep`, `context`, `stop-once`, `danger` |
+| `hook.mjs --label <l>` | Command hook (exec form). Modes: `log`, `deny`, `allow`, `exit2`, `exit1`, `crash`, `sleep`, `context`, `stop-once`, `danger`. If `policy.json` cannot be read, `danger` denies (fail closed) and other labels log |
+| `policy.mjs set <label> '<json>'`, `clear`, `show` | Change hook behaviour while a session runs; writes `policy.json` atomically (temp file plus rename) |
 | `statusline.mjs` | Status line command; logs its input |
-| `policy.mjs set <label> '<json>'`, `clear`, `show` | Change hook behaviour while a session runs |
-| `bg.mjs [--settings full] [--model haiku] [--effort low] [--mode m] [--new-id] [--base] [--resume <uuid>] [--fork] -- "<prompt>"` | `claude --bg` with the product's flags; `--base` adds system prompt file, inline prompt, agents and plugin dir |
+| `bg.mjs [--settings full] [--model haiku] [--effort low] [--mode m] [--new-id] [--base] [--resume <uuid>] [--fork] -- "<prompt>"` | `claude --bg` with the product's flags; `--base` adds system prompt file, inline prompt, agents and plugin dir. With `--resume` it adds no flag that is not given; argv, stdout and stderr go to `started.jsonl` |
 | `pty-run.mjs --name <run> [--steps '<json>'] [--every ms] -- <claude args>` | Drive `claude` or `claude attach <id>` in ConPTY, save screens |
 | `agents-watch.mjs [--interval 500] [--seconds 120] [--once]` | Log every change in `claude agents --json --all --cwd <acme-app>` |
 | `release.mjs --last [--deny]` | One-time release bound to session id, exact command and cwd |
@@ -59,7 +59,7 @@ Run from this folder, with `node receiver.mjs` running in a second terminal and 
 | Q | Steps |
 |---|---|
 | 1 Lifecycle | With no supervisor running (`claude daemon status`): `node parent-kill.mjs`, then the printed `pty-run ... attach <id>` command. `agents.jsonl` holds the field values over the session's life |
-| 2 Flags with `--bg` | `node bg.mjs --base --new-id --mode manual -- "Reply with the inline marker, the file marker, yes or no whether a subagent named orch-probe exists, yes or no whether a skill named orch-probe exists. No tools."`; compare `session_id` and `permission_mode` in the hook log with the flags; `claude logs <id>`; repeat the question after `attach`, `bg.mjs --resume <uuid>` and `claude respawn <id>` |
+| 2 Flags with `--bg` | `node bg.mjs --base --new-id --mode manual -- "<unrelated first prompt>"`, so the markers never enter the history; `claude stop <id>`, then `node bg.mjs --resume <uuid>` (exactly `claude --bg --resume <uuid>`; the printed note is in `started.jsonl`); only then ask for the inline marker, the file marker and the orch-probe skill; `claude respawn <id>` and ask again in other words. Compare `session_id` and `permission_mode` in the hook log with the flags; `claude logs <id>` |
 | 3 Two clients | Two `pty-run.mjs ... -- attach <id>` at once; type into one, snapshot both |
 | 4 Input | `claude --resume <uuid> "<message>"` against an idle and a working session versus `send` in an attached PTY |
 | 5 Status line | `statusline.jsonl` during attached and unattached turns; `make-settings --refresh 5` for timer runs |
