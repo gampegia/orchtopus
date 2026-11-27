@@ -16,6 +16,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "24.19.4",
+    "electron": "45.5.0",
     "eslint": "10.15.0",
     "eslint-config-prettier": "10.1.9",
     "eslint-plugin-react-hooks": "7.1.1",
