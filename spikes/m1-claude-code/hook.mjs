@@ -18,6 +18,8 @@
 //   context        print additionalContext `text` for the current event
 //   stop-once      Stop: exit 2 with `reason` unless stop_hook_active is set
 //   danger         hold commands that contain `pattern` (see below)
+//   deny-match     PreToolUse deny for shell commands matching the regex `pattern`
+//                  (PR-block stand-in), log the rest
 //
 // danger: a Bash or PowerShell command containing `pattern` (default
 // ORCH_DANGER_MARKER) is held up to `holdMs`. A matching entry in
@@ -144,6 +146,18 @@ switch (policy.mode) {
   case 'deny':
     finish(0, { stdout: preToolUse('deny', policy.reason ?? 'Denied by the spike hook.') });
     break;
+  case 'deny-match': {
+    // PR-block stand-in: deny only shell commands matching the regex `pattern`.
+    const command = input.tool_input?.command;
+    const re = new RegExp(policy.pattern ?? 'gh(\\.exe)?\\s+pr|glab(\\.exe)?\\s+mr');
+    if (typeof command === 'string' && re.test(command)) {
+      finish(0, {
+        stdout: preToolUse('deny', policy.reason ?? 'Denied by the spike PR-block stand-in.'),
+        note: `denied: ${command}`,
+      });
+    } else finish(0, { note: 'no match' });
+    break;
+  }
   case 'allow':
     finish(0, { stdout: preToolUse('allow', 'Allowed by the spike hook.') });
     break;
