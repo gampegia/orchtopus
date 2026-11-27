@@ -60,6 +60,10 @@ describe('resolveAppPath', () => {
     'app://orchtopus/Prn',
     'app://orchtopus/com1',
     'app://orchtopus/LPT9.html',
+    'app://orchtopus/CONIN$',
+    'app://orchtopus/conout$.txt',
+    'app://orchtopus/com%C2%B9',
+    'app://orchtopus/nul%20.txt',
     // Windows drops a trailing dot or space, so these would name another file.
     'app://orchtopus/index.html.',
     'app://orchtopus/index.html%20',

@@ -20,7 +20,8 @@ export const CONTENT_SECURITY_POLICY = [
 
 /**
  * A URL as it may appear in a log line: origin and path only. The query and fragment can carry
- * tokens, and a URL without a host (data:, javascript:) is reduced to its scheme.
+ * tokens, and a URL without a host (data:, javascript:) is reduced to its scheme. The path is
+ * kept, so a token inside a path (for example `/reset/<token>`) still reaches the log.
  */
 export function urlForLog(value: string): string {
   let url: URL;

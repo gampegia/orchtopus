@@ -41,7 +41,8 @@ export function contentTypeFor(path: string): string {
 }
 
 /** Windows device names, reserved with any extension and in any case (`con`, `NUL.txt`). */
-const WINDOWS_DEVICE_NAME = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
+const WINDOWS_DEVICE_NAME =
+  /^(con|prn|aux|nul|conin\$|conout\$|com[0-9¹²³]|lpt[0-9¹²³]) *(\..*)?$/i;
 
 /**
  * A decoded path segment that is an ordinary file or folder name: not empty, not a dot segment,
@@ -140,7 +141,7 @@ export function createAppProtocolHandler(
       body = await readFile(file);
     } catch (error) {
       if (!isExpectedReadError(error)) {
-        log(`App protocol could not read ${file}: ${describeError(error)}`);
+        log(`App protocol could not read ${relative(root, file)}: ${describeError(error)}`);
       }
       return plainResponse(404);
     }
