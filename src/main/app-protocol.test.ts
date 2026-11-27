@@ -36,6 +36,10 @@ describe('resolveAppPath', () => {
     ['app://orchtopus/assets/../index.html', 'index.html'],
     // Encoded dot segments are dot segments too, and cannot climb above the root.
     ['app://orchtopus/assets/%2e%2e/%2e%2e/package.json', 'package.json'],
+    // Only exact device names are reserved.
+    ['app://orchtopus/console.js', 'console.js'],
+    ['app://orchtopus/com.js', 'com.js'],
+    ['app://orchtopus/a.b', 'a.b'],
   ])('maps %s inside the root', (url, relative) => {
     expect(resolveAppPath(url, root)).toBe(join(root, relative));
   });
@@ -48,6 +52,17 @@ describe('resolveAppPath', () => {
     'app://orchtopus/%5C%5Cserver%5Cshare',
     'app://orchtopus/index.html%00.js',
     'app://orchtopus/%E0%A4%A',
+    // Windows device names open a device, with or without an extension, in any case.
+    'app://orchtopus/con',
+    'app://orchtopus/NUL.txt',
+    'app://orchtopus/assets/aux.js',
+    'app://orchtopus/Prn',
+    'app://orchtopus/com1',
+    'app://orchtopus/LPT9.html',
+    // Windows drops a trailing dot or space, so these would name another file.
+    'app://orchtopus/index.html.',
+    'app://orchtopus/index.html%20',
+    'app://orchtopus/assets./x.js',
     'app://other/index.html',
     'file:///C:/acme-app/index.html',
     'http://localhost:5173/index.html',

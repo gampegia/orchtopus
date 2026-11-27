@@ -39,14 +39,29 @@ export function contentTypeFor(path: string): string {
   return CONTENT_TYPES[extname(path).toLowerCase()] ?? 'application/octet-stream';
 }
 
-/** A decoded path segment that cannot name a parent, a drive, a separator or a device. */
+/** Windows device names, reserved with any extension and in any case (`con`, `NUL.txt`). */
+const WINDOWS_DEVICE_NAME = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
+
+/**
+ * A decoded path segment that is an ordinary file or folder name: not empty, not a dot segment,
+ * no separator, drive colon or NUL, not a Windows device name, and not ending in a dot or space
+ * (Windows drops those, so the segment would name another file).
+ */
 function isPlainSegment(segment: string): boolean {
-  return segment !== '' && segment !== '.' && segment !== '..' && !/[\\/:\0]/.test(segment);
+  return (
+    segment !== '' &&
+    segment !== '.' &&
+    segment !== '..' &&
+    !/[\\/:\0]/.test(segment) &&
+    !WINDOWS_DEVICE_NAME.test(segment) &&
+    !/[. ]$/.test(segment)
+  );
 }
 
 /**
- * Maps an app URL to a file inside `root`, or null when the URL is not on the app origin or
- * would leave the root (encoded dot segments, separators, drive letters, NUL, bad escapes).
+ * Maps an app URL to a file inside `root`, or null when the URL is not on the app origin, would
+ * leave the root, or names something other than a plain file (encoded dot segments, separators,
+ * drive letters, NUL, bad escapes, device names, trailing dots or spaces).
  * The root path itself maps to index.html.
  */
 export function resolveAppPath(value: string, root: string): string | null {
