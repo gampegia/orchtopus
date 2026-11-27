@@ -129,6 +129,15 @@ The five conditions the spec implies but no feature test reaches, most likely fi
 | T5 | Deny rule `Read(~/.ssh/**)` | The form T5 proves (`Read(//c/Users/<user>/.ssh/**)` built at run time) | 7 |
 | T6 | Electron in Node mode as helper runtime, the invocation form T6 picks, `async: true` on state hooks | Another runtime or form from T6's list; state hooks synchronous with `timeout: 5` if `async` is not honoured in `--bg` | 4, 7 |
 
+**Check results (2026-11-27, lead).** All six passed; details in the spike doc, section "M1 plan checks T1 to T6". What changes:
+
+- T1: settings keep `worktree.bgIsolation: "none"`; no remote PR check. Sessions commit and push their own branch with `git push -u origin <branch>` without asking; the PR block was not reached in T1, so Task 7 step 5 (live check) stays required.
+- T2: no trust step per worktree (trust of the repository root covers `.claude/worktrees/<task>`).
+- T3: the first prompt is optional. A session started without one shows `blocked` / `idle`; Task 11 maps `blocked` / `idle` before the first `UserPromptSubmit` of a process to idle, not to needs you. Add that rule and its test.
+- T4: plain `spawn` of `claude --bg` and node-pty `attach`; no detached launch.
+- T5: deny rule `Read(~/.ssh/**)`.
+- T6: Electron in Node mode; hooks in exec form `command: "cmd.exe"`, `args: ["/d", "/c", "<launcher>", "<mode>", …]` (a `.cmd` as `command` fails with `EINVAL`); `async: true` on the state hooks; `statusLine.command` is `"<launcher with forward slashes>" statusline`. **Task 4 launcher change (lead's decision):** `cmd.exe` reads the batch file in the OEM code page, so a UTF-8 non-ASCII path inside it silently breaks the launcher. `renderLauncher` therefore (1) refers to the helper as `"%~dp0hook-helper.js"`, never by absolute path, and (2) when the executable path contains any non-ASCII character, writes `chcp 65001 >nul` right after `@echo off` (UTF-8 file without BOM); for an ASCII executable path it writes no `chcp`, to keep p95 under 300 ms. Tests: a data folder and an executable path with a space and `é` (Review Focus 2) deliver the envelope; an ASCII path produces no `chcp` line.
+
 ---
 
 ### Task 1: Checks T1 to T6 against the real CLI
