@@ -48,6 +48,27 @@ describe('CI workflow', () => {
     }
   });
 
+  it('pins third-party actions to a commit hash', () => {
+    for (const action of uses.filter((name) => !name.startsWith('actions/'))) {
+      expect(action).toMatch(/@[0-9a-f]{40}$/);
+    }
+  });
+
+  it('does not keep the GITHUB_TOKEN in .git/config after checkout', () => {
+    // Each checkout step with the more deeply indented lines (its `with:` block) below it.
+    const checkouts = [...workflow.matchAll(/uses: actions\/checkout@\S+\n((?: {8,}.*\n)*)/g)];
+    expect(checkouts.length).toBeGreaterThan(0);
+    for (const checkout of checkouts) {
+      expect(checkout[1] ?? '').toMatch(/^\s+persist-credentials: false$/m);
+    }
+  });
+
+  it('cancels superseded runs only for pull requests, never on main', () => {
+    expect(workflow).toMatch(
+      /^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/m,
+    );
+  });
+
   it('keeps permissions minimal and never uses pull_request_target', () => {
     expect(workflow).toMatch(/^permissions:\n {2}contents: read$/m);
     expect(workflow).not.toContain('pull_request_target');
@@ -55,6 +76,6 @@ describe('CI workflow', () => {
   });
 
   it('scans for secrets with gitleaks', () => {
-    expect(uses).toContain('gitleaks/gitleaks-action@v3');
+    expect(uses.some((action) => action.startsWith('gitleaks/gitleaks-action@'))).toBe(true);
   });
 });
