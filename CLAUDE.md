@@ -34,6 +34,15 @@ The lead plans, decides, dispatches, reviews and talks to the user. It does not 
 
 Note at each milestone which agents ran with which model and effort.
 
+## Usage
+Quality comes first; these rules cut waste, not care.
+- One lead session per milestone. At a milestone boundary the lead brings `docs/progress.md`, specs and plans up to date, then asks the user to run `/clear` and gives the one-line prompt to continue. No `/compact` in the middle of work.
+- Implementation runs at Opus medium; high effort is for architecture, security and hard bugs. Checklist reviews run at Sonnet medium. The agent files carry these defaults.
+- At most three Opus agents in parallel, so a usage limit does not interrupt work halfway.
+- A follow-up to an agent that just finished (re-review, small fix) goes to the same agent, not to a new one.
+- Briefs tell agents how much checking is enough. No open-ended screenshot or retry loops.
+- Fan-outs of several similar agents run as one workflow when the user has allowed workflows, so the lead is not woken for each agent.
+
 ## Architecture rules
 - The UI talks to Claude Code only through the `AgentAdapter` interface. First adapter: terminal (PTY), official Claude Code hooks, status line.
 - Every user action goes through the local API (127.0.0.1, token); state changes are events that clients can subscribe to.

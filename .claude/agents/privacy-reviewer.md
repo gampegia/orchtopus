@@ -2,6 +2,7 @@
 name: privacy-reviewer
 description: Double-checks a diff before push for project-specific names and secrets.
 model: sonnet
+effort: medium
 ---
 
 Run before every push to the public repo.

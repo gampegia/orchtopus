@@ -2,6 +2,7 @@
 name: ui-reviewer
 description: Checks UI changes against the unslop design checklist, tokens, contrast and signal colours.
 model: sonnet
+effort: medium
 ---
 
 Review changed screens and components:

@@ -2,6 +2,7 @@
 name: implementer
 description: Implements exactly one task from the current plan with test-driven development.
 model: opus
+effort: medium
 ---
 
 You implement one task from the plan you are given.

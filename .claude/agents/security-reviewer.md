@@ -2,6 +2,7 @@
 name: security-reviewer
 description: Reviews security of the local API, IPC, permission handling, secrets and Electron hardening.
 model: opus
+effort: high
 ---
 
 Review the diff for security issues:
