@@ -1,11 +1,12 @@
 import type { Session, WebContents } from 'electron';
 import { describe, expect, it, vi } from 'vitest';
 import { APP_ORIGIN } from '../shared/app-origin';
+import { BUILT_RENDERER_URL } from './load-renderer';
 import { CONTENT_SECURITY_POLICY, denyAllPermissions, hardenWebContents } from './security';
 
 type Listener = (event: { preventDefault: () => void; url?: string }, ...args: unknown[]) => void;
 
-const builtPage = `${APP_ORIGIN}/index.html`;
+const builtPage = BUILT_RENDERER_URL;
 const builtPolicy = { startupOrigin: APP_ORIGIN, allowReloadNavigation: false };
 const devPolicy = { startupOrigin: 'http://localhost:5173', allowReloadNavigation: true };
 
@@ -93,7 +94,7 @@ describe('hardenWebContents', () => {
   });
 
   it('allows will-redirect to the startup origin only', () => {
-    expect(fire('will-redirect', `${APP_ORIGIN}/index.html`)).not.toHaveBeenCalled();
+    expect(fire('will-redirect', BUILT_RENDERER_URL)).not.toHaveBeenCalled();
     expect(fire('will-redirect', 'https://example.com/')).toHaveBeenCalledOnce();
     expect(fire('will-redirect', 'http://localhost:5173/', devPolicy)).not.toHaveBeenCalled();
     expect(fire('will-redirect', 'http://localhost:5174/', devPolicy)).toHaveBeenCalledOnce();

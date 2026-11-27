@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { APP_ORIGIN } from '../shared/app-origin';
-import { isLocalDevServerUrl, loadRenderer, resolveRendererTarget } from './load-renderer';
+import {
+  BUILT_RENDERER_URL,
+  isLocalDevServerUrl,
+  loadRenderer,
+  resolveRendererTarget,
+} from './load-renderer';
 
 describe('isLocalDevServerUrl', () => {
   it.each([
@@ -31,7 +36,13 @@ describe('isLocalDevServerUrl', () => {
   });
 });
 
-const builtPage = `${APP_ORIGIN}/index.html`;
+const builtPage = BUILT_RENDERER_URL;
+
+describe('BUILT_RENDERER_URL', () => {
+  it('is the index page on the app origin', () => {
+    expect(BUILT_RENDERER_URL).toBe('app://orchtopus/index.html');
+  });
+});
 
 describe('resolveRendererTarget', () => {
   it('uses a local dev server URL when unpackaged, in its parsed form', () => {

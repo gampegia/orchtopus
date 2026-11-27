@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { APP_ORIGIN } from '../shared/app-origin';
+import { BUILT_RENDERER_URL } from './load-renderer';
 import { isAllowedNavigation, isAllowedRedirect, originOf } from './navigation';
 
 describe('originOf', () => {
@@ -63,7 +64,7 @@ describe('isAllowedNavigation', () => {
   });
 
   it('refuses every navigation, the current page too, outside dev', () => {
-    const page = `${APP_ORIGIN}/index.html`;
+    const page = BUILT_RENDERER_URL;
     expect(isAllowedNavigation(page, page, built)).toBe(false);
     expect(isAllowedNavigation(`${APP_ORIGIN}/?navigated`, page, built)).toBe(false);
   });

@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron';
 import { APP_ORIGIN } from '../shared/app-origin';
+import { originOf } from './navigation';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]']);
 
@@ -51,10 +52,9 @@ export interface RendererTarget {
 export function resolveRendererTarget(source: RendererSource): RendererTarget {
   const { packaged, rendererUrl } = source;
   if (!packaged && rendererUrl) {
-    if (isLocalDevServerUrl(rendererUrl)) {
-      const url = new URL(rendererUrl);
-      return { url: url.href, origin: `${url.protocol}//${url.host}`, devServer: true };
-    }
+    const url = isLocalDevServerUrl(rendererUrl) ? new URL(rendererUrl).href : null;
+    const origin = url === null ? null : originOf(url);
+    if (url !== null && origin !== null) return { url, origin, devServer: true };
     source.warn(
       'ELECTRON_RENDERER_URL is not a local http dev server URL; loading the bundled page instead',
     );
