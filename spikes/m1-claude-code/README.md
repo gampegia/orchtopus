@@ -28,7 +28,7 @@ Child `claude` processes get a clean environment: `CLAUDECODE`, `CLAUDE_CODE_*`,
 
 | Script | Purpose |
 |---|---|
-| `make-settings.mjs [--name full] [--compat] [--allow-env-read] [--no-bg-isolation] [--perm-timeout s] [--danger-timeout s] [--fail-timeout s] [--refresh s]` | Settings with logging hooks on every relevant event, deny rules for `.env`, `autoMode.environment`, status line |
+| `make-settings.mjs [--name full] [--compat] [--allow-env-read] [--deny-env-bash] [--no-bg-isolation] [--perm-timeout s] [--danger-timeout s] [--fail-timeout s] [--refresh s]` | Settings with logging hooks on every relevant event, deny rules for `.env` (`--deny-env-bash` also denies `Bash(cat .env)`), `autoMode.environment`, status line |
 | `receiver.mjs [--port 47613]` | HTTP hook receiver on 127.0.0.1 with a bearer token; answers by `policy.json["http:<Event>"]` |
 | `hook.mjs --label <l>` | Command hook (exec form). Modes: `log`, `deny`, `allow`, `exit2`, `exit1`, `crash`, `sleep`, `context`, `stop-once`, `danger`. If `policy.json` cannot be read, `danger` denies (fail closed) and other labels log |
 | `policy.mjs set <label> '<json>'`, `clear`, `show` | Change hook behaviour while a session runs; writes `policy.json` atomically (temp file plus rename) |

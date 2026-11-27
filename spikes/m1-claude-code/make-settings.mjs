@@ -1,6 +1,6 @@
 // Writes a settings file for `claude --settings` into the scratch config folder.
 //
-// Usage: node make-settings.mjs [--name full] [--compat] [--allow-env-read]
+// Usage: node make-settings.mjs [--name full] [--compat] [--allow-env-read] [--deny-env-bash]
 //          [--no-bg-isolation] [--perm-timeout 600] [--danger-timeout 120]
 //          [--fail-timeout 10] [--refresh 0]
 //
@@ -37,7 +37,12 @@ const http = (extra = {}) => ({
 
 const settings = {
   permissions: {
-    deny: ['Read(./.env)', 'Read(./.env.*)', 'Read(./secrets/**)'],
+    deny: [
+      'Read(./.env)',
+      'Read(./.env.*)',
+      'Read(./secrets/**)',
+      ...(args['deny-env-bash'] ? ['Bash(cat .env)'] : []),
+    ],
     ...(args['allow-env-read'] ? { allow: ['Read(./.env)', 'Bash(cat .env)'] } : {}),
   },
   autoMode: {
