@@ -15,12 +15,19 @@ const TIMEOUT_MS = 30_000;
 const PTY_GRACE_MS = 500;
 const EXPECTED_RESULT = '66666';
 
+let failed = 0;
+
+function summary() {
+  return failed === 0
+    ? 'native smoke: all checks passed'
+    : `native smoke: ${String(failed)} check(s) failed`;
+}
+
 const timer = setTimeout(() => {
-  console.log('FAIL timeout: native smoke did not finish in 30 s');
+  fail('timeout', `native smoke did not finish in ${String(TIMEOUT_MS / 1000)} s`);
+  console.log(summary());
   app.exit(1);
 }, TIMEOUT_MS);
-
-let failed = 0;
 
 function pass(name, detail) {
   console.log(`PASS ${name}: ${detail}`);
@@ -131,15 +138,13 @@ async function main() {
   await checkNodePty();
 
   clearTimeout(timer);
-  console.log(
-    failed === 0
-      ? 'native smoke: all checks passed'
-      : `native smoke: ${String(failed)} check(s) failed`,
-  );
+  console.log(summary());
   app.exit(failed ? 1 : 0);
 }
 
 main().catch((error) => {
+  clearTimeout(timer);
   fail('unexpected', errorMessage(error));
+  console.log(summary());
   app.exit(1);
 });
