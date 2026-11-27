@@ -18,7 +18,8 @@
     "test": "vitest run",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "smoke:native": "electron scripts/smoke-native.js"
+    "smoke:native": "electron scripts/smoke-native.js",
+    "package": "npm run build && electron-builder --dir"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -27,6 +28,7 @@
     "@types/react": "19.3.3",
     "@types/react-dom": "19.3.0",
     "electron": "45.5.0",
+    "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
     "eslint": "10.15.0",
     "eslint-config-prettier": "10.1.9",
