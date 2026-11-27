@@ -25,6 +25,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.65.1",
+    "@types/better-sqlite3": "9.6.0",
     "@types/node": "24.19.4",
     "@types/react": "19.3.3",
     "@types/react-dom": "19.3.0",
@@ -45,6 +46,7 @@
   },
   "dependencies": {
     "better-sqlite3": "13.2.0",
-    "node-pty": "1.1.0"
+    "node-pty": "1.1.0",
+    "zod": "4.6.7"
   }
 }
