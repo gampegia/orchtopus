@@ -1,7 +1,7 @@
 # Orchtopus product design
 
 Date: 2026-11-26
-Status: draft, waiting for approval
+Status: approved by the user on 2026-11-26; reviewed before merge on 2026-11-27
 Scope: the whole product. Each milestone gets its own spec and plan that refine this document.
 
 This spec is the result of going through the concept (`docs/handover/docs/concept.md`) with the user. Where this spec and the concept differ, this spec wins. Everything the spec does not mention stays as the concept describes it. Requirement IDs (E, F, N, P, G) refer to the concept.
@@ -86,10 +86,11 @@ Sketch of the session view:
 
 - One worktree per task, one session per worktree (E10).
 - The UI knows only the `AgentAdapter` interface: start, attach, send input, read state and events, answer a permission, read context fill and limits.
-- First adapter as in approach A. Session state comes from `claude agents --json` plus hook events; superpowers phases from hook events on skill use and from spec and plan files.
+- First adapter as in approach A. Session state comes from `claude agents --json` plus hook events; superpowers phases from hook events on skill use and from spec and plan files. Several of these mechanisms are documented but not yet proven for background sessions on Windows; section 10 lists them with their fallbacks, and the M1 spike settles them.
 - Input to a session (course correction, plan go, handoff) is delivered after the current task by default, with "interrupt now" as an explicit option (F63).
 - Sessions started outside Orchtopus are not managed. From M5 the sidebar lists them as "external" with their state only, without cards or gates.
 - superpowers is expected in the user's Claude Code setup; Orchtopus checks for it when a project is added and offers the install command. Orchtopus' own agents and hooks are shipped as building blocks and passed to each session at start (`--settings`, `--agents`, `--plugin-dir`), never written into the user's setup. Third-party review plugins are checked for and offered, not installed silently.
+- Sessions are always started in Claude Code's default permission mode or a stricter one, never with permission checks bypassed.
 - No fixed limit on the number of sessions. The app shows count, subscription usage and machine load.
 
 ### 5.3 Permissions
@@ -98,16 +99,21 @@ Sketch of the session view:
 - **Waiting time:** default 10 minutes, configurable (the concept's 60 seconds came from the bridge-mod design). After that, and whenever the app is not reachable, the normal prompt appears in the session's terminal and waits there. The card stays and says "answer in the terminal". Nothing is ever allowed by timeout or error.
 - "Always allow in this project" is stored in Orchtopus' own rule store for that project in the data folder and passed to every session of the project through `--settings`. This keeps the rule out of the repository and makes it valid in all worktrees.
 - Dangerous commands: only "Hold to allow once" for one second in the app. No rule, no hotkey, no remote client. The list of dangerous patterns is a versioned file.
+- Dangerous commands get their own check in a `PreToolUse` hook, which runs for every tool call and before any permission rule applies. A match always leads to the hold card, even if a rule or the session's permission mode would have allowed the command. If no decision arrives in time or the app is not reachable, the command is denied with a reason Claude can read. It never falls through to the terminal prompt, where a single key would allow it. "Always allow" rules are rejected if they would match a dangerous pattern.
+- If the user answers a terminal fallback prompt with "don't ask again", Claude Code writes that rule into the worktree's local settings itself. Orchtopus detects the change and offers to move the rule into its own rule store.
+- Windows notifications can open a card, never allow or deny.
 - Every decision is logged before it is carried out; repeating an action does nothing twice (F75).
 
 ### 5.4 Workflow, gates and enforcement
 
 - superpowers runs the workflow inside the session. Orchtopus shows the phase and stops at three human gates: spec, plan, release of the PR. For spec and plan the stop is the one superpowers already makes: the session waits in its chat for approval, Orchtopus shows the gate as a card and sends the approval or the change request as a message. No extra hook blocks edits before plan approval.
-- **Enforcement is light** (user chose this over a strict mode). Three hard blocks through a `PreToolUse` hook, each with a reason Claude can read: force push, push to the main branch, and any creation of a PR or MR by a session. Orchtopus is the only path to a PR or MR: the release button checks that required gates are green, pushes the branch if needed and creates it. A session may push its own feature branch. Everything else that looks skipped (for example a commit without a test run) becomes a hint in the inbox, not a block. There is no automatic "go back and do it" loop for skipped steps.
+- **Enforcement is light** (user chose this over a strict mode). Three hard blocks through a `PreToolUse` hook, each with a reason Claude can read: force push, push to a protected branch (the project's default branch and the PR target branch), and any creation or merge of a PR or MR by a session. The third block covers the provider CLIs (`gh pr create`, `gh pr merge`, `glab mr create`, `glab mr merge`), push options that create a merge request, direct API calls through `gh api`, `glab api` or `curl` to the provider, and provider MCP tools. Pattern blocks cannot be complete, so the PRs view also reports any PR or MR on a session's branch that Orchtopus did not create. Orchtopus is the only path to a PR or MR: the release button checks that required gates are green, pushes the branch if needed and creates it. A session may push its own feature branch. Everything else that looks skipped (for example a commit without a test run) becomes a hint in the inbox, not a block. There is no automatic "go back and do it" loop for skipped steps.
 - **Gates are configurable commands.** Shipped and on: tests, lint, types, secret scan, dependency and CVE audit. Shipped and off by default: static analysis, diff budget, test locally.
-- A red automatic gate triggers an automatic fix round, at most 2 by default (configurable). After that the case goes to the inbox with a summary of what was tried.
-- **Review council** with four roles: spec compliance first (blocking), then code quality (includes leanness), test quality, and security only when sensitive paths are touched; then a synthesizer that verifies, de-duplicates and ranks findings. The list is editable per project, and a project can add its own reviewers for special concerns (for example accessibility, database migrations, translations) as agent files in the data folder. Review depth scales with the size of the change: a small diff gets a light pass, a large one the full council. Where a well-tested skill or plugin from a trusted source does the job, Orchtopus uses it instead of its own reviewer (see section 8).
-- **Where checks run:** Orchtopus runs gate commands itself as processes in the worktree. Review council members run as separate headless Claude Code processes that Orchtopus starts, each with a fresh context, so results survive a crash and do not fill the session's context. A fix round goes back to the session as a normal message with the findings. The exact signal for "ready for review" is defined in the M4 spec.
+- A red automatic gate or a confirmed defect from the review council triggers an automatic fix round. Gates and council share one budget of 2 rounds per review cycle by default (configurable); a change request from the user starts a new cycle. After the budget the case goes to the inbox with a summary of what was tried.
+- The dependency and CVE audit is red only for dependencies that the change adds or updates. Findings in untouched dependencies are a hint.
+- If the tool for a gate that is on by default is not installed, the gate shows "not installed" and blocks the release until the user installs the tool or switches the gate off for that project. For gates that are off by default, a missing tool is only shown.
+- **Review council** with four roles: spec compliance first (blocking), then code quality (includes leanness), test quality, and security only when sensitive paths are touched; then a synthesizer that verifies, de-duplicates and ranks findings. The list is editable per project, and a project can add its own reviewers for special concerns (for example accessibility, database migrations, translations) as agent files in the data folder. Review depth scales with the size of the change: spec compliance and the synthesizer always run; a small diff gets code quality in addition; a larger one the full council. The size threshold is set in the M4 spec. Where a well-tested skill or plugin from a trusted source does the job, Orchtopus uses it instead of its own reviewer (see section 8).
+- **Where checks run:** Orchtopus runs gate commands itself as processes in the worktree. Review council members run as separate headless Claude Code processes that Orchtopus starts, each with a fresh context and read-only tools, so results survive a crash, do not fill the session's context, and a reviewer cannot change the work it reviews. A fix round goes back to the session as a normal message with the findings. The exact signal for "ready for review" is defined in the M4 spec.
 - **Git and PR check without an agent:** branch name, commit format and target branch are checked by fixed rules. A suggestion to split a PR comes from the advisor on request.
 - A change request resets the gates from lint onwards; spec and plan stay approved (F41). Small tasks may use the short form for spec and plan.
 
@@ -123,7 +129,7 @@ Sketch of the session view:
 
 - The side chat is a fork of the session without tools. It reads the session's history but cannot act and leaves the session untouched. Fallback: a fresh call with a condensed context (plan, diff, recent messages).
 - The same advisor is available in plan, diff, review and PR views with the context of that view (F39). Chats in panels are rendered Markdown, not terminals (F61).
-- **Handoff is simplified:** the advisor drafts an instruction, the user edits it, the user sends it. Orchtopus delivers it to the session as a normal message. The intermediate step "check with sessions" from F49 is left out for now and may return in M8. Nothing reaches a session without the user's click.
+- **Handoff is simplified:** the advisor drafts an instruction, the user edits it, the user sends it. Orchtopus delivers it to the session as a normal message. The intermediate step "check with sessions" from F49 is left out for now and returns in M8. Nothing reaches a session without the user's click.
 
 ### 5.7 Storage
 
@@ -166,7 +172,7 @@ Electron hardening applies from M0: context isolation on, no Node integration in
 
 ## 7. Milestones
 
-Each milestone runs: brainstorming, spec, plan (user approves spec and plan), subagent-driven development with TDD in worktrees, review by the agents, PR. Parallel work starts after M1.
+Each milestone runs: brainstorming, spec, plan (user approves spec and plan), subagent-driven development with TDD in worktrees, review by the agents, PR. Parallel implementation work starts after M1; the design step and M0 are the exception and run side by side because they do not touch the same files.
 
 | # | Content | Done when |
 |---|---|---|
@@ -176,7 +182,7 @@ Each milestone runs: brainstorming, spec, plan (user approves spec and plan), su
 | M2 | Needs you: permission cards, dangerous commands, inbox, stalled detection, Windows notifications | A permission request appears as a card with explanation; allow and deny reach the session; the terminal fallback works; a stalled session is reported |
 | M3 | Workflow: superpowers phases, human gates, spec and plan view with rendered editor, side chat and advisor with simplified handoff, the three hard blocks | Plan review and go from the app; a change request resets gates; a handoff reaches the session only after a click |
 | M4 | Review and PR: gates runner, review council, review detail, diff, PR and MR draft and release, pipelines and comments for GitHub and GitLab | A released draft creates a PR or MR; a failed pipeline appears in the inbox |
-| M5 | Robustness and usage: crash recovery view, context management, usage, models and effort per role, resources and ports, board, overlap warning, test locally | Kill the app in the middle of a session, restart, continue with one click |
+| M5 | Robustness and usage: crash recovery view, context management, usage, models and effort per role, resources and ports, board, overlap warning, test locally, external sessions in the sidebar | Kill the app in the middle of a session, restart, continue with one click |
 | M6 | Look and feel: theme system and settings, further themes, keymap and command palette, text style, pixel octopus | Theme and mode switch instantly; a new theme is a new folder |
 | M7 | Project wiki | The wiki opens from the app and updates after a merge; technical claims link to file and commit |
 | M8 | Extras, each as its own PR: full onboarding, learnings, Investigate session type, stacked PRs, secret filter, building-block updates with rollback, review of other people's PRs, "check with sessions" | Each feature is merged separately |
@@ -217,7 +223,7 @@ Principle: prefer well-tested, popular skills and tools from trusted sources ove
 | Static analysis | Semgrep CLI (rules carry their own licences) or trivy | LGPL-2.1, Apache-2.0 |
 | Diff budget | Own check. No sourced recommendation for a line limit exists; the default of 400 net lines from the concept stays and is configurable. | this repository |
 
-External tools are called as installed binaries and are never bundled. A gate whose tool is missing shows as "not installed" and does not fail.
+External tools are called as installed binaries and are never bundled. What happens when a tool is missing is described in section 5.4.
 
 ## 9. Left to the builder
 
@@ -228,6 +234,18 @@ External tools are called as installed binaries and are never bundled. A gate wh
 - How the background-session spike is carried out, as long as its findings are reported before M1 is planned in detail.
 
 ## 10. Open points for later milestones
+
+**To be verified by the M1 spike.** These are documented in Claude Code but not proven for this setup. Until the spike confirms them, milestone specs treat them as assumptions.
+
+| Assumption | Fallback if it does not hold |
+|---|---|
+| The status line runs in background sessions and delivers context fill and limits | Read usage only while a session is attached; show "unknown" otherwise |
+| `--settings`, `--append-system-prompt-file`, `--agents` and `--plugin-dir` work together with `--bg` | Child-process adapter with the same flags, or a per-worktree local settings file that Orchtopus removes again |
+| Skill use is visible to hooks with the skill name | Derive the phase from spec and plan files only; a skill the user types as a slash command is never visible to hooks |
+| A session can be forked for the side chat while it is in the middle of a turn | Fresh call with a condensed context |
+| A `PreToolUse` hook can hold a dangerous command until the user decides, and deny on timeout | Deny dangerous commands at once with the instruction to ask the user, who then allows the exact command for one run from the app |
+
+**Other open points**
 
 - Token lifetime of the local API (M1).
 - Whether the terminal prompt is visible while the permission hook waits, and the maximum hook waiting time (M1 spike).
