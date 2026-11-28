@@ -370,6 +370,24 @@ describe('project service', () => {
     await expect(svc.remove(view.id)).rejects.toMatchObject({ status: 404 });
   });
 
+  it('keeps a token in the remote URL out of project.json and the event log', async () => {
+    git(repo.root, [
+      'remote',
+      'add',
+      'origin',
+      'https://acme-bot:ghp_secrettoken123@github.com/acme/acme-app.git',
+    ]);
+    const view = await service().add(addInput(), 'req-0026');
+    const { readFileSync } = await import('node:fs');
+    const file = readFileSync(projectFile(paths, view.id), 'utf8');
+    expect(file).toContain('github.com/acme/acme-app.git');
+    expect(file).not.toContain('ghp_secrettoken123');
+    expect(file).not.toContain('acme-bot');
+    const events = JSON.stringify(readEvents(store.db));
+    expect(events).not.toContain('ghp_secrettoken123');
+    expect(events).not.toContain('acme-bot');
+  });
+
   it('rememberStart stores the last start values in project.json', async () => {
     const svc = service();
     const view = await svc.add(addInput(), 'req-0011');
