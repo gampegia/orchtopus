@@ -119,7 +119,8 @@ function versionItem({ cli }: SetupCheckInput): SetupItem {
   if (cli.found && cli.supported) {
     const hint = untestedVersionHint(cli.version);
     if (hint !== null) return item('claude-version', 'hint', title, hint);
-    return item('claude-version', 'ok', title, `Claude Code ${cli.version ?? ''} is installed.`);
+    const which = cli.version === null ? 'Claude Code' : `Claude Code ${cli.version}`;
+    return item('claude-version', 'ok', title, `${which} is installed.`);
   }
   const detail = !cli.found
     ? `Claude Code was not found. Install Claude Code ${MIN_CLAUDE_VERSION} or newer; sessions cannot start without it.`
