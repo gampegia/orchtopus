@@ -53,8 +53,12 @@ export function NewSessionDialog({
   const [mode, setMode] = useState<SessionMode>(project.lastStart.mode);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
-  // Reused only when a request got no answer; an answered one is settled under its id.
+  // Reused only when a request got no answer; an answered one is settled under its id. A field
+  // change drops it too: the server replays the params stored under an id, not the new ones.
   const requestId = useRef<string | null>(null);
+  const changed = (): void => {
+    requestId.current = null;
+  };
 
   const form = newSessionFormState({
     task,
@@ -145,6 +149,7 @@ export function NewSessionDialog({
                   aria-invalid={taskError !== null}
                   aria-describedby={taskError !== null ? 'session-task-error' : undefined}
                   onChange={(event) => {
+                    changed();
                     setTask(event.target.value);
                     if (event.target.value !== '') setTaskTouched(true);
                     clearFieldFailure('task');
@@ -170,6 +175,7 @@ export function NewSessionDialog({
                   aria-invalid={branchError !== null}
                   aria-describedby={branchError !== null ? 'session-branch-error' : undefined}
                   onChange={(event) => {
+                    changed();
                     setBranchEdited(true);
                     setBranchText(event.target.value);
                     clearFieldFailure('branch');
@@ -191,6 +197,7 @@ export function NewSessionDialog({
                   className="input"
                   value={base}
                   onChange={(event) => {
+                    changed();
                     setBase(event.target.value === 'remote' ? 'remote' : 'local');
                     clearFieldFailure('base');
                   }}
@@ -215,6 +222,7 @@ export function NewSessionDialog({
                   rows={3}
                   placeholder="Without one the session waits for your first message"
                   onChange={(event) => {
+                    changed();
                     setPrompt(event.target.value);
                   }}
                 />
@@ -230,6 +238,7 @@ export function NewSessionDialog({
                     className="input"
                     value={model}
                     onChange={(event) => {
+                      changed();
                       setModel(event.target.value);
                     }}
                   >
@@ -250,6 +259,7 @@ export function NewSessionDialog({
                     className="input"
                     value={effort}
                     onChange={(event) => {
+                      changed();
                       setEffort(event.target.value);
                     }}
                   >
@@ -275,6 +285,7 @@ export function NewSessionDialog({
                         value={value}
                         checked={mode === value}
                         onChange={() => {
+                          changed();
                           setMode(value);
                         }}
                       />
@@ -287,15 +298,15 @@ export function NewSessionDialog({
 
             {fetchFailed && (
               <div className="dialog-alert" role="alert">
-                <p>Fetch failed: {failure.message} Start from the local branch?</p>
+                <p>
+                  Fetch failed: {failure.message.replace(/\.?$/, '.')} Start from the local branch?
+                </p>
                 <button
                   type="button"
                   className="btn small"
                   disabled={pending}
                   onClick={() => {
                     setBase('local');
-                    // The first request's stored result is the fetch failure; this one is new.
-                    requestId.current = null;
                     start('local');
                   }}
                 >
