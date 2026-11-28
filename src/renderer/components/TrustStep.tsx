@@ -1,6 +1,9 @@
 // The trust step of the add-project dialog. Orchtopus never writes the trust entry: it opens
 // plain `claude` in the folder in a terminal here, Claude Code asks, and the user answers. The
 // dialog re-checks trust; once Claude Code trusts the folder this closes the terminal.
+// TrustStep owns the PTY and kills it; TrustTerminal only shows it. React's StrictMode runs an
+// effect's cleanup once right after mounting in a dev build, so a kill in TrustTerminal's
+// cleanup would end the PTY the moment it appears.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CircleCheck } from 'lucide-react';
 import type { TrustStateView } from '../../shared/api-types';
@@ -8,7 +11,7 @@ import { ApiRequestError } from '../api/client';
 import { apiClient } from '../state/store';
 import { mountXterm, type TerminalHost } from '../terminal/create-xterm';
 
-/** Kills the trust PTY; runs when the terminal unmounts, also once Claude Code trusts the folder. */
+/** Kills the trust PTY: on Close terminal, once Claude Code trusts the folder, on unmount. */
 function closeTrustTerminal(terminalId: string): void {
   apiClient()
     .delete(`/v1/terminals/${encodeURIComponent(terminalId)}`)
@@ -17,7 +20,7 @@ function closeTrustTerminal(terminalId: string): void {
     });
 }
 
-/** The trust terminal: xterm on the trust PTY, killed when this unmounts. */
+/** The trust terminal: xterm on the trust PTY. Unmounting closes only the stream. */
 function TrustTerminal({
   terminalId,
   onEnded,
@@ -52,7 +55,6 @@ function TrustTerminal({
       resize.dispose();
       socket.close();
       dispose();
-      closeTrustTerminal(terminalId);
     };
   }, [terminalId, onEnded]);
 
@@ -74,9 +76,30 @@ export function TrustStep({
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trusted = trust === 'trusted';
-  const closeTerminal = useCallback(() => {
-    setTerminalId(null);
+  // The open terminal for the kill paths below, which must not depend on render timing.
+  const terminalIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    terminalIdRef.current = terminalId;
+  }, [terminalId]);
+
+  const killTerminal = useCallback(() => {
+    const id = terminalIdRef.current;
+    terminalIdRef.current = null;
+    if (id !== null) closeTrustTerminal(id);
   }, []);
+  const closeTerminal = useCallback(() => {
+    killTerminal();
+    setTerminalId(null);
+  }, [killTerminal]);
+
+  // Once trusted the terminal is no longer shown; its PTY has nothing left to do.
+  useEffect(() => {
+    if (trusted) killTerminal();
+  }, [trusted, killTerminal]);
+
+  // StrictMode's extra cleanup runs right after the first mount, while no terminal is open.
+  useEffect(() => killTerminal, [killTerminal]);
 
   const open = (): void => {
     setOpening(true);

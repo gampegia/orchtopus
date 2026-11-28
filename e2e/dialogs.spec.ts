@@ -4,6 +4,8 @@ import { mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { SETUP_ITEM_IDS } from '../src/main/projects/setup-check';
+import { STREAM_PROTOCOL, TOKEN_PROTOCOL_PREFIX } from '../src/shared/api-types';
+import type { PreloadApi } from '../src/shared/preload-api';
 import { createTempRepo, type TempRepo } from '../src/main/test-helpers/temp-repo';
 import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
 
@@ -66,6 +68,39 @@ async function trustTerminalText(): Promise<string> {
   });
 }
 
+/** The id of the trust terminal on screen. */
+async function trustTerminalId(): Promise<string> {
+  const id = await page.locator('[data-trust-terminal]').getAttribute('data-trust-terminal');
+  if (id === null) throw new Error('No trust terminal');
+  return id;
+}
+
+/**
+ * Whether the trust PTY still runs, without killing it: a stream to an unknown terminal is
+ * closed at once, a live one stays open (several clients may watch one terminal).
+ */
+async function trustTerminalAlive(id: string): Promise<boolean> {
+  return page.evaluate(
+    async ({ id, streamProtocol, tokenPrefix }) => {
+      const bridge = (window as unknown as { orchtopus: PreloadApi }).orchtopus;
+      const { baseUrl, token } = await bridge.connection();
+      const url = `${baseUrl.replace(/^http:/, 'ws:')}/v1/terminals/${encodeURIComponent(id)}`;
+      const socket = new WebSocket(url, [streamProtocol, `${tokenPrefix}${token}`]);
+      return new Promise<boolean>((resolve) => {
+        const timer = setTimeout(() => {
+          socket.close();
+          resolve(true);
+        }, 1000);
+        socket.onclose = () => {
+          clearTimeout(timer);
+          resolve(false);
+        };
+      });
+    },
+    { id, streamProtocol: STREAM_PROTOCOL, tokenPrefix: TOKEN_PROTOCOL_PREFIX },
+  );
+}
+
 async function openNewSession(): Promise<void> {
   await page.getByRole('button', { name: 'New session in acme-app' }).click();
   await expect(sessionDialog()).toBeVisible();
@@ -121,17 +156,30 @@ test('shows every setup item with a word', async () => {
   await expect(addDialog().getByRole('button', { name: 'Add project' })).toBeEnabled();
 });
 
+test('Close terminal kills the trust PTY', async () => {
+  const step = addDialog().getByRole('region', { name: 'Workspace trust' });
+  await step.getByRole('button', { name: 'Trust in Claude Code' }).click();
+  await expect.poll(trustTerminalText, { timeout: 15_000 }).toContain('Do you trust');
+  const id = await trustTerminalId();
+  expect(await trustTerminalAlive(id)).toBe(true);
+  await step.getByRole('button', { name: 'Close terminal' }).click();
+  await expect(page.locator('[data-trust-terminal]')).toHaveCount(0);
+  await expect.poll(() => trustTerminalAlive(id), { timeout: 5_000 }).toBe(false);
+});
+
 test('trust step trusts an untrusted demo repo through the terminal and closes it', async () => {
   const step = addDialog().getByRole('region', { name: 'Workspace trust' });
   await step.getByRole('button', { name: 'Trust in Claude Code' }).click();
   await expect(step.getByRole('button', { name: 'Close terminal' })).toBeVisible();
   await expect.poll(trustTerminalText, { timeout: 15_000 }).toContain('Do you trust');
+  const id = await trustTerminalId();
   await page.locator('[data-trust-terminal]').click();
   await page.keyboard.type('1');
   await page.keyboard.press('Enter');
   // The dialog checks trust every 2 s and closes the terminal once Claude Code trusts the folder.
   await expect(page.locator('[data-trust-terminal]')).toHaveCount(0, { timeout: 10_000 });
   await expect(step).toContainText('Claude Code trusts this folder');
+  await expect.poll(() => trustTerminalAlive(id), { timeout: 5_000 }).toBe(false);
 });
 
 test('adds acme-app and shows the project empty state', async () => {
