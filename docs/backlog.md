@@ -195,7 +195,7 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M4 (review cou
 
 ## Cross-session messaging
 
-Added 2026-11-28. Status: spike of about 0.5 day. Suggested place: M5 (board, overlap warnings, usage).
+Added 2026-11-28. Status: spiked 2026-11-28, see [the spike](spikes/2026-11-28-cross-session-messaging.md): works on native Windows; set `crossSessionInbound: "accept"`. Suggested place: M5 (board, overlap warnings, usage).
 
 **What it is:** documented same-machine messaging between sessions. On native Windows it needs v2.1.234 and uses a named pipe. The pipe path is `CLAUDE_CODE_MESSAGING_SOCKET`. A first line with `CLAUDE_CODE_MESSAGING_TOKEN` is required. See [EV-I4] and [EV-I5].
 
