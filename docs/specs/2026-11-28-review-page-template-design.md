@@ -1,7 +1,7 @@
 # Review page template for specs and plans
 
 Date: 2026-11-28
-Status: draft, waits for the user's pick of a direction
+Status: draft. Direction D (Map with parts) and signal labels chosen by the user on 2026-11-28
 Parent: `docs/backlog.md`, entry "Plans and specs that are quick to review" (user decision 2026-11-28). It replaces F50's rendered Markdown editor as the default view of the spec and plan view (F38). Design: `DESIGN.md` (Lagoon). Explorations: `docs/design/explorations/2026-11-28-plan-review/`.
 
 ## Intent
@@ -29,23 +29,36 @@ building-blocks/review-page/
 - A new revision gets a new file. Old pages stay until the document is approved or removed, so "what did I approve" can be shown later.
 - With the project setting "Keep specs and plans in the repository" off, the Markdown also lives in the data folder. The page location does not change.
 
+## Layout (direction D)
+
+Chosen by the user on 2026-11-28 from the explorations (`d-mix.html`): a mix of B (Map) and C (Parts).
+
+| Region | Owner | Content |
+|---|---|---|
+| View header | Orchtopus | Back, title, branch, Raw Markdown, Session history, close |
+| Decision bar | Orchtopus | Tinted in the document's signal colour while it waits: state word, "3 decisions need you · Plan Go keeps their defaults", Advisor, Ask for changes, Plan Go or Spec OK (the one primary action). While the plan runs: steps done, a progress bar, the approval with its hash |
+| Parts strip | Orchtopus, from the page's parts | One entry per part with its flag ("Tasks 7 to 12 · 2 need you", "Info · 6") or, while the plan runs, its progress. The part in view is highlighted. "Matches the Markdown" at the right end |
+| Page | Session, from the template | First screen: summary band (builds, needs you, risks) and the lane map. Below: task parts, each task collapsible, each step collapsible with its full text. Info, source line |
+
 ## Fixed sections
 
-The template owns the order, the headings, the styles and the markup of each section. The session fills the slots. The three directions in the exploration differ in layout only; they share this section set.
+The template owns the order, the headings, the styles and the markup of each section. The session fills the slots.
 
 | Order | Section (`data-review-section`) | Plan | Spec | Shown on the first screen |
 |---|---|---|---|---|
 | 1 | `summary` | What gets built (one headline, up to 3 lines), counts | Intent (one paragraph), not in scope | Yes |
 | 2 | `needs` | Decisions that are the user's, each with options and a default | Calls the user can correct | Yes |
 | 3 | `risks` / `done-when` | Risks and what the tests expect, the stop rule | Done-when list | Yes (risks); spec: first lines |
-| 4 | `flow` | Lanes and waves | One flow diagram the spec needs (for M1: where a hook event goes) | Direction B: yes |
-| 5 | `tasks` / `approach` | One collapsible row per task: what, after which tasks, agent, reviews, files, steps | Approaches with the chosen one marked, checks with fallbacks | No |
+| 4 | `flow` | Lanes and waves | One flow diagram the spec needs (for M1: where a hook event goes) | Yes |
+| 5 | `tasks` / `approach` | Task parts of about six tasks. One collapsible row per task: what, its flag if a decision touches it, after which tasks, agent, reviews, files, and every step collapsible with its full text | Approaches with the chosen one marked, checks with fallbacks | No |
 | 6 | `info` | Facts the user should know but need not decide | The same | No |
 | 7 | `source` | Source path, sha256, template version (written by the template, filled by the session) | The same | Footer |
 
 Rules for the fixed parts:
 
 - Headings and labels are template text. "Needs you" always carries an icon and the words "Needs you"; "Info" always carries an icon and the word "Info". Colour is never the only signal.
+- Label colours (user, 2026-11-28): "Needs you" takes the document's signal colour (`signal.plan`, violet, for specs and plans); "Info" is neutral (`text.secondary`). Red and green keep their meaning from DESIGN.md (danger, done).
+- A section can be a part: `data-review-part="Tasks 7 to 12"` on its heading. The parts strip reads these and counts the `data-need` and info items inside each part.
 - The template's style block uses design tokens only (`var(--surface-panel)` and so on). It never defines a colour, radius, spacing or font itself. Orchtopus injects the active theme, so the page follows Lagoon light and dark and any later theme.
 - Collapsing uses `<details>`. Diagrams are HTML and CSS from template building blocks (lane grid, wave list, step chain). No Mermaid, no canvas, no SVG written by the session.
 
@@ -60,6 +73,7 @@ Rules for the fixed parts:
 | Risks | Condition, expected behaviour, tasks that pin it | From the plan's review focus |
 | Flow | Lanes and waves, or one spec diagram | Lanes and waves come from each task's "Consumes" line; a lane is one worktree, tasks in one wave run at the same time |
 | Tasks | Number, title, one-line purpose, after which tasks, agent and effort, reviews, files, step names | One row per `### Task` heading, same numbers |
+| Step text | The full Markdown of every step, rendered (paragraphs, lists, inline code, code blocks) | Copied verbatim, never summarised. Each step carries the sha256 of its Markdown text |
 | Source | Path, sha256, template version | Written into the head and the footer |
 
 The session never invents content the Markdown does not have. If a slot has nothing, the template shows "None" in that section, never an empty block.
@@ -82,7 +96,10 @@ The page is static HTML that Orchtopus can check without a model.
     <div data-need="D6" data-default="keep">…</div>
   </section>
   <section data-review-section="tasks" data-count="17">
-    <details data-task="4" data-steps="6" data-lane="1" data-wave="4" data-after="2 3">…</details>
+    <details data-task="4" data-steps="6" data-lane="1" data-wave="4" data-after="2 3" data-need="D3">
+      …
+      <details data-step="1" data-step-sha256="<first 12 hex of the step's Markdown>">…</details>
+    </details>
   </section>
 </body>
 </html>
@@ -96,7 +113,7 @@ Orchtopus runs these checks when the view opens and whenever the Markdown or the
 
 1. **Revision.** Read the Markdown as UTF-8, drop a BOM, turn CRLF into LF, compute sha256. Compare with `orchtopus:source-sha256`. A different hash means the page is older or newer than the Markdown.
 2. **Structure.** Parse the Markdown deterministically and compare with the page's data attributes:
-   - plan: number of `### Task N:` headings and their numbers against `data-task`; number of `- [ ] **Step` lines per task against `data-steps`;
+   - plan: number of `### Task N:` headings and their numbers against `data-task`; number of `- [ ] **Step` lines per task against `data-steps`; the sha256 of each step's Markdown (the text after the step title and the indented lines under it, LF, trimmed) against `data-step-sha256`, so a step text that was shortened or changed is caught;
    - spec: number of "Done when" items against `data-count` of that section;
    - both: every section in the fixed list is present once, in order.
    The hash proves which revision the page claims. The structure check catches a page that claims the right revision but left something out.
@@ -117,7 +134,7 @@ Approval binds to the Markdown, never to the page. The `spec.approved` or `plan.
 - The page renders in a sandboxed frame: `sandbox` without `allow-scripts`, `allow-same-origin`, `allow-forms` or `allow-top-navigation`; CSP `default-src 'none'; style-src 'unsafe-inline'; font-src app:; img-src data:`.
 - Orchtopus builds the frame document from the page plus two injected blocks: the active theme's tokens, and an overlay style block for live state (`[data-task="7"] { --done: 3; --state: running }`). The template uses these properties for progress bars and step counts, so progress shows without rewriting the page during execution.
 - Progress comes from the Markdown checkboxes at the current revision and from the event log. The page itself is not rewritten when a step is ticked.
-- Every action is host chrome outside the frame: Spec OK, Plan Go, Ask for changes, the advisor, and the answer controls for "Needs you" items. A session writes the page, so the page must never be able to approve anything or look like it can. Where a direction shows answer controls next to a decision (direction C), Orchtopus renders them over the frame from the page's `data-need` items.
+- Every action is host chrome outside the frame: Spec OK, Plan Go, Ask for changes, the advisor, and the answer controls for "Needs you" items. A session writes the page, so the page must never be able to approve anything or look like it can. Where answer controls sit next to a decision (direction C showed this), Orchtopus renders them over the frame from the page's `data-need` items.
 - The raw Markdown is always one click or the `M` key away.
 
 ## Who writes the page
@@ -130,7 +147,6 @@ Considered and not chosen: Orchtopus renders the page itself from the Markdown. 
 
 ## Open
 
-- **Direction.** A Brief, B Map or C Parts (the user picks).
-- **Label colours.** The backlog asks for red "needs you" and green "info". DESIGN.md reserves red for danger and stalled and green for PR and done. The explorations show both: red and green as asked, or "Signal labels" (the document's own violet for "Needs you", neutral for "Info"). The user decides.
 - Whether answers to "Needs you" items go to the session as one message with "Ask for changes" (proposed) or one by one.
-- Per-part approval (backlog idea 1) is not part of this template. Direction C prepares for it.
+- Per-part approval (backlog idea 1) is not part of this template. The parts strip of direction D prepares for it.
+- Read marks per part (as in direction C) are left out of D. Add them if the strip does not show enough progress through a long plan.

@@ -1,7 +1,7 @@
 /* Exploration harness shared by the three directions: URL state
    (#screen=1-3&mode=light|dark), keys 1-3 and D, scaling, and the app
-   chrome around the review page. &labels=signal shows the needs/info labels in the
-   document's own signal colour instead of red and green. Screens: 1 plan waits for Plan Go,
+   chrome around the review page. &labels=asked shows the needs/info labels in red and
+   green as first asked; the default keeps the signal meanings. Screens: 1 plan waits for Plan Go,
    2 the same plan while it runs (demo progress), 3 spec waits for Spec OK.
    Add &shot to hide the control bar for screenshots. */
 
@@ -33,7 +33,7 @@
     const h = new URLSearchParams(location.hash.slice(1));
     const screen = Math.min(3, Math.max(1, parseInt(h.get('screen') || '1', 10) || 1));
     const mode = h.get('mode') === 'light' ? 'light' : 'dark';
-    const labels = h.get('labels') === 'signal' ? 'signal' : 'asked';
+    const labels = h.get('labels') === 'asked' ? 'asked' : 'signal';
     return { screen, mode, labels, shot: h.has('shot') };
   }
 

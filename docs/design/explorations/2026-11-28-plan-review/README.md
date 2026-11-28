@@ -1,21 +1,31 @@
 # Review page explorations, 2026-11-28
 
-Three directions for the page on which the user reviews and approves specs and plans in Orchtopus. Template spec: `docs/specs/2026-11-28-review-page-template-design.md`.
+Directions for the page on which the user reviews and approves specs and plans in Orchtopus. Template spec: `docs/specs/2026-11-28-review-page-template-design.md`.
 
-Open `index.html` to compare all three side by side, or open one file full size.
+**Chosen (user, 2026-11-28): D · Map with parts**, a mix of B and C:
+
+- B's first screen: summary band (what gets built, needs you, risks) and the lane map.
+- C's parts, as a strip under the decision bar. Each part shows its flags ("Tasks 7 to 12 · 2 need you"), so you see where something waits before you scroll.
+- The decision (Plan Go or Spec OK, Ask for changes, Advisor) sits in its own tinted bar under the view header, apart from the navigation.
+- Every step of the plan can be opened on demand and shows its text as written in the Markdown.
+- Labels: "Needs you" in the document's signal colour (violet) with icon and words, "Info" neutral. Red and green stay for danger and done (the user accepted this proposal).
+
+Open `index.html` to compare the directions side by side, or open one file full size.
 
 | File | Direction | Where Spec OK / Plan Go sits |
 |---|---|---|
 | `a-brief.html` | **A · Brief.** One reading column like a memo. Waves run top to bottom. | Decision card in a rail on the right, with the page contents and the source check under it |
 | `b-map.html` | **B · Map.** Summary band in three columns (builds, needs you, risks), then a lane map of the whole plan on the first screen. | In the view header, next to the state word |
+| `d-mix.html` | **D · Map with parts (chosen).** B plus C's flagged parts strip, a tinted decision bar and steps on demand. | Tinted decision bar under the view header |
 | `c-parts.html` | **C · Parts.** The document is cut into parts of one or two minutes, read one at a time, with read marks. Decisions are answered in place. | Decision bar at the bottom of the view, with "Next part" and parts read |
 
 ## How to use the files
 
 - Hash state: `#screen=1|2|3&mode=light|dark&labels=asked|signal`. Keys `1` to `3` switch the screen, `D` the mode.
 - Screen 1: the M1 plan waits for Plan Go. Screen 2: the same plan while it runs (demo progress, not the real state of M1). Screen 3: the M1 spec waits for Spec OK.
-- `labels=signal` shows "Needs you" in the document's violet and "Info" in neutral instead of red and green (open question in the template spec).
-- Add `&shot` to hide the control bar for screenshots. `screenshots/` has three per direction.
+- Default labels: "Needs you" in the document's violet, "Info" neutral. `labels=asked` shows the first ask, red and green.
+- Add `&shot` to hide the control bar for screenshots. `screenshots/` has three per direction; the A to C screenshots were taken with red and green labels, before the pick.
+- D only: `steps.js` holds the full text of all 92 steps, generated from the plan by `extract-steps.mjs` (run it from the repository root).
 
 ## How the files are built
 
@@ -41,5 +51,6 @@ Direction from `DESIGN.md` (Lagoon): calm, watchful, a little playful; colour on
 
 Broken on purpose:
 
-- **Red for "Needs you" and green for "Info"**, as the backlog asks. This collides with DESIGN.md's red (danger, stalled) and green (PR, done). The "Signal labels" mode shows the alternative; the user decides.
+- **Red for "Needs you" and green for "Info"** in the `asked` label mode, as the backlog first asked. It collides with DESIGN.md's red (danger, stalled) and green (PR, done); the user chose the signal labels instead.
+- **D shows two violet surfaces** on the plan screen: the decision bar and the "Needs you" column. Both mean "the plan waits for you"; only the bar holds the primary action.
 - **Direction A does not fit the risks on the first screen** at 1440 × 900; the headline, the builds and the three decisions take it. B and C show all three blocks on the first screen.

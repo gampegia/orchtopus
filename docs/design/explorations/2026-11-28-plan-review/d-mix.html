@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review page D · Map with parts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="chrome.css">
+<style>
+
+/* Direction D, Map with parts: B's summary band and lane map, C's parts
+   with flags as a strip, and the decision in its own tinted bar under
+   the view header so Plan Go stands apart from navigation. */
+.view { display: grid; grid-template-rows: var(--size-header) auto auto 1fr; overflow: hidden; }
+.vhead .links { margin-left: auto; }
+.vhead h1 { white-space: nowrap; }
+.scroll { overflow-y: auto; padding: var(--space-5) var(--space-5) var(--space-10); scrollbar-width: thin; }
+
+/* summary band */
+.band { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: var(--space-5); margin-bottom: var(--space-6); }
+.band > div { min-width: 0; }
+.band h2 { font-size: var(--type-small); line-height: var(--leading-small); font-weight: var(--weight-medium); color: var(--text-muted); margin: 0 0 var(--space-2); display: flex; align-items: center; gap: var(--space-2); }
+.band h2 .label { font-size: var(--type-small); line-height: var(--leading-small); }
+.what { font-size: var(--type-title); line-height: var(--leading-title); margin: 0 0 var(--space-3); font-weight: var(--weight-medium); }
+.blist { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); font-size: var(--type-small); line-height: var(--leading-small); color: var(--text-secondary); }
+.blist li { display: grid; grid-template-columns: var(--size-icon-small) 1fr; gap: var(--space-2); }
+.blist li svg { margin-top: var(--space-0-5); color: var(--text-muted); }
+.counts { margin-top: var(--space-3); font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+.needcol { border-radius: var(--radius-bar); padding: var(--space-3) var(--space-4); background: color-mix(in srgb, var(--needs) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent); }
+.needcol.resolved { background: var(--surface-inset); box-shadow: none; }
+.nd { padding: var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); display: grid; gap: var(--space-0-5); font-size: var(--type-small); line-height: var(--leading-small); }
+.nd:first-of-type { border-top: 0; padding-top: 0; }
+.nd b { font-weight: var(--weight-medium); }
+.nd .y { color: var(--text-secondary); font-size: var(--type-meta); line-height: var(--leading-meta); }
+.nd .o { font-size: var(--type-meta); color: var(--text-muted); }
+.nd .o em { font-style: normal; color: var(--text-primary); }
+.nd .o a { white-space: nowrap; color: var(--text-secondary); }
+
+.rk { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--space-3); padding: var(--space-1-5) 0; border-top: var(--border-width) solid var(--border-subtle); font-size: var(--type-small); line-height: var(--leading-small); }
+.rk:first-of-type { border-top: 0; padding-top: 0; }
+.rk .e { color: var(--text-muted); font-size: var(--type-meta); line-height: var(--leading-meta); }
+.rk .tk { grid-row: 1; grid-column: 2; font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* lane map */
+.maphead { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-2); }
+.maphead h2 { font-size: var(--type-title); line-height: var(--leading-title); margin: 0; font-weight: var(--weight-medium); }
+.maphead span { color: var(--text-muted); font-size: var(--type-meta); }
+.map { display: grid; grid-template-columns: 128px repeat(9, 1fr); border-radius: var(--radius-bar); background: var(--surface-inset); padding: var(--space-1) 0 var(--space-2); }
+.map .wh { font-size: var(--type-meta); color: var(--text-muted); padding: var(--space-1) var(--space-2) var(--space-1); text-align: left; }
+.map .lane { font-size: var(--type-meta); color: var(--text-secondary); padding: 0 var(--space-3); display: flex; align-items: center; min-height: 40px; border-top: var(--border-width) solid var(--border-subtle); }
+.map .cell { min-height: 40px; border-top: var(--border-width) solid var(--border-subtle); border-left: var(--border-width) dashed var(--border-subtle); display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); padding: var(--space-1); min-width: 0; }
+.node { display: flex; align-items: center; gap: var(--space-1-5); position: relative; overflow: hidden; width: 100%; height: var(--size-control-tiny); padding: 0 var(--space-2); border-radius: var(--radius-control); background: var(--surface-panel); box-shadow: var(--shadow-row); text-decoration: none; min-width: 0; }
+.node .no { font-family: var(--font-mono); font-size: var(--type-micro); color: var(--text-muted); }
+.node .nm { font-size: var(--type-meta); line-height: var(--leading-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node .pb { position: absolute; left: var(--space-2); right: var(--space-2); bottom: 3px; height: 2px; border-radius: var(--radius-round); background: var(--surface-inset); overflow: hidden; }
+.node .pb i { display: block; height: 100%; background: var(--text-muted); }
+.node.done { background: transparent; box-shadow: inset 0 0 0 var(--border-width) var(--border-subtle); }
+.node.done .nm { color: var(--text-secondary); }
+.node.done .pb i { background: var(--signal-done); }
+.node.run { box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--signal-running) var(--mix-decision-edge), transparent), var(--shadow-row); }
+.node.run .pb i { background: var(--signal-running); }
+.node.need { box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent), var(--shadow-row); }
+.legend { display: flex; gap: var(--space-5); margin-top: var(--space-2); font-size: var(--type-meta); color: var(--text-muted); }
+.legend span { display: inline-flex; align-items: center; gap: var(--space-1-5); }
+.sw { display: inline-block; width: 14px; height: 10px; border-radius: var(--radius-key); background: var(--surface-panel); box-shadow: var(--shadow-row); }
+.sw.need { box-shadow: inset 0 0 0 var(--border-width) var(--needs); }
+.sw.run { box-shadow: inset 0 0 0 var(--border-width) var(--signal-running); }
+.sw.done { background: transparent; box-shadow: inset 0 0 0 var(--border-width) var(--border-strong); }
+
+/* below the map */
+.below { display: grid; grid-template-columns: 1fr 360px; gap: var(--space-8); margin-top: var(--space-8); }
+.below h2 { font-size: var(--type-title); line-height: var(--leading-title); margin: 0 0 var(--space-3); font-weight: var(--weight-medium); }
+table.tk { width: 100%; border-collapse: collapse; font-size: var(--type-small); line-height: var(--leading-small); }
+table.tk th { text-align: left; font-size: var(--type-meta); color: var(--text-muted); font-weight: var(--weight-medium); padding: 0 var(--space-3) var(--space-1) 0; }
+table.tk td { border-top: var(--border-width) solid var(--border-subtle); padding: var(--space-2) var(--space-3) var(--space-2) 0; vertical-align: top; }
+table.tk td.n { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); width: 32px; }
+table.tk td.m { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); white-space: nowrap; }
+table.tk details summary { cursor: pointer; list-style: none; }
+table.tk details summary::-webkit-details-marker { display: none; }
+table.tk details summary::after { content: " +"; color: var(--text-muted); }
+table.tk details[open] summary::after { content: " −"; }
+table.tk details p { margin: var(--space-1) 0 0; color: var(--text-secondary); }
+table.tk details .f { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.inf { display: grid; grid-template-columns: var(--size-icon) 1fr; gap: 0 var(--layout-icon-gap); padding: var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); font-size: var(--type-small); line-height: var(--leading-small); }
+.inf:first-of-type { border-top: 0; }
+.inf svg { margin-top: var(--space-0-5); }
+.inf .y { grid-column: 2; color: var(--text-secondary); }
+.inf b { font-weight: var(--weight-regular); color: var(--text-primary); }
+.foot { margin-top: var(--space-8); padding-top: var(--space-3); border-top: var(--border-width) solid var(--border-subtle); }
+
+/* spec */
+.appr { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.ap { border-radius: var(--radius-bar); padding: var(--space-3) var(--space-4); background: var(--surface-inset); font-size: var(--type-small); line-height: var(--leading-small); display: grid; gap: var(--space-1); align-content: start; }
+.ap.ch { background: var(--surface-panel); box-shadow: inset 0 0 0 var(--border-width) var(--border-strong); }
+.ap .id { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); display: flex; justify-content: space-between; }
+.ap .y { color: var(--text-secondary); }
+.pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-top: var(--space-3); }
+.st { border-radius: var(--radius-control); padding: var(--space-2) var(--space-3); background: var(--surface-panel); box-shadow: var(--shadow-row); font-size: var(--type-small); line-height: var(--leading-small); position: relative; }
+.st small { display: block; color: var(--text-muted); font-size: var(--type-meta); }
+.st:not(:last-child)::after { content: ""; position: absolute; right: calc(-1 * var(--space-2)); top: 50%; width: var(--space-2); border-top: var(--border-width) solid var(--border-strong); }
+ol.dw { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); font-size: var(--type-small); line-height: var(--leading-small); color: var(--text-secondary); }
+ol.dw li::marker { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* D: decision bar, its own tinted band under the view header */
+.dbar { display: flex; align-items: center; gap: var(--space-4); min-height: 56px; padding: var(--space-2) var(--space-5); background: color-mix(in srgb, var(--signal-plan) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 calc(-1 * var(--border-width)) 0 color-mix(in srgb, var(--signal-plan) var(--mix-decision-edge), transparent), inset 0 var(--border-width) 0 color-mix(in srgb, var(--signal-plan) var(--mix-decision-edge), transparent); }
+.dbar .label { font-size: var(--type-small); line-height: var(--leading-small); }
+.dbar .txt { color: var(--text-secondary); font-size: var(--type-small); }
+.dbar .txt b { color: var(--text-primary); font-weight: var(--weight-medium); }
+.dbar .acts { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; }
+.dbar.run { background: var(--surface-inset); box-shadow: inset 0 calc(-1 * var(--border-width)) 0 var(--border-subtle); }
+.dbar .pbar { width: 160px; height: 4px; border-radius: var(--radius-round); background: var(--surface-raised); overflow: hidden; }
+.dbar .pbar i { display: block; height: 100%; background: var(--signal-running); }
+
+/* D: parts strip with flags */
+.pstrip { display: flex; align-items: center; gap: var(--space-1); height: var(--size-strip); padding: 0 var(--space-3); border-bottom: var(--border-width) solid var(--border-subtle); }
+.pstrip a { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--size-control-tiny); padding: 0 var(--space-3); border-radius: var(--radius-control); font-size: var(--type-small); color: var(--text-secondary); text-decoration: none; white-space: nowrap; transition: background-color var(--motion-fast) var(--motion-ease-hover); }
+.pstrip a:hover { background: var(--surface-hover); color: var(--text-primary); }
+.pstrip a.cur { background: var(--surface-selected); box-shadow: var(--shadow-row); color: var(--text-primary); }
+.pstrip a .label { font-size: var(--type-meta); }
+.pstrip a .tm { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.pstrip .end { margin-left: auto; }
+
+.part-h { display: flex; align-items: baseline; gap: var(--space-3); margin: var(--space-8) 0 var(--space-2); scroll-margin-top: var(--space-4); }
+.part-h h2 { font-size: var(--type-title); line-height: var(--leading-title); margin: 0; font-weight: var(--weight-medium); }
+.part-h span { color: var(--text-muted); font-size: var(--type-meta); }
+#p-sum { scroll-margin-top: var(--space-5); }
+
+/* D: task rows, steps on demand */
+.tasks { border-top: var(--border-width) solid var(--border-subtle); }
+details.task { border-bottom: var(--border-width) solid var(--border-subtle); }
+details.task > summary { list-style: none; display: grid; grid-template-columns: 28px 1fr auto 136px 104px var(--size-icon); align-items: center; gap: var(--space-3); min-height: 44px; cursor: pointer; padding: 0 var(--space-2); border-radius: var(--radius-small); }
+details.task > summary::-webkit-details-marker, details.step > summary::-webkit-details-marker { display: none; }
+details.task > summary:hover, details.step > summary:hover { background: var(--surface-hover); }
+.task .no { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.task .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task .ln { font-size: var(--type-meta); color: var(--text-muted); white-space: nowrap; }
+.task .chev, .step .chev { color: var(--text-muted); transition: transform var(--motion-fast) var(--motion-ease-out); }
+details[open] > summary > .chev { transform: rotate(90deg); }
+.prog { display: grid; gap: var(--space-1); font-size: var(--type-meta); color: var(--text-muted); font-family: var(--font-mono); }
+.bar { height: 4px; border-radius: var(--radius-round); background: var(--surface-inset); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--text-muted); }
+.bar.run i { background: var(--signal-running); }
+.bar.done i { background: var(--signal-done); }
+.tbody { padding: var(--space-1) var(--space-2) var(--space-5) calc(28px + var(--space-3) + var(--space-2)); display: grid; gap: var(--space-3); font-size: var(--type-small); line-height: var(--leading-small); }
+.tbody .y { color: var(--text-secondary); }
+.tbody dl { display: grid; grid-template-columns: 88px 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.tbody dt { color: var(--text-muted); }
+.tbody dd { margin: 0; color: var(--text-secondary); }
+.tbody .files { font-family: var(--font-mono); font-size: var(--type-meta); }
+.steps { border-radius: var(--radius-bar); background: var(--surface-inset); padding: var(--space-1); }
+.steps .sh { display: flex; justify-content: space-between; padding: var(--space-1) var(--space-3) var(--space-1); font-size: var(--type-meta); color: var(--text-muted); }
+details.step > summary { list-style: none; display: grid; grid-template-columns: var(--size-icon) 1fr auto var(--size-icon); gap: var(--layout-icon-gap); align-items: center; min-height: var(--size-nav-row); padding: 0 var(--space-3); border-radius: var(--radius-control); cursor: pointer; }
+details.step[open] { background: var(--surface-panel); box-shadow: var(--shadow-row); border-radius: var(--radius-control); }
+.step .mk { display: grid; place-items: center; color: var(--text-muted); }
+.step .mk .ring { width: 10px; height: 10px; border-radius: var(--radius-round); box-shadow: inset 0 0 0 1.5px currentColor; }
+.step.done .mk { color: var(--signal-done); }
+.step.run .mk { color: var(--signal-running); }
+.step .sn { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.md { padding: 0 var(--space-4) var(--space-4) calc(var(--space-3) + var(--size-icon) + var(--layout-icon-gap)); color: var(--text-secondary); max-width: 860px; }
+.md p { margin: 0 0 var(--space-2); }
+.md ul { margin: 0 0 var(--space-2); padding-left: var(--space-5); display: grid; gap: var(--space-1); }
+.md code { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-primary); background: var(--surface-inset); border-radius: var(--radius-key); padding: 0 var(--space-1); }
+.md pre { margin: 0 0 var(--space-2); padding: var(--space-3); border-radius: var(--radius-control); background: var(--surface-terminal); color: var(--text-terminal); font-family: var(--font-mono); font-size: var(--type-meta); line-height: var(--leading-meta); overflow-x: auto; }
+.md b { color: var(--text-primary); font-weight: var(--weight-medium); }
+.flag { display: inline-flex; }
+</style>
+</head>
+<body>
+<div class="stage"><div id="app"></div></div>
+<script src="data.js"></script>
+<script src="steps.js"></script>
+<script src="explore.js"></script>
+<script>
+const R = window.REVIEW, I = X.icon;
+
+/* Small Markdown renderer for the step text: fences, lists, inline code, bold. */
+function md(src) {
+  const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  const out = []; let list = null, fence = null;
+  for (const raw of src.split('\n')) {
+    if (fence !== null) { if (/^\s*```/.test(raw)) { out.push(`<pre>${esc(fence.join('\n'))}</pre>`); fence = null; } else fence.push(raw); continue; }
+    if (/^\s*```/.test(raw)) { if (list) { out.push(`<ul>${list}</ul>`); list = null; } fence = []; continue; }
+    const li = raw.match(/^\s*[-*] (.*)$/) || raw.match(/^\s*\d+\. (.*)$/);
+    if (li) { list = (list || '') + `<li>${inline(li[1])}</li>`; continue; }
+    if (list) { out.push(`<ul>${list}</ul>`); list = null; }
+    if (raw.trim()) out.push(`<p>${inline(raw.trim())}</p>`);
+  }
+  if (list) out.push(`<ul>${list}</ul>`);
+  return out.join('');
+}
+
+function needCol(doc, resolved, word) {
+  return `<div><h2>${resolved ? `<span class="label" style="color:var(--text-secondary)">${I('check', 't')}Decided at Plan Go</span>` : `<span class="label needs">${I('alert', 's')}Needs you · ${doc.needs.length} ${word}</span>`}</h2>
+    <div class="needcol${resolved ? ' resolved' : ''}">${doc.needs.map((d) => `<div class="nd"><b>${d.title}</b><span class="y">${d.why}</span>
+      <span class="o">${resolved ? `<em>${d.options[0]}</em>` : `Default <em>${d.options[0]}</em> · or ${d.options[1].charAt(0).toLowerCase() + d.options[1].slice(1)}`}${d.task ? ` · <a href="#t${d.task}">Task ${d.task}</a>` : ''}</span></div>`).join('')}</div></div>`;
+}
+
+const needOf = (n) => R.plan.needs.find((x) => x.task === n);
+const tstate = (t, screen) => { const p = screen === 2 ? (R.plan.progress[t.n] || 0) : 0; return { p, done: p === t.steps, run: screen === 2 && R.plan.running.includes(t.n) }; };
+
+function stepsBlock(t, screen, openFirst) {
+  const s = tstate(t, screen);
+  return `<div class="steps"><div class="sh"><span>Steps, as written in the plan</span><span>${s.p} of ${t.steps} done</span></div>${window.STEPS[t.n].map((st, i) => {
+    const done = i < s.p, run = s.run && i === s.p;
+    return `<details class="step${done ? ' done' : run ? ' run' : ''}" data-step="${st.n}" data-step-sha256="${st.sha256}"${openFirst && i === 0 ? ' open' : ''}><summary><span class="mk">${done ? I('check', 's') : run ? X.lamp('running') : '<span class="ring"></span>'}</span><span>${st.title}</span><span class="sn">Step ${st.n}</span>${I('chev', 's chev')}</summary><div class="md">${md(st.body) || '<p>No further text in the plan.</p>'}</div></details>`;
+  }).join('')}</div>`;
+}
+
+function taskRows(a, b, screen) {
+  const d = R.plan;
+  return `<div class="tasks">${d.tasks.filter((t) => t.n >= a && t.n <= b).map((t) => {
+    const s = tstate(t, screen), nd = needOf(t.n);
+    const open = (screen === 1 && t.n === 4) || (screen === 2 && t.n === 7);
+    return `<details class="task" id="t${t.n}" data-task="${t.n}" data-steps="${t.steps}"${open ? ' open' : ''}><summary><span class="no">${t.n}</span><span class="tt">${t.title}</span>
+      <span class="flag">${nd && screen !== 2 ? `<span class="label needs">${X.lamp()}Needs you · ${nd.id}</span>` : ''}</span>
+      <span class="ln">${d.lanes.find((l) => l.id === t.lane).name} · wave ${t.wave}</span>
+      <span class="prog"><span class="${s.done ? 'sig-done' : s.run ? 'sig-running' : ''}">${s.done ? 'done' : `${s.run ? 'running · ' : ''}${s.p} of ${t.steps}`}</span><span class="bar${s.done ? ' done' : s.run ? ' run' : ''}"><i style="width:${(s.p / t.steps) * 100}%"></i></span></span>${I('chev', 's chev')}</summary>
+      <div class="tbody"><span class="y">${t.does}</span>${nd && screen !== 2 ? `<span class="label needs">${I('alert', 't')}${nd.title} · default: ${nd.options[0].toLowerCase()}</span>` : ''}
+        <dl><dt>After</dt><dd>${t.needs.length ? t.needs.map((n) => 'Task ' + n).join(', ') : 'nothing, starts in wave ' + t.wave}</dd><dt>Agent</dt><dd>${t.agent}</dd><dt>Reviews</dt><dd>${t.review}</dd><dt>Files</dt><dd class="files">${t.files.join(' · ')}</dd></dl>
+        ${stepsBlock(t, screen, open)}</div></details>`;
+  }).join('')}</div>`;
+}
+
+function partsOf(screen) {
+  const d = R.plan, cnt = (a, b) => d.needs.filter((n) => n.task >= a && n.task <= b).length;
+  const prog = (a, b) => { const ts = d.tasks.filter((t) => t.n >= a && t.n <= b); const done = ts.filter((t) => tstate(t, 2).done).length; return `<span class="tm">${done} of ${ts.length}</span>`; };
+  const flag = (n) => (n ? `<span class="label needs">${X.lamp()}${n}</span>` : '');
+  if (screen === 3) return [['p-sum', 'Summary', flag(R.spec.needs.length)], ['p-appr', 'Approach'], ['p-checks', 'Checks', '<span class="tm">6</span>'], ['p-info', 'Info', `<span class="label info">${X.lamp()}${R.spec.info.length}</span>`]];
+  const run = screen === 2;
+  return [
+    ['p-sum', 'Summary', run ? '' : flag(d.needs.length)],
+    ['p-map', 'Lanes and waves', run ? '<span class="tm">wave 5</span>' : ''],
+    ['p-t1', 'Tasks 1 to 6', run ? prog(1, 6) : flag(cnt(1, 6))],
+    ['p-t2', 'Tasks 7 to 12', run ? prog(7, 12) : flag(cnt(7, 12))],
+    ['p-t3', 'Tasks 13 to 17', run ? prog(13, 17) : flag(cnt(13, 17))],
+    ['p-info', 'Info', `<span class="label info">${X.lamp()}${d.info.length}</span>`]
+  ];
+}
+
+function plan(screen) {
+  const d = R.plan, needTasks = d.needs.map((n) => n.task);
+  const doneSteps = Object.values(d.progress).reduce((a, b) => a + b, 0);
+  let map = `<div class="wh"></div>${[...Array(9)].map((_, i) => `<div class="wh">Wave ${i + 1}</div>`).join('')}`;
+  d.lanes.forEach((l) => {
+    map += `<div class="lane">${l.name}</div>`;
+    for (let w = 1; w <= 9; w++) {
+      const ts = d.tasks.filter((t) => t.lane === l.id && t.wave === w);
+      map += `<div class="cell">${ts.map((t) => { const s = tstate(t, screen), need = screen === 1 && needTasks.includes(t.n); return `<a class="node${s.done ? ' done' : s.run ? ' run' : need ? ' need' : ''}" href="#t${t.n}" title="${t.title}"><span class="no">${t.n}</span><span class="nm">${d.short[t.n]}</span><span class="pb"><i style="width:${(s.p / t.steps) * 100}%"></i></span></a>`; }).join('')}</div>`;
+    }
+  });
+  return `
+    <div class="band" id="p-sum">
+      <div><h2>${X.label('plan', 'Plan')}<span>M1 builds</span></h2><p class="what">A real Claude Code session, end to end, that survives a restart</p>
+        <ul class="blist">${d.builds.map((b) => `<li>${I('check', 's')}<span>${b}</span></li>`).join('')}</ul>
+        <div class="counts">${d.counts.tasks} tasks · ${d.counts.steps} steps · ${d.counts.lanes} lanes</div></div>
+      ${needCol(d, screen === 2, 'decisions')}
+      <div><h2>Risks the tests pin<span style="margin-left:auto">Task</span></h2>${d.risks.map((r) => `<div class="rk" title="Expected: ${r.expect}"><span>${r.text}</span><span class="tk">${r.tasks.join(', ')}</span></div>`).join('')}
+        <div class="rk"><span>${I('clock', 't')} T1 fails: the plan stops after Task 1 and you decide</span><span class="tk">1</span></div></div>
+    </div>
+    <div class="part-h" id="p-map" style="margin-top:0"><h2>${screen === 2 ? `${doneSteps} of ${d.counts.steps} steps · wave 5 runs` : 'Lanes and waves'}</h2><span>A column is one wave. Tasks in one column run at the same time, each in its own worktree.</span></div>
+    <div class="map">${map}</div>
+    <div class="legend">${screen === 1 ? `<span><i class="sw need"></i>Touches a decision that needs you</span>` : `<span><i class="sw run"></i>Running</span><span><i class="sw done"></i>Done</span>`}<span><i class="sw"></i>Open</span><span>Bar: steps done</span><span>Click a task to open its steps</span></div>
+    <div class="part-h" id="p-t1"><h2>Tasks 1 to 6</h2><span>Checks, store, API, hooks, git, CLI</span></div>${taskRows(1, 6, screen)}
+    <div class="part-h" id="p-t2"><h2>Tasks 7 to 12</h2><span>Base setup, projects, fake CLI, adapter, state, sessions</span></div>${taskRows(7, 12, screen)}
+    <div class="part-h" id="p-t3"><h2>Tasks 13 to 17</h2><span>Screens, end to end, manual check</span></div>${taskRows(13, 17, screen)}
+    <div class="part-h" id="p-info"><h2 class="label info" style="font-size:var(--type-title);line-height:var(--leading-title);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">Info</span></h2></div>
+    <div style="max-width:760px">${d.info.map((i) => `<div class="inf info">${I('info', 's')}<b>${i.title}</b><span class="y">${i.why}</span></div>`).join('')}</div>
+    <div class="foot">${X.sourceLine(d)}</div>`;
+}
+
+function spec() {
+  const d = R.spec;
+  return `
+    <div class="band" id="p-sum">
+      <div><h2>${X.label('plan', 'Spec')}<span>Intent</span></h2><p class="what" style="font-size:var(--type-body);line-height:var(--leading-body);font-weight:var(--weight-regular)">${d.intent}</p>
+        <div class="counts">Not in M1: ${d.notInM1}</div></div>
+      ${needCol(d, false, 'calls to confirm')}
+      <div><h2>Done when</h2><ol class="dw">${d.doneWhen.map((x) => `<li>${x}</li>`).join('')}</ol></div>
+    </div>
+    <div class="part-h" id="p-appr" style="margin-top:0"><h2>Approach</h2><span>Chosen by you: C. Where a hook event goes:</span></div>
+    <div class="appr">${d.approaches.map((a) => `<div class="ap${a.chosen ? ' ch' : ''}"><span class="id"><span>${a.id}</span>${a.chosen ? `<span class="label sig-done">${X.lamp()}chosen</span>` : '<span>rejected</span>'}</span><span>${a.name}</span><span class="y">${a.tradeoff}</span></div>`).join('')}</div>
+    <div class="pipe"><div class="st">Hook fires<small>in the session</small></div><div class="st">Helper posts<small>to the local API, 500 ms</small></div><div class="st">App closed<small>appends to the spool file</small></div><div class="st">Next start<small>imports the spool once</small></div></div>
+    <div class="part-h" id="p-checks"><h2>Checks before code depends on them</h2></div>
+    <table class="tk"><tr><th></th><th>Question</th><th>If it fails</th></tr>${d.checks.map((c) => `<tr><td class="n">${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td></tr>`).join('')}</table>
+    <div class="part-h" id="p-info"><h2 class="label info" style="font-size:var(--type-title);line-height:var(--leading-title);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">Lead’s calls, info</span></h2></div>
+    <div style="max-width:760px">${d.info.map((i) => `<div class="inf info">${I('info', 's')}<b>${i.title}</b><span class="y">${i.why}</span></div>`).join('')}</div>
+    <div class="foot">${X.sourceLine(d)}</div>`;
+}
+
+/* Highlight the part in view. */
+document.addEventListener('scroll', (e) => {
+  const sc = e.target; if (!sc.classList || !sc.classList.contains('scroll')) return;
+  const links = [...document.querySelectorAll('.pstrip a')];
+  let cur = links[0];
+  for (const a of links) { const el = document.getElementById(a.getAttribute('href').slice(1)); if (el && el.offsetTop - sc.offsetTop <= sc.scrollTop + 24) cur = a; }
+  links.forEach((a) => a.classList.toggle('cur', a === cur));
+}, true);
+
+X.start((st) => {
+  const isSpec = st.screen === 3, doc = isSpec ? R.spec : R.plan;
+  const doneSteps = Object.values(R.plan.progress).reduce((a, b) => a + b, 0);
+  const bar = st.screen === 2
+    ? `<div class="dbar run">${X.label('running', 'Running')}<span class="txt"><b>${doneSteps} of ${R.plan.counts.steps} steps</b> · approved by you on 2026-11-27 at sha256 ${doc.sha256.slice(0, 8)}</span><span class="pbar"><i style="width:${(doneSteps / R.plan.counts.steps) * 100}%"></i></span><span class="acts"><button class="btn ghost small">${I('chat', 's')}Ask the advisor</button></span></div>`
+    : `<div class="dbar">${X.label('plan', `${doc.kind} waits for you`)}<span class="txt"><b>${doc.needs.length} ${isSpec ? 'calls' : 'decisions'} need you</b> · ${isSpec ? 'Spec OK' : 'Plan Go'} keeps their defaults</span>
+       <span class="acts"><button class="btn ghost small">${I('chat', 's')}Advisor</button><button class="btn secondary small">Ask for changes</button><button class="btn primary">${I('check', 's')}${isSpec ? 'Spec OK' : 'Plan Go'}</button></span></div>`;
+  const parts = partsOf(st.screen);
+  const strip = `<nav class="pstrip">${parts.map(([id, name, extra], i) => `<a href="#${id}" class="${i === 0 ? 'cur' : ''}" onclick="event.preventDefault();document.getElementById('${id}').scrollIntoView()">${name}${extra || ''}</a>`).join('')}
+    <span class="end source"><span class="ok">${I('check', 't')}Matches the Markdown</span></span></nav>`;
+  return `<div class="window">${X.titlebar(st.screen)}
+    <div class="body"><aside class="panel sessions">${X.sessionList(st.screen)}</aside>
+      <main class="panel view">
+        <div class="vhead"><button class="btn ghost small">${I('back', 's')}Back</button><h1>${doc.kind} · ${doc.title}</h1><span class="meta">${I('branch', 't')} ${R.plan.branch}</span>
+          <span class="links"><a class="btn ghost small" href="../../../${doc.source.replace('docs/', '')}">${I('file', 's')}Raw Markdown</a><button class="btn ghost small">${I('history', 's')}Session history</button><button class="btn ghost small" aria-label="Close">${I('x', 's')}</button></span></div>
+        ${bar}${strip}
+        <div class="scroll">${isSpec ? spec() : plan(st.screen)}</div>
+      </main></div>
+    ${X.statusbar(st.screen, st.screen === 2 ? [['Esc', 'Back'], ['M', 'Markdown']] : [['Esc', 'Back'], ['M', 'Markdown'], ['Ctrl Enter', isSpec ? 'Spec OK' : 'Plan Go']])}</div>`;
+});
+</script>
+</body>
+</html>

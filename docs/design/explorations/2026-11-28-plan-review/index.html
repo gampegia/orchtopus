@@ -33,12 +33,13 @@
 <main id="grid"></main>
 <script>
   const directions = [
+    ['d-mix', 'D · Map with parts (chosen)', 'B as the base, with the parts from C as a strip that shows where something is flagged, the decision in its own tinted bar, and every step of the plan readable on demand.'],
     ['a-brief', 'A · Brief', 'One reading column like a memo. The decision card sits in a rail on the right and never scrolls away. Waves run top to bottom.'],
     ['b-map', 'B · Map', 'First screen: a three-part summary band and a lane map of the whole plan. Plan Go sits in the view header. Details below the map.'],
     ['c-parts', 'C · Parts', 'The document cut into parts of one or two minutes, read one at a time. Decisions are answered in place. The decision bar sits at the bottom.']
   ];
-  const state = { screen: '1', mode: 'dark', labels: 'asked' };
-  const opts = { screens: [['1', 'Plan waits'], ['2', 'Plan runs'], ['3', 'Spec waits']], modes: [['dark', 'Dark'], ['light', 'Light']], labels: [['asked', 'Red and green'], ['signal', 'Signal labels']] };
+  const state = { screen: '1', mode: 'dark', labels: 'signal' };
+  const opts = { screens: [['1', 'Plan waits'], ['2', 'Plan runs'], ['3', 'Spec waits']], modes: [['dark', 'Dark'], ['light', 'Light']], labels: [['signal', 'Signal labels'], ['asked', 'Red and green']] };
   const key = { screens: 'screen', modes: 'mode', labels: 'labels' };
   for (const g of Object.keys(opts)) for (const [v, t] of opts[g]) {
     const b = document.createElement('button'); b.textContent = t; b.dataset.g = g; b.dataset.v = v;
