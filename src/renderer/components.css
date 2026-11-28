@@ -437,23 +437,172 @@
 }
 
 .session-pane {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
-.session-pane-head {
+/* ------------------------------------------------------------------ session header */
+.session-header {
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  flex: none;
   height: var(--size-header);
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-3) 0 var(--space-5);
   border-bottom: var(--border-width) solid var(--border-subtle);
 }
 
-.session-pane-title {
+.session-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  flex: 1;
+  min-width: 0;
+}
+
+.session-header-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.session-header-line .state-word {
+  align-self: center;
+}
+
+.session-header-title {
   font-size: var(--type-title);
   line-height: var(--leading-title);
   font-weight: var(--weight-medium);
+}
+
+.session-header-branch,
+.session-header-reason {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-header-reason {
+  color: var(--signal-danger);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+}
+
+.session-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ terminal */
+.terminal-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-3) var(--space-2) var(--space-2) var(--space-4);
+  background: var(--surface-terminal);
+  color: var(--text-terminal);
+}
+
+.terminal-host {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.terminal-host .xterm {
+  height: 100%;
+}
+
+.terminal-host .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.terminal-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+  min-height: var(--size-control);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-row);
+  color: var(--text-secondary);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.terminal-notice .btn {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------------ dialog */
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: calc(var(--size-sidebar) + var(--size-rail));
+  max-width: calc(100vw - var(--space-12));
+  padding: var(--space-6);
+  box-shadow: var(--shadow-window);
+  transform: translate(-50%, -50%);
+  outline: none;
+}
+
+.dialog-title {
+  font-size: var(--type-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-medium);
+}
+
+.dialog-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.dialog-text .path {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+}
+
+.dialog-error {
+  color: var(--signal-danger);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.btn:disabled {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.btn.primary:disabled {
+  background: var(--action-primary-hover);
+  color: var(--action-on-primary);
 }
 
 /* ------------------------------------------------------------------ status bar */

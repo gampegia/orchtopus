@@ -5,10 +5,11 @@ import {
   useDefaultLayout,
   type LayoutStorage,
 } from 'react-resizable-panels';
-import { StateWord } from './Lamp';
 import { EmptyState } from './EmptyState';
+import { SessionHeader } from './SessionHeader';
 import { SessionList } from './SessionList';
 import { StatusBar } from './StatusBar';
+import { TerminalView } from './TerminalView';
 import { TitleBar } from './TitleBar';
 import { selectedSession, useAppStore } from '../state/store';
 
@@ -113,14 +114,10 @@ function MainColumn(): React.JSX.Element {
         />
       );
   } else {
-    // Task 14 replaces this with the session header and the terminal.
     content = (
       <section className="panel session-pane" aria-label={session.task}>
-        <div className="session-pane-head">
-          <h2 className="session-pane-title">{session.task}</h2>
-          <StateWord word={session.state} />
-          <span className="mono muted">{session.branch}</span>
-        </div>
+        <SessionHeader session={session} />
+        <TerminalView key={session.id} session={session} />
       </section>
     );
   }

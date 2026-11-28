@@ -1,4 +1,6 @@
 /* Page base. Component styles live in components.css, both linked from index.html. */
+/* xterm's own stylesheet, bundled into this linked file (never imported from TS). */
+@import '@xterm/xterm/css/xterm.css';
 *,
 *::before,
 *::after {
