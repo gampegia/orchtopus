@@ -7,7 +7,7 @@ import { openStore, readEvents, type Store } from '../store/event-log';
 import { getSessionState } from '../store/projections';
 import { makeTempDir, type TempDir } from '../store/testing';
 import { createAgentsPoller } from './agents-poller';
-import { POLL_INTERVAL_MS, START_GRACE_MS } from './state-rules';
+import { POLL_INTERVAL_MS, START_GRACE_MS } from './timings';
 import { createStateTracker, type StateTracker } from './state-tracker';
 
 const T0 = Date.UTC(2026, 10, 28, 9, 0, 0);

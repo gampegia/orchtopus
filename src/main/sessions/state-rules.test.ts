@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { deriveState, type StateInput } from './state-rules';
 import {
   ACTIVITY_WINDOW_MS,
-  deriveState,
   POLL_INTERVAL_MS,
   START_GRACE_MS,
   STALE_AFTER_STOP_MS,
-  type StateInput,
-} from './state-rules';
+} from './timings';
 
 const T0 = Date.UTC(2026, 10, 28, 9, 0, 0);
 
@@ -29,8 +28,8 @@ function input(change: Partial<StateInput>): StateInput {
   };
 }
 
-describe('constants', () => {
-  it('match the plan', () => {
+describe('timings (EV-H9)', () => {
+  it('match the spike and the own defaults', () => {
     expect(POLL_INTERVAL_MS).toBe(1000);
     expect(ACTIVITY_WINDOW_MS).toBe(3000);
     expect(STALE_AFTER_STOP_MS).toBe(3000);

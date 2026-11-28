@@ -33,7 +33,7 @@ import {
   type SessionService,
   type ShellOps,
 } from './sessions/session-service';
-import { POLL_INTERVAL_MS } from './sessions/state-rules';
+import { POLL_INTERVAL_MS } from './sessions/timings';
 import { createStateTracker, type StateTracker } from './sessions/state-tracker';
 import { importSpool } from './spool/import';
 import { tryStartupStep } from './startup-step';

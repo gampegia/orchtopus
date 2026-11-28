@@ -26,7 +26,8 @@ export interface CommandHook {
   type: 'command';
   command: string;
   args: string[];
-  timeout: number;
+  /** Seconds. Left out on async hooks: Claude Code does not enforce it there (hooks docs). */
+  timeout?: number;
   async?: true;
   onFailure?: 'block';
 }
@@ -71,7 +72,6 @@ export const STATE_HOOK_EVENTS = [
   'Notification',
 ] as const;
 
-const STATE_HOOK_TIMEOUT_S = 5;
 const PR_BLOCK_TIMEOUT_S = 10;
 const PR_BLOCK_MATCHER = 'Bash|PowerShell';
 
@@ -106,8 +106,9 @@ export function buildSessionSettings(input: SessionSettingsInput): ClaudeSetting
     type: 'command',
     command: launcher.command,
     args: launcher.args('state'),
+    // No timeout: Claude Code does not enforce it on async command hooks
+    // (https://code.claude.com/docs/en/hooks, common fields and Timeouts).
     async: true,
-    timeout: STATE_HOOK_TIMEOUT_S,
   });
   const hooks: Record<string, HookGroup[]> = {};
   for (const event of STATE_HOOK_EVENTS) hooks[event] = [{ hooks: [stateHook()] }];

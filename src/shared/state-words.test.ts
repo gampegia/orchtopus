@@ -122,11 +122,19 @@ describe('statusNotices', () => {
   it('names a Claude Code version that is too old', () => {
     const status = {
       ...okStatus,
-      cli: { found: true, version: '2.1.301', supported: false },
+      cli: { found: true, version: '2.1.294', supported: false },
     };
     expect(statusNotices({ connection: 'connected', ready: true, status })).toContainEqual({
-      text: 'Claude Code 2.1.301 is too old (needs 2.1.302)',
+      text: 'Claude Code 2.1.294 is too old (needs 2.1.295)',
       problem: true,
+    });
+  });
+
+  it('hints, without an alert, at a version below the tested one', () => {
+    const status = { ...okStatus, cli: { found: true, version: '2.1.310', supported: true } };
+    expect(statusNotices({ connection: 'connected', ready: true, status })).toContainEqual({
+      text: 'Claude Code 2.1.310 has not been tested (tested: 2.1.332)',
+      problem: false,
     });
   });
 

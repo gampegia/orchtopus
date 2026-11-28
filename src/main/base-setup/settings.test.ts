@@ -99,7 +99,6 @@ describe('buildSessionSettings', () => {
           command: 'C:\\Windows\\System32\\cmd.exe',
           args: ['/d', '/c', paths.launcher, 'state'],
           async: true,
-          timeout: 5,
         },
       ]);
     }
