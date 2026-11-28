@@ -490,20 +490,37 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
   it('waits for sync hooks but not for async hooks', async () => {
     const dir = await makeRepo('acme-app');
     const timeline = join(root, 'timeline.jsonl');
-    const stamp = async (name: string, delayMs: number): Promise<string> => {
+    const line = (name: string): string =>
+      `appendFileSync(${JSON.stringify(timeline)}, JSON.stringify({ name: ${JSON.stringify(name)} }) + '\\n');`;
+    const script = async (name: string, body: string[]): Promise<string> => {
       const file = join(root, `${name}.mjs`);
       await fs.writeFile(
         file,
         [
-          "import { appendFileSync } from 'node:fs';",
+          "import { appendFileSync, readFileSync } from 'node:fs';",
           "process.stdin.on('data', () => {});",
-          "process.stdin.on('end', () => setTimeout(() => {",
-          `  appendFileSync(${JSON.stringify(timeline)}, JSON.stringify({ name: ${JSON.stringify(name)}, t: Date.now() }) + '\\n');`,
-          `}, ${String(delayMs)}));`,
+          "process.stdin.on('end', () => {",
+          ...body,
+          '});',
         ].join('\n'),
       );
       return file;
     };
+    // The sync hook finishes late; the fake must still wait for it before the prompt.
+    const sync = await script('sync', [`  setTimeout(() => { ${line('sync')} }, 600);`]);
+    // The async hook only finishes after the prompt hook ran. If the fake waited for it,
+    // the prompt hook would never run and the test would time out (handshake, no timing margin).
+    const asyncHook = await script('async', [
+      '  const until = Date.now() + 20_000;',
+      '  const poll = () => {',
+      '    let text = "";',
+      `    try { text = readFileSync(${JSON.stringify(timeline)}, 'utf8'); } catch {}`,
+      `    if (text.includes('"prompt"')) { ${line('async')} return; }`,
+      '    if (Date.now() < until) setTimeout(poll, 25);',
+      '  };',
+      '  poll();',
+    ]);
+    const prompt = await script('prompt', [`  ${line('prompt')}`]);
     const settings = join(root, 'settings.json');
     await fs.writeFile(
       settings,
@@ -512,19 +529,12 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
           SessionStart: [
             {
               hooks: [
-                { type: 'command', command: NODE, args: [await stamp('sync', 600)] },
-                {
-                  type: 'command',
-                  command: NODE,
-                  args: [await stamp('async', 2_500)],
-                  async: true,
-                },
+                { type: 'command', command: NODE, args: [sync] },
+                { type: 'command', command: NODE, args: [asyncHook], async: true },
               ],
             },
           ],
-          UserPromptSubmit: [
-            { hooks: [{ type: 'command', command: NODE, args: [await stamp('prompt', 0)] }] },
-          ],
+          UserPromptSubmit: [{ hooks: [{ type: 'command', command: NODE, args: [prompt] }] }],
         },
       }),
     );
@@ -535,12 +545,12 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
         const parsed = text
           .split('\n')
           .filter((l) => l !== '')
-          .map((l) => JSON.parse(l) as { name: string; t: number });
+          .map((l) => JSON.parse(l) as { name: string });
         return parsed.length === 3 ? parsed : undefined;
       } catch {
         return undefined;
       }
-    });
+    }, 15_000);
     expect(rows.map((r) => r.name)).toEqual(['sync', 'prompt', 'async']);
   });
 
