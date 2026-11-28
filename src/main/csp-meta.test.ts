@@ -10,6 +10,13 @@ describe('renderer index.html', () => {
     expect(match?.[1]).toBe(CONTENT_SECURITY_POLICY);
   });
 
+  it('allows only loopback for connect-src', () => {
+    const directive = CONTENT_SECURITY_POLICY.split(';')
+      .map((part) => part.trim().split(/\s+/))
+      .find((parts) => parts[0] === 'connect-src');
+    expect(directive).toEqual(['connect-src', "'self'", 'http://127.0.0.1:*', 'ws://127.0.0.1:*']);
+  });
+
   it('loads no remote resources', () => {
     expect(html).not.toMatch(/(?:src|href)="(?:https?:)?\/\//);
   });

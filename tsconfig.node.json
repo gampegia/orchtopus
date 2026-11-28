@@ -6,6 +6,7 @@
   },
   "include": [
     "src/main/**/*",
+    "src/hook-helper/**/*",
     "src/preload/**/*",
     "src/shared/**/*",
     "tooling/**/*",

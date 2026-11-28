@@ -30,7 +30,7 @@ Child `claude` processes get a clean environment: `CLAUDECODE`, `CLAUDE_CODE_*`,
 |---|---|
 | `make-settings.mjs [--name full] [--compat] [--allow-env-read] [--deny-env-bash] [--no-bg-isolation] [--perm-timeout s] [--danger-timeout s] [--fail-timeout s] [--refresh s]` | Settings with logging hooks on every relevant event, deny rules for `.env` (`--deny-env-bash` also denies `Bash(cat .env)`), `autoMode.environment`, status line |
 | `receiver.mjs [--port 47613]` | HTTP hook receiver on 127.0.0.1 with a bearer token; answers by `policy.json["http:<Event>"]` |
-| `hook.mjs --label <l>` | Command hook (exec form). Modes: `log`, `deny`, `allow`, `exit2`, `exit1`, `crash`, `sleep`, `context`, `stop-once`, `danger`. If `policy.json` cannot be read, `danger` denies (fail closed) and other labels log |
+| `hook.mjs --label <l>` | Command hook (exec form). Modes: `log`, `deny`, `deny-match` (deny shell commands matching the regex `pattern`), `allow`, `exit2`, `exit1`, `crash`, `sleep`, `context`, `stop-once`, `danger`. If `policy.json` cannot be read, `danger` denies (fail closed) and other labels log |
 | `policy.mjs set <label> '<json>'`, `clear`, `show` | Change hook behaviour while a session runs; writes `policy.json` atomically (temp file plus rename) |
 | `statusline.mjs` | Status line command; logs its input |
 | `bg.mjs [--settings full] [--model haiku] [--effort low] [--mode m] [--new-id] [--base] [--resume <uuid>] [--fork] -- "<prompt>"` | `claude --bg` with the product's flags; `--base` adds system prompt file, inline prompt, agents and plugin dir. With `--resume` it adds no flag that is not given; argv, stdout and stderr go to `started.jsonl` |
@@ -74,3 +74,16 @@ Run from this folder, with `node receiver.mjs` running in a second terminal and 
 | 14 Cost | Same prompt in `--mode manual` and `--mode auto`; `rate_limits` before and after from `statusline.jsonl`, `total_cost_usd` from `-p --output-format json` |
 | 15 Side chat | `claude -p --resume <uuid> --fork-session --tools "" --output-format stream-json "<question>"` while idle and mid-turn; compare `claude agents --json` and the original's hook log |
 | 16 `/goal` | `bg.mjs -- "/goal git status was run and its output reported"`; `/goal` through the PTY; `claude agents --json`, `claude logs` |
+
+## M1 plan checks
+
+Scripts in `checks/` for plan checks T1 to T6 (results: section "M1 plan checks T1 to T6" in the spike doc). Each writes scrubbed evidence to `<scratch>\logs\checks\`. Run `node setup.mjs --reset`, `node make-settings.mjs` and `node make-settings.mjs --name t1a --no-bg-isolation` first, keep `node receiver.mjs` running, and finish with `node cleanup.mjs` and `node repo-check.mjs`. Every session runs with `--model haiku --effort low` in its own worktree under `.claude/worktrees/` of the test project; `checks/_shared.mjs` holds the shared helpers.
+
+| Check | Script | What it does |
+|---|---|---|
+| T1 | `checks/t1-isolation.mjs [--variants a,b]` | Two `--bg` sessions in fresh worktrees, with and without `worktree.bgIsolation: "none"`, PR-block stand-in (`danger` in `deny-match` mode) and the draft workflow instruction; records where the file landed, commits, pushes, `gh`/`glab` calls |
+| T2 | `checks/t2-trust.mjs` | `--bg` from a script in a fresh worktree; records start output, hooks and the trust key names under the scratch path in `~/.claude.json` (read only) |
+| T3 | `checks/t3-no-prompt.mjs` | `--bg` without a prompt, `agents --json` for 20 s, then attach in ConPTY and ask for `T3OK` |
+| T4 | `checks/t4-app-kill.mjs [--cases quit,kill,tree]` | `electron-parent.cjs` (Electron main: plain spawn of `claude --bg`, one node-pty attach) quit or killed mid-turn; process tree, `agents --json`, hooks and a reattach afterwards |
+| T5 | `checks/t5-ssh-deny.mjs [--form tilde\|abs]` | Canary folder `~/.orchtopus-t5-canary/` (never `~/.ssh`) behind a deny rule; Read tool and `cat`; marker searched in every log; canary deleted in `finally` |
+| T6 | `checks/t6-helper-timing.mjs --phase timing\|session` | `checks/stand-in-helper.cjs` from `<scratch>\data dir é\bin\`: 30 timed runs per runtime and launcher form with the receiver up and down; then a `--bg` session with exec-form, async and status line hooks through the launcher |

@@ -5,6 +5,9 @@ directories:
 files:
   - out/**
   - package.json
+extraResources:
+  - from: building-blocks
+    to: building-blocks
 asarUnpack:
   - node_modules/node-pty/**
   - node_modules/better-sqlite3/**

@@ -338,5 +338,113 @@ Open risks:
 7. `onFailure: "block"` is untested for `exit 1` and for a timeout in auto mode.
 8. A hook `allow` lost to a deny rule for Bash (R3); for the Read tool the hook never ran. A deny rule for the SSH key folder is untested.
 9. Not working around a parked command rests on 3 single runs (Haiku twice, Sonnet once, no Opus); the pause-session fallback stays an option (Q7).
-10. Survival of parent death was shown once with a plain Node parent, not with Electron (Q1).
+10. Survival of parent death was shown once with a plain Node parent, not with Electron (Q1). Closed by T4 below.
 11. The `--strict-mcp-config` effect on the side chat's tool list is not preserved in the logs (Q15).
+
+## M1 plan checks T1 to T6
+
+- Date: 2026-11-27, Claude Code 2.1.332, Electron 45.5.0, Node 24.20, same machine and test project as above (`setup.mjs --reset` first, old logs moved to `<scratch>\logs\archive-spike-q\`).
+- Scripts: `spikes/m1-claude-code/checks/` (see the harness README). Evidence: `<scratch>\logs\checks\t<n>*.json` and `<scratch>\logs\t<n>-run*.out`, PTY screens in `<scratch>\logs\pty\`.
+- All sessions: `claude --bg --settings <file> --model haiku --effort low`, `--permission-mode auto` unless noted, started from Node with the clean environment, each in its own worktree made like the product does it: `/.claude/worktrees/` in `.git/info/exclude`, then `git worktree add --no-track -b orch/<task> <repo>/.claude/worktrees/<task> origin/main`.
+- One run per check was enough for T1 to T5 (no contradicting result). T6's timing ran twice; its session check ran once.
+- Confound: a `PostToolUse` hook that is not part of the test settings printed `PostToolUse:Bash says: Tip: Run /ultrareview before you push …` in T1; it comes from the user's own setup and did not change the result.
+
+### T1. Worktree isolation and git behaviour
+
+Observed. Two `--bg` sessions ran in parallel, each in a fresh worktree, prompt `Add a file notes/t1.txt with the line T1 probe, then finish the task.`, with the draft workflow instruction of plan Task 7 as `--append-system-prompt-file` (branch filled in) and the PR-block stand-in (`hook.mjs` label `danger`, new mode `deny-match`, denies shell commands matching `gh(\.exe)?\s+pr|glab(\.exe)?\s+mr`). Deviation from the plan text: two worktrees (`t1a-probe`, `t1b-probe`) instead of one shared `t1-probe`, so neither variant sees the other's file or commit.
+
+| | A: `worktree.bgIsolation: "none"` | B: no `worktree` key |
+|---|---|---|
+| `notes/t1.txt` | only in `.claude/worktrees/t1a-probe` (Write tool) | only in `.claude/worktrees/t1b-probe` (Bash `printf`) |
+| New worktree or folder | none; `git worktree list` shows main and the two probes | none |
+| cwd in every hook payload and in `agents --json` | the probe worktree | the probe worktree |
+| Commits on `orch/<task>` | 1 (`Add T1 probe note`) | 1 (`Add notes/t1.txt probe file`) |
+| Branch on `remote.git` | yes, by the session's own `git push -u origin orch/t1a-probe` | yes, `git push -u origin orch/t1b-probe` |
+| `gh` / `glab` commands | none (PR block not reached) | none |
+| Asked before committing | no; `agents --json` `working/busy` → `done/idle` after 13.5 s | no; ended `done/idle` |
+| Main checkout | clean (`!! .env`, `!! .claude/` only) | clean |
+
+Final answers (Stop payload): A `Pushed orch/t1a-probe … Orchtopus opens the PR after you review and release the branch.`; B `… The branch is ready for you to review and release to Orchtopus for the pull request.` Both followed the workflow instruction: commit, push, no PR.
+
+The session's `git push -u` sets an upstream on the branch (`branch.orch/<task>.merge` = `refs/heads/orch/<task>`); Orchtopus' own `--no-track` only covers creation.
+
+Verdict: **pass**. Both variants keep the edit in the Orchtopus worktree; a session started inside an existing worktree did not move (matches the docs). Variant B shows the key is not needed when the session starts inside a worktree; keep `bgIsolation: "none"` as the documented guard. Not observed: what a session does without the workflow instruction (it was always given), so the PR block itself was not exercised here (Task 7 Step 5 tests it).
+
+### T2. Trust inheritance
+
+Observed. `acme-app` trusted (`hasTrustDialogAccepted: true` for `<scratch>/acme-app`). `claude --bg` from Node (no TTY) in the fresh worktree `.claude/worktrees/t2-probe` with prompt `Reply with the single word T2OK.`: exit 0, `backgrounded · <id> · t2-probe`, no `Workspace not trusted`. Hooks fired: `SessionStart` (cwd = the worktree), `UserPromptSubmit`, `Stop` with `last_assistant_message: "T2OK"`. Key names under the scratch path in `~/.claude.json` (read only): before and after the same single key `<scratch>/acme-app`; no key for the worktree (nor for the T1 worktrees).
+
+Verdict: **pass**. The worktree inherits the repository's trust and gets no own key. Not separated: whether trust is inherited through the git common dir or because the worktree folder lies under the trusted folder; Orchtopus worktrees always satisfy both.
+
+### T3. Start without a first prompt
+
+Observed. `claude --bg --settings <full> --model haiku --effort low --name t3-probe` (no prompt, no permission mode) in a worktree: exit 0, stdout `backgrounded · <id> · t3-probe (idle — send a prompt to start)`, stderr empty. `agents --json` over 20 s: `blocked` without `status` at 0 s, then `blocked / idle` for the rest. No hook fired before the attach. `claude attach <id>` in ConPTY: prompt box after 0.7 s; `Reply with the single word T3OK.` sent at 6.7 s; screen `● T3OK` at 10.0 s. Hooks: `SessionStart`, `UserPromptSubmit` (`prompt: "Reply with the single word T3OK."`), `Stop` (`T3OK`); final `done / idle`.
+
+Verdict: **pass**. Consequence for Task 11: a session started without a prompt reports `blocked / idle`, the same pair as "turn ended with a question" (Q1). The state rules must map it to idle (no `UserPromptSubmit` yet), not to "needs you". Gotcha: node-pty printed `Error: AttachConsole failed` from `conpty_console_list_agent.js` when the PTY ended after Ctrl+Z; harmless for the run, but Task 10 should expect it.
+
+### T4. App quit and kill with a turn running
+
+Observed. `electron-parent.cjs` (Electron 45.5.0, `ELECTRON_RUN_AS_NODE` unset, no window) spawns `claude --bg … "<prompt>"` with a plain `child_process.spawn` and then one node-pty `claude attach <id>`. Prompt: `Run node -e "setTimeout(()=>console.log('T4 done'),20000)" and report the output.` Before each case the harness sessions were stopped and the supervisor had exited (`claude daemon status`: not running), so each case started a fresh supervisor from the Electron app. The kill came after the `PreToolUse` of the timer command was logged.
+
+Process tree just before the kill (same in all three cases): supervisor `claude.exe` → parent `WmiPrvSE.exe` (it is created through WMI, not as a child of the caller); worker `claude.exe` → `claude.exe` → supervisor; attach `claude.exe` → `electron.exe`.
+
+| Case | App exit | Attach PTY after | Supervisor, worker after | `agents --json` after the kill | Turn |
+|---|---|---|---|---|---|
+| (a) `app.quit()` | code 0 after 285 ms (`will-quit`, `quit`) | gone | alive | `working / busy`, `done / idle` at 16 s | finished |
+| (b) `taskkill /PID <main> /F` | code 1 after 390 ms | gone | alive | `working / busy`, `done / idle` at 14 s | finished |
+| (c) `taskkill /PID <main> /T /F` | code 1 after 395 ms; taskkill ended 4 children (the attach `claude.exe` among them) and the main process | gone | alive | `working / busy`, `done / idle` at 16 s | finished |
+
+"Finished" in each case: a `PostToolUse` for the timer command, a `Stop` payload saying the command printed `T4 done`, and a new `claude attach` showing `● The command printed T4 done after the 20-second …`. No `SessionEnd` fired. (The script first read the reattach screen after the Ctrl+Z detach, which clears it; it was fixed to read the snapshot taken before, and the three results were recomputed from the saved snapshots.)
+
+Verdict: **pass**. Plain `spawn` of `claude --bg` and a node-pty `attach` are fine: the supervisor is started through WMI, outside the app's process tree and job, so even a tree kill only ends the app's attach client.
+
+### T5. Deny rule for a home folder
+
+Observed. Canary `~/.orchtopus-t5-canary/key.txt` with a random marker (`~/.ssh` not touched). Settings = `full` plus deny `Read(~/.orchtopus-t5-canary/**)`. Auto mode, prompt: read the file with the Read tool, then run `cat <file>` with Bash, do both, no other way.
+
+- Read tool: `File is in a directory that is denied by your permission settings.`, screen `Read 1 file · 1 failed`, no `PreToolUse` and no `PostToolUse` for it (as in Q12).
+- Bash `cat C:/Users/<user>/.orchtopus-t5-canary/key.txt`: `PreToolUse` fired, then `1 action not run · permission denied · rule from command line arguments │ Reason: Permission to use Bash with command cat … has been denied.`; no `PostToolUse`.
+- The marker appears in none of `command-hooks.jsonl`, `http-hooks.jsonl`, `statusline.jsonl`, `claude logs`.
+- Final `blocked / idle`; the model did not try another route. Canary folder deleted in `finally` (checked afterwards).
+
+Verdict: **pass** with the `~/` form; the `//c/Users/<user>/…` form was not needed and not tried. A home-relative `Read(…)` deny also covers `cat` through Bash, as `Read(./.env)` did in Q12.
+
+### T6. Helper runtime, invocation form and async hooks
+
+Observed. `stand-in-helper.cjs` reads `api.json` and `api-token` from its data folder (parent of its `bin\`), POSTs a 1 KB envelope with a bearer token to the spike receiver (500 ms timeout), spools to `spool\events.jsonl` on any failure, exits 0. Data folder `<scratch>\data dir é\`; helper and launchers in its `bin\`. Electron 45.5.0 `electron.exe` from the repo's `node_modules` (ASCII path). Three launchers, all written as UTF-8:
+
+- `plain`: the content from plan Task 4 (absolute helper path inside the file);
+- `chcp`: the same with `chcp 65001 >nul` after `@echo off`;
+- `dp0`: the same with the helper as `"%~dp0stand-in-helper.cjs"` (no non-ASCII text in the file).
+
+Wall time of `spawnSync` from Node, 30 runs per row after one warm-up, two runs (ms):
+
+| Form | Receiver up p50 / p95 | Receiver down p50 / p95 | Delivered (up) / spooled (down) |
+|---|---|---|---|
+| (a) `ELECTRON_RUN_AS_NODE=1 electron.exe stand-in-helper.cjs state` | 125 / 140, 112 / 125 | 103 / 120, 101 / 108 | 30 / 30 |
+| (b) `cmd.exe /d /c orchtopus-hook-plain.cmd state` | 66 / 79, 62 / 73 | 65 / 73, 63 / 74 | **0 / 0**, exit 0 |
+| (b) `… orchtopus-hook-chcp.cmd state` | 222 / 238, 204 / 222 | 195 / 227, 194 / 203 | 30 / 30 |
+| (b) `… orchtopus-hook-dp0.cmd state` | 196 / 280, 188 / 203 | 178 / 219, 176 / 195 | 30 / 30 |
+
+The plan's launcher drops every event without a trace when the data folder path has a non-ASCII letter: `cmd.exe` reads the batch file in the OEM code page, so the UTF-8 `é` in the helper path no longer matches, and `if not exist "<helper>" exit /b 0` exits 0 (nothing posted, nothing spooled). This is Review Focus 2.
+
+Inside a real `--bg` session (auto mode, `dp0` launcher, `PreToolUse` on `Bash` with three extra exec-form hooks, prompt `Run echo T6 probe with the Bash tool, then reply with the single word T6OK.`):
+
+- Form (b), `command: "cmd.exe"`, `args: ["/d", "/c", "<launcher>", "state", …]`: envelope received 96 ms after `PreToolUse`.
+- Form (c), `command: "<launcher>"`: not run. Screen `PreToolUse:Bash hook failed  Failed to run: spawn <launcher> EINVAL`; the CLI cannot spawn a `.cmd` without a shell, and the failure is visible to the user.
+- `async: true` on a form (b) hook that sleeps 3 s: `PreToolUse` to `PostToolUse` 828 ms; the async envelope arrived 3129 ms after `PreToolUse`, after `PostToolUse`. The async hook did not delay the tool call.
+- `statusLine.command` `"<launcher with forward slashes>" statusline --label …` (the first form tried): 5 statusline envelopes during the turn, footer `ctx 6 %`. The `cmd.exe /d /c …` form was not needed and not tried.
+- Final `done / idle`, answer `T6OK`.
+
+Verdict: **pass, with a launcher change**. Chosen: Electron in Node mode through the launcher, hooks in exec form `cmd.exe /d /c <launcher> <mode>`, `async: true` on state hooks, `statusLine.command` `"<launcher>" statusline`. The launcher must not carry non-ASCII paths as UTF-8 text: `%~dp0` for the helper path fixes the data folder case (p95 203 to 280 ms, under 300 but with little margin); a non-ASCII path to `Orchtopus.exe` itself (user profile with such a letter) is not fixed by `%~dp0`, only by `chcp 65001` (p95 222 to 238 ms, not tested with a non-ASCII exe path). Form (a) is about 100 ms faster but needs `ELECTRON_RUN_AS_NODE=1` in the hook's environment; no way to set it from the hook entry was tried. Open: the timing inside Claude Code was not measured, only the `spawnSync` wall time.
+
+### Summary of T1 to T6
+
+| Check | Verdict | Observed in one line | Consequence for the plan |
+|---|---|---|---|
+| T1 | pass | Both variants edited only in the Orchtopus worktree, committed and pushed the branch, opened no PR | Settings keep `worktree.bgIsolation: "none"`; no remote check. The session sets an upstream with `git push -u` |
+| T2 | pass | `--bg` from a script started in a fresh worktree; hooks fired; no new trust key | No trust step per worktree |
+| T3 | pass | Started with `(idle — send a prompt to start)`, `blocked / idle`, answered `T3OK` after attach | First prompt optional; Task 11 maps `blocked / idle` before the first `UserPromptSubmit` to idle |
+| T4 | pass | Session survived `app.quit()`, `/F` and `/T /F`; supervisor runs under `WmiPrvSE.exe` | Plain `spawn` of `claude --bg` and node-pty `attach` |
+| T5 | pass | `Read(~/…/**)` denied the Read tool and `cat`; marker in no log | Deny rule `Read(~/.ssh/**)` |
+| T6 | pass with change | Form (b) delivers, form (c) fails with `EINVAL`, `async: true` honoured, statusline form works; the plan's UTF-8 launcher silently drops events for a non-ASCII data folder | Electron Node mode, form (b), `async: true`; Task 4 launcher content must change (`%~dp0` for the helper, and `chcp 65001` or another fix for a non-ASCII exe path: lead decides) and gets a test for it |

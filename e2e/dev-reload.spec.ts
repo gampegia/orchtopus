@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, join } from 'node:path';
-import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test';
+import { expect, test, type ElectronApplication } from '@playwright/test';
+import { launchApp } from './launch';
 
 // Stands in for the Vite dev server: serves the built renderer over http on 127.0.0.1 and is
 // passed to the app as ELECTRON_RENDERER_URL, so the main process takes its dev server path.
@@ -16,6 +17,7 @@ const types: Record<string, string> = {
 let server: Server | undefined;
 let app: ElectronApplication | undefined;
 let devUrl = '';
+let cleanupLaunch: (() => void) | undefined;
 
 function electronApp(): ElectronApplication {
   if (app === undefined) throw new Error('Electron did not launch');
@@ -48,23 +50,19 @@ test.beforeAll(async () => {
   server = started;
   devUrl = `http://127.0.0.1:${String((started.address() as AddressInfo).port)}/`;
 
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(
-      (entry): entry is [string, string] =>
-        entry[1] !== undefined && entry[0] !== 'ELECTRON_RUN_AS_NODE',
-    ),
-  );
-  app = await electron.launch({
-    args: ['.'],
-    env: { ...env, ELECTRON_RENDERER_URL: devUrl, ORCHTOPUS_BACKGROUND_WINDOW: '1' },
-    timeout: 60_000,
-  });
-  const page = await app.firstWindow();
-  await page.waitForLoadState('load');
+  const launched = await launchApp({ env: { ELECTRON_RENDERER_URL: devUrl } });
+  cleanupLaunch = launched.cleanup;
+  app = launched.app;
+  await launched.page.waitForLoadState('load');
 });
 
 test.afterAll(async () => {
-  if (app !== undefined) await app.close();
+  try {
+    if (app !== undefined) await app.close();
+  } finally {
+    // Removes the data folder and Claude home launchApp made for this suite.
+    cleanupLaunch?.();
+  }
   const running = server;
   if (running !== undefined) {
     await new Promise<void>((resolve) => {

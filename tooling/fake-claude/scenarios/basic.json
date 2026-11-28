@@ -1,0 +1,36 @@
+{
+  "description": "One short turn: a git status tool call, a status line update, then done.",
+  "steps": [
+    { "at": 0, "state": "working", "status": "busy", "output": "● Working on it…\r\n" },
+    {
+      "at": 150,
+      "hook": {
+        "event": "PreToolUse",
+        "payload": { "tool_name": "Bash", "tool_input": { "command": "git status" } }
+      }
+    },
+    {
+      "at": 250,
+      "output": "  ⎿  On branch upload-fix\r\n",
+      "hook": {
+        "event": "PostToolUse",
+        "payload": {
+          "tool_name": "Bash",
+          "tool_input": { "command": "git status" },
+          "tool_response": { "stdout": "On branch upload-fix" }
+        }
+      }
+    },
+    { "at": 300, "statusline": { "contextPct": 12 } },
+    {
+      "at": 500,
+      "state": "done",
+      "status": "idle",
+      "output": "● Done.\r\n",
+      "hook": {
+        "event": "Stop",
+        "payload": { "stop_hook_active": false, "last_assistant_message": "Done." }
+      }
+    }
+  ]
+}

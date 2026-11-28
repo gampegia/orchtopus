@@ -1,0 +1,27 @@
+{
+  "description": "The session waits on a permission prompt and stays there.",
+  "steps": [
+    { "at": 0, "state": "working", "status": "busy", "output": "● Installing the packages\r\n" },
+    {
+      "at": 150,
+      "hook": {
+        "event": "PreToolUse",
+        "payload": { "tool_name": "Bash", "tool_input": { "command": "npm install" } }
+      }
+    },
+    {
+      "at": 300,
+      "state": "blocked",
+      "status": "waiting",
+      "waitingFor": "permission prompt",
+      "output": "This command requires approval\r\n  npm install\r\n 1. Yes 2. No\r\n",
+      "hook": {
+        "event": "Notification",
+        "payload": {
+          "notification_type": "permission_prompt",
+          "message": "Claude needs your permission to use Bash"
+        }
+      }
+    }
+  ]
+}

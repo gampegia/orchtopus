@@ -1,0 +1,5 @@
+{
+  "description": "The trust dialog is a select list with 'Yes, proceed' focused, like the real CLI: Enter accepts trust, typed text other than 1 or 2 is ignored, 2 declines.",
+  "trustDialog": "select",
+  "steps": []
+}

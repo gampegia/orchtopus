@@ -1,0 +1,34 @@
+{
+  "description": "The session tries to open a pull request (the PR block hook should deny it), then pushes its branch, which runs.",
+  "steps": [
+    { "at": 0, "state": "working", "status": "busy", "output": "● Opening a pull request\r\n" },
+    {
+      "at": 150,
+      "toolCall": {
+        "tool_name": "Bash",
+        "tool_input": { "command": "gh pr create --draft --fill" }
+      }
+    },
+    {
+      "at": 300,
+      "toolCall": {
+        "tool_name": "PowerShell",
+        "tool_input": { "command": "git push -u origin HEAD" },
+        "tool_response": { "stdout": "" }
+      }
+    },
+    {
+      "at": 400,
+      "state": "done",
+      "status": "idle",
+      "output": "● The branch is pushed; the pull request was not created.\r\n",
+      "hook": {
+        "event": "Stop",
+        "payload": {
+          "stop_hook_active": false,
+          "last_assistant_message": "The branch is pushed; the pull request was not created."
+        }
+      }
+    }
+  ]
+}
