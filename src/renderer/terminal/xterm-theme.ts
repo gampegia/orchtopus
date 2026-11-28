@@ -4,8 +4,15 @@ import type { ITheme } from '@xterm/xterm';
 
 type ReadToken = (name: string) => string;
 
-/** ANSI colours that carry a signal keep its meaning (DESIGN.md section 3). */
+/**
+ * ANSI colours that carry a signal keep its meaning (DESIGN.md section 3). Black and white map
+ * to text tokens, which flip with the colour mode, so every slot stays readable on the terminal
+ * surface in light and dark (xterm's default white is unreadable on the light surface).
+ */
 const ANSI_TOKENS = {
+  black: '--text-terminal',
+  white: '--text-secondary',
+  brightWhite: '--text-primary',
   red: '--signal-danger',
   green: '--signal-done',
   yellow: '--signal-permission',
