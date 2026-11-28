@@ -3,24 +3,14 @@
 // output, input and resize. Leaving the session closes only the stream; the PTY stays attached.
 // A terminal that ended is never reopened by itself (Review Focus 3): the user clicks Reattach.
 import { useEffect, useRef, useState } from 'react';
-import { FitAddon } from '@xterm/addon-fit';
-import { Unicode11Addon } from '@xterm/addon-unicode11';
-import { WebglAddon } from '@xterm/addon-webgl';
-import { Terminal } from '@xterm/xterm';
 import { STILL_STARTING_MESSAGE, type SessionView } from '../../shared/api-types';
 import { ApiRequestError } from '../api/client';
 import { apiClient, useAppStore } from '../state/store';
-import { buildXtermTheme, xtermFont } from '../terminal/xterm-theme';
+import { mountXterm, type TerminalHost } from '../terminal/create-xterm';
 
 const STARTING_RETRY_MS = 500;
 
 type Phase = { kind: 'opening' } | { kind: 'live' } | { kind: 'ended'; error: string | null };
-
-/** The host element keeps its xterm, so e2e tests can read the buffer. */
-type TerminalHost = HTMLDivElement & { orchtopusTerminal?: Terminal };
-
-const readToken = (name: string): string =>
-  getComputedStyle(document.documentElement).getPropertyValue(name);
 
 function resumable(word: SessionView['state'] | undefined): boolean {
   return word === 'stopped' || word === 'failed';
@@ -46,49 +36,7 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
     if (attempt === 0 && first?.terminal.status === 'elsewhere') return;
 
     let disposed = false;
-    const font = xtermFont(readToken);
-    const term = new Terminal({
-      ...font,
-      theme: buildXtermTheme(readToken),
-      allowProposedApi: true,
-      smoothScrollDuration: 0,
-      cursorBlink: false,
-    });
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    term.loadAddon(new Unicode11Addon());
-    term.unicode.activeVersion = '11';
-    term.open(host);
-    host.orchtopusTerminal = term;
-    try {
-      const webgl = new WebglAddon();
-      // Context loss: dispose the addon and xterm falls back to the DOM renderer. The CSP blocks
-      // the style attributes that renderer sets for 24-bit colours, so such text shows in the
-      // default terminal colour; palette colours, layout and input keep working.
-      webgl.onContextLoss(() => {
-        webgl.dispose();
-      });
-      term.loadAddon(webgl);
-    } catch {
-      // No WebGL: the DOM renderer stays.
-    }
-    const safeFit = (): void => {
-      if (host.clientWidth > 0 && host.clientHeight > 0) fit.fit();
-    };
-    safeFit();
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const retheme = (): void => {
-      term.options.theme = buildXtermTheme(readToken);
-    };
-    media.addEventListener('change', retheme);
-
-    let frame = 0;
-    const observer = new ResizeObserver(() => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(safeFit);
-    });
-    observer.observe(host);
+    const { term, dispose } = mountXterm(host);
 
     let closeSocket: (() => void) | null = null;
     const connect = (terminalId: string): void => {
@@ -150,11 +98,7 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
       disposed = true;
       clearTimeout(retryTimer);
       closeSocket?.();
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      media.removeEventListener('change', retheme);
-      delete host.orchtopusTerminal;
-      term.dispose();
+      dispose();
     };
   }, [sessionId, attempt]);
 
