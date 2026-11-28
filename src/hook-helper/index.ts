@@ -47,6 +47,11 @@ export interface HelperIo {
   dataDir: string;
   now: () => Date;
   post: PostFn;
+  /**
+   * Prints the status text at once, before the POST. When given, the result's stdout is
+   * empty, so a hanging API never holds the status line back.
+   */
+  write?: (text: string) => void;
 }
 
 export interface HelperResult {
@@ -174,7 +179,11 @@ export async function runHelper(io: HelperIo): Promise<HelperResult> {
   let stdout = '';
   try {
     const input = parseInput(io.stdin);
-    if (mode === 'statusline') stdout = statusText(input);
+    if (mode === 'statusline') {
+      const text = statusText(input);
+      if (io.write === undefined) stdout = text;
+      else io.write(text);
+    }
     if (input === null) return { exitCode: 0, stdout };
     const envelope = buildEnvelope(mode, input, io.now());
     if (envelope === null) return { exitCode: 0, stdout };
@@ -230,6 +239,9 @@ function main(): void {
     dataDir: dirname(__dirname),
     now: () => new Date(),
     post: httpPost,
+    write: (text) => {
+      process.stdout.write(text);
+    },
   })
     .catch(() => ({ exitCode: 0, stdout: '' }))
     .then((result) => {

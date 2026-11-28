@@ -236,4 +236,46 @@ describe('runHelper', () => {
     expect(malformed).toEqual({ exitCode: 0, stdout: 'ctx unknown' });
     expect(calls).toHaveLength(2);
   });
+
+  it('statusline writes the status text through io.write before sending', async () => {
+    writeApiFiles();
+    const order: string[] = [];
+    // The API hangs: the status line must not wait for it.
+    const hangingPost: PostFn = () => {
+      order.push('post');
+      return new Promise<number>(() => undefined);
+    };
+    vi.useFakeTimers();
+    const result = runHelper({
+      argv: ['statusline'],
+      stdin: JSON.stringify({
+        session_id: 'c0ffee00-0000-4000-8000-000000000001',
+        context_window: { used_percentage: 18 },
+      }),
+      dataDir: temp.dir,
+      now: () => NOW,
+      post: hangingPost,
+      write: (text) => {
+        order.push(`write ${text}`);
+      },
+    });
+    await vi.advanceTimersByTimeAsync(POST_TIMEOUT_MS);
+    await expect(result).resolves.toEqual({ exitCode: 0, stdout: '' });
+    expect(order).toEqual(['write ctx 18 %', 'post']);
+  });
+
+  it('state mode never calls io.write', async () => {
+    writeApiFiles();
+    const write = vi.fn();
+    const result = await runHelper({
+      argv: ['state'],
+      stdin: preToolUse,
+      dataDir: temp.dir,
+      now: () => NOW,
+      post: fakePost,
+      write,
+    });
+    expect(result).toEqual({ exitCode: 0, stdout: '' });
+    expect(write).not.toHaveBeenCalled();
+  });
 });
