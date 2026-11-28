@@ -3,6 +3,7 @@
 // error; only a missing git or a missing working folder rejects.
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { win32 } from 'node:path';
 import { cleanEnv } from '../child-env';
 
 export interface GitResult {
@@ -27,14 +28,43 @@ export class FolderMissingError extends Error {
   }
 }
 
+/**
+ * The first git.exe in an absolute PATH entry. Empty, "." and relative entries are skipped: a
+ * bare `git` would let libuv run a git.exe from the repository's own folder (it searches the
+ * child's cwd before PATH), and a relative entry would do the same.
+ */
+export function findGitOnPath(
+  pathValue: string,
+  exists: (file: string) => boolean = existsSync,
+): string | null {
+  for (const raw of pathValue.split(win32.delimiter)) {
+    const dir = raw.trim().replace(/^"(.*)"$/, '$1');
+    if (dir === '' || !win32.isAbsolute(dir)) continue;
+    const file = win32.join(dir, 'git.exe');
+    if (exists(file)) return file;
+  }
+  return null;
+}
+
+let resolvedGit: string | null = null;
+
+/** The absolute git path, looked up once; null (and looked up again next time) when missing. */
+function gitExecutable(): string | null {
+  if (process.platform !== 'win32') return 'git';
+  resolvedGit ??= findGitOnPath(process.env['PATH'] ?? '');
+  return resolvedGit;
+}
+
 export function runGit(
   args: readonly string[],
   opts: { cwd: string; timeoutMs?: number },
 ): Promise<GitResult> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_GIT_TIMEOUT_MS;
+  const file = gitExecutable();
+  if (file === null) return Promise.reject(new GitMissingError());
   return new Promise((resolve, reject) => {
     execFile(
-      'git',
+      file,
       [...args],
       {
         cwd: opts.cwd,

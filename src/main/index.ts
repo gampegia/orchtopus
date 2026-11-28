@@ -29,6 +29,11 @@ const warn = (message: string): void => {
   console.warn(message);
 };
 
+// Before any child process: without it libuv looks for a bare command (git, where) in the
+// child's working folder first, so a repository with git.exe at its top would run that file.
+// libuv reads it from this process; setting it only in a child's env does not help.
+process.env['NoDefaultCurrentDirectoryInExePath'] = '1';
+
 app.enableSandbox();
 // Must run before the app is ready.
 protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
