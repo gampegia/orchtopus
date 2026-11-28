@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { StreamMessage } from '../../shared/api-types';
+import { STILL_STARTING_MESSAGE, type StreamMessage } from '../../shared/api-types';
 import type { AgentAdapter } from '../adapter/agent-adapter';
 import { createBackgroundAdapter } from '../adapter/background-adapter';
 import { createTerminalRegistry, type TerminalRegistry } from '../adapter/terminals';
@@ -38,6 +38,8 @@ import { createTempRepo, git, isolatedGitEnv, type TempRepo } from '../test-help
 import { createStateTracker, type StateTracker } from './state-tracker';
 import {
   createSessionService,
+  INTERRUPTED_TWICE,
+  vscodeFileUrl,
   type SessionService,
   type SessionServiceDeps,
   type StartSessionInput,
@@ -455,6 +457,101 @@ describe('session service', { timeout: 60_000 }, () => {
     );
   });
 
+  it('a retry of a start interrupted twice fails without a third attempt', async () => {
+    const req = input();
+    actions.begin('session.start', { ...req }, req.requestId);
+    actions.begin('session.start', { ...req }, req.requestId);
+    const error = await rejection(service().start(req));
+    expect(error).toMatchObject({ status: 409, message: INTERRUPTED_TWICE });
+    expect(actions.get(req.requestId)).toMatchObject({ status: 'failed', attempts: 2 });
+    expect(bgCalls()).toHaveLength(0);
+    expect(existsSync(worktree())).toBe(false);
+  });
+
+  it('a request id used by another action kind answers 409', async () => {
+    const req = input();
+    actions.begin('project.add', { path: repo.root }, req.requestId);
+    actions.finish(req.requestId, { projectId });
+    const error = await rejection(service().start(req));
+    expect(error.status).toBe(409);
+    expect(listSessions(store.db)).toHaveLength(0);
+    expect(bgCalls()).toHaveLength(0);
+  });
+
+  it('checks the task name before anything else', async () => {
+    const error = await rejection(
+      service().start(
+        input({ projectId: 'no-such-project', task: '..\\escape', branch: 'orch/x' }),
+      ),
+    );
+    expect(error).toMatchObject({ status: 422, field: 'task' });
+  });
+
+  it('open logs its action before it closes a leftover terminal', async () => {
+    const s = service();
+    const view = await s.start(input());
+    await s.stop(view.id);
+    await poll();
+    let begunAtClose = false;
+    vi.spyOn(registry, 'closeSession').mockImplementation(() => {
+      begunAtClose = readEvents(store.db).some(
+        (e) =>
+          e.type === 'action.started' && (e.payload as { kind?: string }).kind === 'session.open',
+      );
+      return Promise.resolve();
+    });
+    await s.open(view.id, SIZE);
+    expect(begunAtClose).toBe(true);
+  });
+
+  it('stop and remove answer 409 while the start is still pending', async () => {
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gated: AgentAdapter = {
+      ...adapter,
+      start: async (startInput) => {
+        await gate;
+        return adapter.start(startInput);
+      },
+    };
+    const s = service({ adapter: gated });
+    const started = s.start(input());
+    await waitFor(() => Promise.resolve(listSessions(store.db).length === 1));
+    const [row] = listSessions(store.db);
+    if (row === undefined) throw new Error('no session row');
+    expect(await rejection(s.stop(row.id))).toMatchObject({
+      status: 409,
+      message: STILL_STARTING_MESSAGE,
+    });
+    expect(await rejection(s.remove(row.id, true))).toMatchObject({
+      status: 409,
+      message: STILL_STARTING_MESSAGE,
+    });
+    release();
+    await started;
+    expect(existsSync(worktree())).toBe(true);
+  });
+
+  it('a resumed remove never removes a worktree with changes', async () => {
+    const s = service();
+    const view = await s.start(input());
+    // A crash right after the remove was logged; the user then edited the worktree.
+    const record = actions.begin('session.remove', { sessionId: view.id, confirm: true });
+    writeFileSync(join(worktree(), 'draft.txt'), 'work in progress\n');
+    await service().resumePending();
+    expect(existsSync(join(worktree(), 'draft.txt'))).toBe(true);
+    expect(getSession(store.db, view.id)).toBeDefined();
+    expect(actions.get(record.id)?.status).toBe('failed');
+  });
+
+  it('builds the VS Code link with each path segment encoded', () => {
+    expect(vscodeFileUrl('C:\\acme-app\\.claude\\worktrees\\a#b?c d')).toBe(
+      'vscode://file/C:/acme-app/.claude/worktrees/a%23b%3Fc%20d',
+    );
+  });
+
   it('reveal opens the worktree in Explorer and in VS Code only when code is found', async () => {
     const opened: string[] = [];
     const s = service({
@@ -474,7 +571,7 @@ describe('session service', { timeout: 60_000 }, () => {
     await s.reveal(view.id, 'explorer');
     await s.reveal(view.id, 'vscode');
     expect(opened[0]).toBe(`path:${worktree()}`);
-    expect(opened[1]).toBe(`url:vscode://file/${encodeURI(worktree().replace(/\\/g, '/'))}`);
+    expect(opened[1]).toBe(`url:${vscodeFileUrl(worktree())}`);
     const without = service({ whereCode: () => Promise.resolve(false) });
     expect(await without.vscodeAvailable()).toBe(false);
     expect((await rejection(without.reveal(view.id, 'vscode'))).status).toBe(409);

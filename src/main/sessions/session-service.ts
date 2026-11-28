@@ -146,7 +146,7 @@ interface SessionParams {
 export const MAX_START_ATTEMPTS = 2;
 export const INTERRUPTED_TWICE = 'Start was interrupted twice';
 const NEVER_STARTED = 'This session never started; remove it and start again';
-const STILL_STARTING = STILL_STARTING_MESSAGE;
+const OTHER_KIND = 'This request id was already used for another action.';
 const BUSY_RETRY_MS = 250;
 const BUSY_RETRY_TRIES = 20;
 const WHERE_TIMEOUT_MS = 5_000;
@@ -172,6 +172,15 @@ function whereCode(): Promise<boolean> {
       },
     );
   });
+}
+
+/** The vscode:// link for a folder; each path segment is encoded, so # and ? stay in the path. */
+export function vscodeFileUrl(path: string): string {
+  const segments = path
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((segment) => (/^[A-Za-z]:$/.test(segment) ? segment : encodeURIComponent(segment)));
+  return `vscode://file/${segments.join('/')}`;
 }
 
 function message(error: unknown): string {
@@ -266,9 +275,10 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
           : 'Claude Code was not found. Install it, then restart Orchtopus.',
       );
     }
-    const plan = makePlan(input, randomUUID());
+    // The name is checked before it becomes part of a path.
     const nameError = validateTaskName(input.task);
     if (nameError !== null) throw new HttpError(422, nameError, 'task');
+    const plan = makePlan(input, randomUUID());
     const taken = `A session named ${input.task} already exists. Pick another task name.`;
     if (listSessions(db).some((s) => s.projectId === input.projectId && s.task === input.task)) {
       throw new HttpError(422, taken, 'task');
@@ -473,8 +483,17 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
   const start = (input: StartSessionInput, actionId: string = input.requestId) =>
     serialize(`action:${actionId}`, async () => {
       const existing = actions.get(actionId);
+      if (existing && existing.kind !== 'session.start') throw new HttpError(409, OTHER_KIND);
       if (existing && existing.status !== 'pending') return answerFinished(existing);
       if (existing) {
+        // Read inside this chain, so the count is never stale: a start cut off twice (two
+        // crashes, or a client retrying a stuck start) gets no third attempt.
+        if (existing.attempts >= MAX_START_ATTEMPTS) {
+          const failed = actions.fail(actionId, INTERRUPTED_TWICE);
+          const sessionId = planOf(failed)?.sessionId;
+          if (sessionId !== undefined) tracker.onStartFailed(sessionId, INTERRUPTED_TWICE);
+          return answerFinished(failed);
+        }
         actions.begin('session.start', existing.params, actionId);
       } else {
         // Validate and begin one at a time, so two starts cannot take the same task name.
@@ -539,20 +558,23 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
   const open = (sessionId: string, size: TerminalSize) =>
     serialize(`session:${sessionId}`, async () => {
       findSession(sessionId);
+      // Lock order: a `session:` chain may wait for an `action:` chain (here), never the
+      // reverse. Code inside an `action:` chain must not wait for a `session:` chain, or the
+      // two would deadlock.
       // A start that runs in this process: wait for it, so a session selected right after its
       // row appears opens without a 409. A pending start that is not running still answers 409.
       const pending = pendingFor(sessionId);
       if (pending?.kind === 'session.start') await chains.get(`action:${pending.id}`);
-      if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING);
+      if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING_MESSAGE);
       let row = findSession(sessionId);
       refOf(row);
       const word = getSessionState(db, sessionId)?.word;
       if (word === 'stopped' || word === 'failed') {
+        const params: SessionParams = { sessionId };
+        const record = actions.begin('session.open', params);
         // The process is gone, so any attach PTY left from it is dead even if its exit has
         // not been reported yet; the resumed process gets a fresh one.
         await terminals.closeSession(sessionId);
-        const params: SessionParams = { sessionId };
-        const record = actions.begin('session.open', params);
         await runResume(record.id, row);
         row = findSession(sessionId);
       }
@@ -560,16 +582,17 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
       return { terminalId };
     });
 
+  /** Stops the session's process; false when it never started (nothing to stop). */
+  const stopProcess = async (row: SessionRow): Promise<boolean> => {
+    if (row.claudeSessionId === null || row.shortId === null) return false;
+    await adapter.stop(refOf(row));
+    return true;
+  };
+
   const runStop = async (actionId: string, row: SessionRow): Promise<void> => {
     try {
       await actions.step(actionId, 'stop', async () => {
-        if (row.shortId !== null) {
-          await adapter.stop({
-            sessionId: row.claudeSessionId ?? row.shortId,
-            shortId: row.shortId,
-            cwd: row.worktreePath,
-          });
-        }
+        await stopProcess(row);
         return true;
       });
       actions.finish(actionId, null);
@@ -583,7 +606,7 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
   const stop = (sessionId: string) =>
     serialize(`session:${sessionId}`, async () => {
       const row = findSession(sessionId);
-      if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING);
+      if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING_MESSAGE);
       const params: SessionParams = { sessionId };
       await runStop(actions.begin('session.stop', params).id, row);
     });
@@ -602,13 +625,9 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
     try {
       const word = getSessionState(db, row.id)?.word;
       await actions.step(actionId, 'stop', async () => {
-        if (row.shortId === null || word === 'stopped') return 'skipped';
+        if (word === 'stopped') return 'skipped';
         try {
-          await adapter.stop({
-            sessionId: row.claudeSessionId ?? row.shortId,
-            shortId: row.shortId,
-            cwd: row.worktreePath,
-          });
+          if (!(await stopProcess(row))) return 'skipped';
         } catch (error) {
           // A failed session may have no process left to stop.
           if (word !== 'failed') throw error;
@@ -651,7 +670,7 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
   const remove = (sessionId: string, confirm: true) =>
     serialize(`session:${sessionId}`, async () => {
       const row = findSession(sessionId);
-      if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING);
+      if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING_MESSAGE);
       // Refuse before anything is stopped, so a dirty worktree keeps its running session.
       if (existsSync(row.worktreePath) && !(await git.worktreeIsClean(row.worktreePath))) {
         throw new HttpError(
@@ -677,9 +696,7 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
       return;
     }
     if (!(await vscodeAvailable())) throw new HttpError(409, 'VS Code was not found.');
-    await deps.shell.openExternal(
-      `vscode://file/${encodeURI(row.worktreePath.replace(/\\/g, '/'))}`,
-    );
+    await deps.shell.openExternal(vscodeFileUrl(row.worktreePath));
   };
 
   const rewriteSessionFiles = async (): Promise<void> => {
@@ -699,12 +716,7 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
   const resumeOne = async (record: ActionRecord): Promise<void> => {
     switch (record.kind) {
       case 'session.start': {
-        if (record.attempts >= MAX_START_ATTEMPTS) {
-          actions.fail(record.id, INTERRUPTED_TWICE);
-          const sessionId = planOf(record)?.sessionId;
-          if (sessionId !== undefined) tracker.onStartFailed(sessionId, INTERRUPTED_TWICE);
-          return;
-        }
+        // start() gives up on a start that was already interrupted twice.
         await start(record.params as StartSessionInput, record.id);
         return;
       }
