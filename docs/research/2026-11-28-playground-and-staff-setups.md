@@ -44,7 +44,7 @@ The playground and the staff posts mostly confirm choices we made. No action.
   - `git clean`: runs `git clean -n` with the user's flags.
   - Force push: commits on the remote that HEAD lacks, "as of the last fetch".
   - Migrations: pending ones for django, alembic, rails and prisma.
-- **For us:** compute it in the main process with Node `fs` and `git`, never by running project tools. Their script needs `bash`, `find` and `du`, so it does not run on native Windows. Migration listers load project code, so we skip them.
+- **For us:** compute it in the main process with Node `fs` and `git`, never by running project tools. Their script needs `bash`, `find` and `du`, so it probably does not run on native Windows (inference, not tested). Migration listers load project code, so we skip them.
 - **Backlog:** "Guard commands that lose work (blast radius)", M2.
 
 ### 2.2 More patterns for the dangerous list
@@ -99,7 +99,7 @@ The playground and the staff posts mostly confirm choices we made. No action.
   - Idle threads wake on CI failure or a review comment, not on a timer.
   - Auto-resolve after a week without activity.
   - Default models: Opus everywhere, `medium` for threads, `low` for the coordinator.
-- **One possible bridge:** host `claude remote-control --spawn worktree --settings <ours>`. Unproven. Open questions: does a spawned thread use our hooks, and can we attach a PTY.
+- **One possible bridge:** host `claude remote-control --spawn worktree --settings <ours>`. Unproven. Open questions: does a spawned thread use our hooks, and can we attach a PTY. It would need a second `AgentAdapter` implementation, and `attach` to such threads is unverified.
 - On native Windows the local `/steward` PR watch does not start. So we build our own CI watcher.
 - **Backlog:** "Claude Code Projects: precedent, not a building block".
 
@@ -119,8 +119,8 @@ The playground and the staff posts mostly confirm choices we made. No action.
 ### 2.8 Review council: verified findings and approvals per path
 
 - **Verdict:** partly. Lydia Hallie works on Claude Code at Anthropic (ai.engineer talk page, 17:31 long). **The talk date is unverified.** One third-party note says 2026-11-11. Source: https://ai.engineer/talks/vlfCjWuv4es-rethinking-claude-code-best-practices .
-- **Verified findings.** Quote: "A separate group of agents double-checks each bug it reports." The docs (https://code.claude.com/docs/en/code-review) describe four stages: find, verify, rank, post. Verification reads code. It does not build or run it.
-- **Review level.** Code Review has Quick, Standard and Deep, set by the owner. The docs give no agent count.
+- **Verified findings.** Decision 2026-11-28 (user suggestion, adopted by the lead): our own reviewer agents verify each finding before it counts. This adds to the review and removes no reviewer. Quote: "A separate group of agents double-checks each bug it reports." The docs (https://code.claude.com/docs/en/code-review) describe four stages: find, verify, rank, post. Verification reads code. It does not build or run it.
+- **Review level.** Code Review has Quick, Standard and Deep, set by the owner. This is not the risk tier. The docs give no agent count.
 - **"Risk tier" means the number of human reviewers.**
   - Docs and copy edits may merge on green checks alone. Ordinary changes may need one human. Risky changes may need two. The talk says "may": it is guidance.
   - The documented mechanism is Claude Approvals, `.claude/approvals.yml`, read from the default branch: https://code.claude.com/docs/en/approvals . Rules set seats per path. Public beta, Team and Enterprise, github.com only.

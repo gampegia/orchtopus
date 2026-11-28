@@ -109,10 +109,11 @@ Added 2026-11-27. Status: idea, to be evaluated. Updated 2026-11-28: user decisi
 
 **Decision 2026-11-28 (user): HTML review pages inside Orchtopus.** The user reviews specs and plans as designed HTML pages, not as Markdown or rendered Markdown. This supersedes F50's rendered Markdown editor as the default view.
 
-- The session writes an HTML review page next to the Markdown plan. The Markdown stays the agents' source of truth and is what gets committed.
-- The page comes from a versioned building-block template that uses design tokens. It has a short summary on top, red "needs you" and green "info" labels, flow diagrams, collapsible details and progress per task.
-- Orchtopus shows the page in the plan view, with Spec OK and Plan Go on it, and a raw-text fallback.
-- Orchtopus checks that the HTML and the Markdown belong to the same revision. The session regenerates the HTML on every change.
+- Proposed by the lead: the session writes an HTML review page next to the Markdown plan. The Markdown stays the agents' source of truth and is what gets committed. The HTML page is a view: it lives in the Orchtopus data folder and is never committed.
+- The session writes these files through superpowers, not Orchtopus. Keeping them in the repository is the user's per-project choice, so this does not break "Orchtopus writes nothing into user repos".
+- Proposed by the lead: the page comes from a versioned building-block template that uses design tokens. It has a short summary on top, red "needs you" and green "info" labels, flow diagrams, collapsible details and progress per task.
+- Proposed by the lead: Orchtopus shows the page in the plan view, with Spec OK and Plan Go on it, and a raw-text fallback.
+- Proposed by the lead: Orchtopus checks that the HTML and the Markdown belong to the same revision. The session regenerates the HTML on every change.
 - Source: Thariq Shihipar's essay on HTML as the plan format, 2026-05-20 (https://claude.dev/blog/using-claude-code-the-unreasonable-effectiveness-of-html/). He does not read Markdown plans over about 100 lines. See `docs/research/2026-11-28-playground-and-staff-setups.md`, section 2.4.
 - New project setting **"Keep specs and plans in the repository"**. Default yes, as superpowers does. When off, they live in the Orchtopus data folder and stay out of the PR.
 
@@ -183,9 +184,9 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M4 (review cou
 
 **Verified ideas to add. This is additive: our own reviewers do the work and none is removed.**
 
-- Every finding is verified by a separate read-only agent before it counts. The verifier reads code. It does not build or run it. Source: Code Review docs and Lydia Hallie's talk (date unverified).
-- Reviewer depth follows a level or risk: Quick, Standard, Deep.
-- Human approvals per path, like Claude Approvals (`.claude/approvals.yml`). "Risk tier" there means the number of human reviewers. Orchtopus may read an existing policy read-only to show "needs 2 people" on the board. It never writes one into a user repo.
+- **Decision 2026-11-28 (user suggestion, adopted by the lead):** our own reviewer agents verify each finding before it counts. This adds to the review and removes no reviewer. The verifier reads code. It does not build or run it. Source: Code Review docs and Lydia Hallie's talk (date unverified).
+- Reviewer depth follows a review level set by the owner: Quick, Standard, Deep. This is not the risk tier.
+- Human approvals per path, like Claude Approvals (`.claude/approvals.yml`). "Risk tier" there means the number of human approvals per path, that is the number of human reviewers. Orchtopus may read an existing policy read-only to show "needs 2 people" on the board. It never writes one into a user repo.
 - A "pre-existing" severity, so authors are not blamed for old bugs.
 
 **Not adopted:** auto-merge of low-risk PRs (E24).
@@ -221,7 +222,7 @@ Added 2026-11-28. Status: researched once, one optional spike.
 - CI events wake the session. We poll `gh` and `glab` ourselves (no model cost) and wake a session only on an event. On native Windows the local `/steward` watch does not start, so we need our own watcher.
 - Auto-resolve after N idle days.
 
-**One possible bridge:** host `claude remote-control --spawn worktree --settings <ours>`, so that Projects threads run locally under our hooks. Unproven. It needs a claude.ai sign-in and an awake machine. Spike of about 0.5 day, only if users ask for Anthropic's coordinator. Open: does a spawned thread use our hooks, and can we attach a PTY.
+**One possible bridge:** host `claude remote-control --spawn worktree --settings <ours>`, so that Projects threads run locally under our hooks. Unproven. It needs a claude.ai sign-in and an awake machine. Spike of about 0.5 day, only if users ask for Anthropic's coordinator. Open: does a spawned thread use our hooks, and can we attach a PTY. Hosting it would need a second `AgentAdapter` implementation, and `attach` to such threads is unverified.
 
 ## Dev-workflow items for this repository
 
