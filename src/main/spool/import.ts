@@ -5,8 +5,11 @@
 // spool\damaged\ and reported with one spool.damaged event, never dropped silently.
 //
 // A helper that opened events.jsonl just before the rename can still write its line into the
-// renamed file. The import therefore waits a moment after the rename and reads the file again
-// until it stops growing, before it deletes it.
+// renamed file. The import waits a moment after the rename and reads the file again until it
+// stops growing. It does not delete the file then: a helper that stalls longer would write into
+// a deleted file. The file is renamed to events.drained-<epoch>-<bytes read>.jsonl instead, and
+// the next import reads only what was appended after those bytes, then deletes it. A leftover
+// events.importing file (from a crash) is read from the start; ids dedupe its envelopes.
 import { randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -27,6 +30,7 @@ export interface SpoolImportResult {
 export const SETTLE_MS = 25;
 
 const IMPORTING = /^events\.importing-(\d+)\.jsonl$/;
+const DRAINED = /^events\.drained-(\d+)-(\d+)\.jsonl$/;
 const NEWLINE = 0x0a;
 
 function delay(ms: number): Promise<void> {
@@ -37,8 +41,15 @@ function isMissing(error: unknown): boolean {
   return (error as { code?: unknown }).code === 'ENOENT';
 }
 
-/** Leftover importing files (from a crash) by their epoch, oldest first. */
-async function importingFiles(spoolDir: string): Promise<{ name: string; epoch: number }[]> {
+interface SpoolFile {
+  name: string;
+  epoch: number;
+  /** Bytes an earlier import already read; 0 for an importing file. */
+  offset: number;
+}
+
+/** Drained files and leftover importing files (from a crash) by their epoch, oldest first. */
+async function earlierFiles(spoolDir: string): Promise<SpoolFile[]> {
   let names: string[];
   try {
     names = await readdir(spoolDir);
@@ -48,8 +59,11 @@ async function importingFiles(spoolDir: string): Promise<{ name: string; epoch: 
   }
   return names
     .flatMap((name) => {
-      const match = IMPORTING.exec(name);
-      return match ? [{ name, epoch: Number(match[1]) }] : [];
+      const importing = IMPORTING.exec(name);
+      if (importing) return [{ name, epoch: Number(importing[1]), offset: 0 }];
+      const drained = DRAINED.exec(name);
+      if (drained) return [{ name, epoch: Number(drained[1]), offset: Number(drained[2]) }];
+      return [];
     })
     .sort((a, b) => a.epoch - b.epoch);
 }
@@ -97,12 +111,21 @@ class ImportRun {
     });
   }
 
-  /** Reads one importing file until it stops growing, then deletes it. */
-  async drain(file: string): Promise<void> {
-    let offset = 0;
+  /**
+   * Reads one spool file from `start` until it stops growing. Returns the bytes read; the
+   * caller decides whether the file is kept for the next import or deleted.
+   */
+  async drain(file: string, start: number): Promise<number> {
+    let offset = start;
     let fragment = Buffer.alloc(0);
     for (;;) {
-      const content = await readFile(file);
+      let content: Buffer;
+      try {
+        content = await readFile(file);
+      } catch (error) {
+        if (isMissing(error)) break;
+        throw error;
+      }
       if (content.length <= offset) break;
       const chunk = Buffer.concat([fragment, content.subarray(offset)]);
       offset = content.length;
@@ -115,7 +138,7 @@ class ImportRun {
     if (fragment.length > 0) this.importLines([fragment.toString('utf8')]);
     // Damaged lines are safe in damaged\ before their source file goes.
     await this.writeDamaged();
-    await rm(file, { force: true });
+    return offset;
   }
 
   private async writeDamaged(): Promise<void> {
@@ -149,16 +172,24 @@ function parseLine(line: string): ReturnType<typeof parseEnvelope> {
 }
 
 async function runImport(store: Store, paths: DataPaths): Promise<SpoolImportResult> {
-  const leftovers = await importingFiles(paths.spoolDir);
-  // The new file sorts after every leftover, so events stay in the order they were spooled.
-  const epoch = Math.max(Date.now(), (leftovers.at(-1)?.epoch ?? 0) + 1);
-  const files = leftovers.map((f) => join(paths.spoolDir, f.name));
-  if (await takeLiveFile(paths, epoch)) {
-    files.push(join(paths.spoolDir, `events.importing-${String(epoch)}.jsonl`));
-  }
+  const files = await earlierFiles(paths.spoolDir);
+  // The new file sorts after every earlier one, so events stay in the order they were spooled.
+  const epoch = Math.max(Date.now(), (files.at(-1)?.epoch ?? 0) + 1);
+  const name = `events.importing-${String(epoch)}.jsonl`;
+  if (await takeLiveFile(paths, epoch)) files.push({ name, epoch, offset: 0 });
   const run = new ImportRun(store, paths.damagedDir);
   if (files.length > 0) await delay(SETTLE_MS);
-  for (const file of files) await run.drain(file);
+  for (const file of files) {
+    const path = join(paths.spoolDir, file.name);
+    const read = await run.drain(path, file.offset);
+    if (DRAINED.test(file.name)) {
+      // Second read: a helper had the whole previous import to finish its one write.
+      await rm(path, { force: true });
+    } else {
+      const drained = `events.drained-${String(file.epoch)}-${String(read)}.jsonl`;
+      await renameWithRetry(path, join(paths.spoolDir, drained));
+    }
+  }
   run.report(new Date().toISOString());
   return run.result;
 }
