@@ -253,6 +253,14 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
         if (listSessions(store.db).some((s) => s.projectId === projectId)) {
           throw new HttpError(409, 'Remove the sessions of this project first.');
         }
+        // A pending add of this project must not come back on a later resume (orphan config,
+        // ghost row in the UI).
+        for (const pending of actions.pending()) {
+          if (pending.kind !== 'project.add') continue;
+          const config = pending.steps.find((s) => s.name === 'config')?.result as
+            ProjectConfig | undefined;
+          if (config?.id === projectId) actions.fail(pending.id, 'The project was removed.');
+        }
         const params: RemoveParams = { projectId };
         const record = actions.begin('project.remove', params);
         await runRemove(record.id, projectId);

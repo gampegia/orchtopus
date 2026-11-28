@@ -185,6 +185,27 @@ describe('project service', () => {
     expect(readEvents(store.db).filter((e) => e.type === 'project.added')).toHaveLength(1);
   });
 
+  it('remove fails a pending add of that project, so a resume writes and publishes nothing', async () => {
+    let fail = true;
+    const svc = service({
+      writeConfig: async (file, config) => {
+        if (fail) throw new Error('EBUSY');
+        const { writeProjectConfig } = await import('./project-config');
+        await writeProjectConfig(file, config);
+      },
+    });
+    await expect(svc.add(addInput(), 'req-0006')).rejects.toThrow('EBUSY');
+    expect(listProjects(store.db).map((p) => p.id)).toEqual(['acme-app']);
+    await svc.remove('acme-app');
+    fail = false;
+    published.length = 0;
+    await svc.resumePending();
+    expect(existsSync(projectFile(paths, 'acme-app'))).toBe(false);
+    expect(published).toEqual([]);
+    expect(listProjects(store.db)).toEqual([]);
+    await expect(svc.add(addInput(), 'req-0006')).rejects.toMatchObject({ status: 409 });
+  });
+
   it('add refuses a folder that is not the top of a repository, logging nothing', async () => {
     const sub = join(repo.root, 'docs');
     const { mkdirSync } = await import('node:fs');
