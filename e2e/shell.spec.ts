@@ -21,7 +21,12 @@ function rgb(mode: Mode, token: string): string {
 let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo | undefined;
-const claudeHome = makeTempDir('orchtopus-e2e-claude-');
+let claudeHomeDir: string | undefined;
+/** The Claude home; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function claudeHome(): string {
+  if (claudeHomeDir === undefined) throw new Error('Claude home not created');
+  return claudeHomeDir;
+}
 let cleanupLaunch: (() => void) | undefined;
 const consoleErrors: string[] = [];
 
@@ -52,7 +57,8 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  const launched = await launchApp({ claudeHome });
+  claudeHomeDir = makeTempDir('orchtopus-e2e-claude-');
+  const launched = await launchApp({ claudeHome: claudeHome() });
   cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
@@ -76,9 +82,9 @@ test.afterAll(async () => {
     if (app !== undefined) await closeApp(app);
   } finally {
     // Ends the fake background workers this test started, then removes the temp folders.
-    cleanupFakeClaude(claudeHome);
+    if (claudeHomeDir !== undefined) cleanupFakeClaude(claudeHomeDir);
     await repo?.cleanup();
-    removeTempDir(claudeHome);
+    if (claudeHomeDir !== undefined) removeTempDir(claudeHomeDir);
     cleanupLaunch?.();
   }
 });
@@ -131,7 +137,7 @@ test('a project without sessions offers one action to start a session', async ()
   repo = await createTempRepo();
   // The fake CLI reads workspace trust from the Claude home, like the real one.
   writeFileSync(
-    join(claudeHome, '.claude.json'),
+    join(claudeHome(), '.claude.json'),
     JSON.stringify({
       projects: { [repo.root.replace(/\\/g, '/')]: { hasTrustDialogAccepted: true } },
     }),

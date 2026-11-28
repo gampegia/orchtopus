@@ -11,7 +11,12 @@ let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo;
 // No .claude.json in this Claude home: the demo repo starts untrusted.
-const claudeHome = makeTempDir('orchtopus-e2e-claude-');
+let claudeHomeDir: string | undefined;
+/** The Claude home; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function claudeHome(): string {
+  if (claudeHomeDir === undefined) throw new Error('Claude home not created');
+  return claudeHomeDir;
+}
 let cleanupLaunch: (() => void) | undefined;
 
 /** Makes the folder picker return this path, as if the user picked it. */
@@ -69,9 +74,10 @@ async function openNewSession(): Promise<void> {
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
+  claudeHomeDir = makeTempDir('orchtopus-e2e-claude-');
   repo = await createTempRepo({ withRemote: true });
   mkdirSync(join(repo.root, 'src'));
-  const launched = await launchApp({ claudeHome });
+  const launched = await launchApp({ claudeHome: claudeHome() });
   cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
@@ -83,9 +89,9 @@ test.afterAll(async () => {
     if (app !== undefined) await closeApp(app);
   } finally {
     // Ends the fake background workers this test started, then removes the temp folders.
-    cleanupFakeClaude(claudeHome);
+    if (claudeHomeDir !== undefined) cleanupFakeClaude(claudeHomeDir);
     await repo.cleanup();
-    removeTempDir(claudeHome);
+    if (claudeHomeDir !== undefined) removeTempDir(claudeHomeDir);
     cleanupLaunch?.();
   }
 });

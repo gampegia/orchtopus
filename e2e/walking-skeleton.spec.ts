@@ -30,10 +30,22 @@ const SCENARIOS = {
   'image-resize': 'mid-turn',
 };
 
-const dataDir = makeTempDir('orchtopus-e2e-data-');
+let dataDirPath: string | undefined;
+/** The data folder; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function dataDir(): string {
+  if (dataDirPath === undefined) throw new Error('data folder not created');
+  return dataDirPath;
+}
 // No .claude.json: the demo repo starts untrusted and is trusted through the dialog.
-const claudeHome = makeTempDir('orchtopus-e2e-claude-');
-const fakeEnv = { ...process.env, CLAUDE_CONFIG_DIR: claudeHome };
+let claudeHomeDir: string | undefined;
+/** The Claude home; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function claudeHome(): string {
+  if (claudeHomeDir === undefined) throw new Error('Claude home not created');
+  return claudeHomeDir;
+}
+function fakeEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, CLAUDE_CONFIG_DIR: claudeHome() };
+}
 
 let app: ElectronApplication | undefined;
 let page: Page;
@@ -46,8 +58,8 @@ async function launch(): Promise<void> {
   // Always the unpacked app: a packaged build ignores ORCHTOPUS_CLAUDE_COMMAND and would reach
   // the real claude CLI.
   const launched = await launchApp({
-    dataDir,
-    claudeHome,
+    dataDir: dataDir(),
+    claudeHome: claudeHome(),
     unpacked: true,
     env: { ORCH_FAKE_SCENARIOS: JSON.stringify(SCENARIOS) },
   });
@@ -93,7 +105,7 @@ interface FakeAgent {
 
 function fakeAgents(): FakeAgent[] {
   const out = execFileSync(process.execPath, [FAKE_CLAUDE, 'agents', '--json', '--all'], {
-    env: fakeEnv,
+    env: fakeEnv(),
     encoding: 'utf8',
   });
   return JSON.parse(out) as FakeAgent[];
@@ -116,7 +128,7 @@ function isAlive(pid: number): boolean {
 
 function releaseTurn(name: string): void {
   execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-release', name, 'finish'], {
-    env: fakeEnv,
+    env: fakeEnv(),
   });
 }
 
@@ -171,7 +183,7 @@ interface SpoolLine {
 }
 
 function spoolLines(): SpoolLine[] {
-  const file = join(dataDir, 'spool', 'events.jsonl');
+  const file = join(dataDir(), 'spool', 'events.jsonl');
   if (!existsSync(file)) return [];
   return readFileSync(file, 'utf8')
     .split('\n')
@@ -203,7 +215,7 @@ interface EventRow {
 }
 
 function storedEvents(ids: readonly string[]): EventRow[] {
-  const db = new Database(join(dataDir, 'state.db'), { readonly: true, fileMustExist: true });
+  const db = new Database(join(dataDir(), 'state.db'), { readonly: true, fileMustExist: true });
   try {
     const marks = ids.map(() => '?').join(', ');
     return db
@@ -299,6 +311,8 @@ const ALLOWED_GIT_CHANGES = [
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
+  dataDirPath = makeTempDir('orchtopus-e2e-data-');
+  claudeHomeDir = makeTempDir('orchtopus-e2e-claude-');
   repo = await createDemoRepo();
   repoBefore = snapshotRepo(demo().root);
   await launch();
@@ -316,11 +330,11 @@ test.afterAll(async () => {
   } finally {
     // Ends the fake background workers, then removes the repo and the temp folders.
     try {
-      cleanupFakeClaude(claudeHome);
+      if (claudeHomeDir !== undefined) cleanupFakeClaude(claudeHomeDir);
     } finally {
       await repo?.cleanup();
-      removeTempDir(claudeHome);
-      removeTempDir(dataDir);
+      if (claudeHomeDir !== undefined) removeTempDir(claudeHomeDir);
+      if (dataDirPath !== undefined) removeTempDir(dataDirPath);
     }
   }
 });
@@ -410,7 +424,7 @@ test('the PR attempt scenario is blocked by the hook', async () => {
 
   // The fake ran the push but never the PR command.
   const agent = fakeAgent('report-export');
-  const ran = readFileSync(ranFile(join(claudeHome, 'fake'), agent.id), 'utf8')
+  const ran = readFileSync(ranFile(join(claudeHome(), 'fake'), agent.id), 'utf8')
     .split('\n')
     .filter((line) => line !== '')
     .map((line) => (JSON.parse(line) as { tool_input: { command: string } }).tool_input.command);

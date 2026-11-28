@@ -16,9 +16,16 @@ const PROMPT_BOX = 'fake prompt';
 let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo | undefined;
-const claudeHome = makeTempDir('orchtopus-e2e-claude-');
+let claudeHomeDir: string | undefined;
+/** The Claude home; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function claudeHome(): string {
+  if (claudeHomeDir === undefined) throw new Error('Claude home not created');
+  return claudeHomeDir;
+}
 let cleanupLaunch: (() => void) | undefined;
-const fakeEnv = { ...process.env, CLAUDE_CONFIG_DIR: claudeHome };
+function fakeEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, CLAUDE_CONFIG_DIR: claudeHome() };
+}
 const extraAttaches: ChildProcess[] = [];
 /** Worktree folder by task, from the start responses. */
 const worktrees = new Map<string, string>();
@@ -69,7 +76,7 @@ interface FakeAgent {
 
 function fakeAgents(): FakeAgent[] {
   const out = execFileSync(process.execPath, [FAKE_CLAUDE, 'agents', '--json', '--all'], {
-    env: fakeEnv,
+    env: fakeEnv(),
     encoding: 'utf8',
   });
   return JSON.parse(out) as FakeAgent[];
@@ -123,7 +130,8 @@ async function expectTerminal(text: string | RegExp, timeout = 15_000): Promise<
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  const launched = await launchApp({ claudeHome });
+  claudeHomeDir = makeTempDir('orchtopus-e2e-claude-');
+  const launched = await launchApp({ claudeHome: claudeHome() });
   cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
@@ -139,7 +147,7 @@ test.beforeAll(async () => {
   repo = await createTempRepo();
   // The fake CLI reads workspace trust from the Claude home, like the real one.
   writeFileSync(
-    join(claudeHome, '.claude.json'),
+    join(claudeHome(), '.claude.json'),
     JSON.stringify({
       projects: { [repo.root.replace(/\\/g, '/')]: { hasTrustDialogAccepted: true } },
     }),
@@ -164,9 +172,9 @@ test.afterAll(async () => {
     if (app !== undefined) await closeApp(app);
   } finally {
     // Ends the fake background workers this test started, then removes the temp folders.
-    cleanupFakeClaude(claudeHome);
+    if (claudeHomeDir !== undefined) cleanupFakeClaude(claudeHomeDir);
     await repo?.cleanup();
-    removeTempDir(claudeHome);
+    if (claudeHomeDir !== undefined) removeTempDir(claudeHomeDir);
     cleanupLaunch?.();
   }
 });
@@ -212,7 +220,7 @@ test('opening a failed session after a reboot resumes it the same way', async ()
   // A reboot: the worker is gone while Claude Code still records the session as working.
   const agent = liveAgent('report-export');
   process.kill(agent.pid);
-  const file = join(claudeHome, 'fake', 'sessions', `${agent.id}.json`);
+  const file = join(claudeHome(), 'fake', 'sessions', `${agent.id}.json`);
   await expect
     .poll(() => {
       try {
@@ -279,7 +287,7 @@ test('a takeover shows Opened in another window and Reattach', async () => {
   const agent = liveAgent('upload-fix');
   // The user's own terminal: a second attach takes the session over (Review Focus 3).
   const other = spawn(process.execPath, [FAKE_CLAUDE, 'attach', agent.id], {
-    env: fakeEnv,
+    env: fakeEnv(),
     stdio: 'pipe',
   });
   extraAttaches.push(other);
