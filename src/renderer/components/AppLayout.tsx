@@ -12,7 +12,8 @@ import { StatusBar } from './StatusBar';
 import { TitleBar } from './TitleBar';
 import { selectedSession, useAppStore } from '../state/store';
 
-/** Session list width limits in pixels (DESIGN.md section 5); the default is `size.sidebar`. */
+/** Session list width in pixels (DESIGN.md section 5); the default comes from `size.sidebar`. */
+const LIST_DEFAULT = 264;
 const LIST_MIN = 224;
 const LIST_MAX = 360;
 
@@ -61,7 +62,7 @@ export function AppLayout(): React.JSX.Element {
         <Panel
           id="sessions"
           className="shell-pane"
-          defaultSize={pixelToken('--size-sidebar', LIST_MIN)}
+          defaultSize={pixelToken('--size-sidebar', LIST_DEFAULT)}
           minSize={LIST_MIN}
           maxSize={LIST_MAX}
           groupResizeBehavior="preserve-pixel-size"
