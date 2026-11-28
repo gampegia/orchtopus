@@ -114,10 +114,17 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
   const sessionId = event.sessionId;
   if (sessionId === undefined) return;
   const touch = (): void => {
-    db.prepare('UPDATE session_state SET updated_at = ? WHERE session_id = ?').run(
-      event.at,
-      sessionId,
-    );
+    db.prepare(
+      `UPDATE session_state SET updated_at = ?
+         WHERE session_id = ? AND (updated_at IS NULL OR updated_at <= ?)`,
+    ).run(event.at, sessionId, event.at);
+  };
+  /** last_activity_at only moves forward, so late spool imports cannot rewind it. */
+  const advanceActivity = (): void => {
+    db.prepare(
+      `UPDATE session_state SET last_activity_at = ?
+         WHERE session_id = ? AND (last_activity_at IS NULL OR last_activity_at <= ?)`,
+    ).run(event.at, sessionId, event.at);
   };
   switch (event.type) {
     case 'session.created': {
@@ -192,25 +199,33 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
       return;
     case 'hook.received': {
       const p = event.payload as EventPayloads['hook.received'];
-      db.prepare('UPDATE session_state SET last_activity_at = ? WHERE session_id = ?').run(
-        event.at,
-        sessionId,
-      );
+      advanceActivity();
       if (p.hookEventName === 'Stop') {
-        db.prepare('UPDATE session_state SET last_stop_at = ? WHERE session_id = ?').run(
-          event.at,
-          sessionId,
-        );
+        // A spooled Stop imported late never moves last_stop_at backwards.
+        db.prepare(
+          `UPDATE session_state SET last_stop_at = ?
+             WHERE session_id = ? AND (last_stop_at IS NULL OR last_stop_at <= ?)`,
+        ).run(event.at, sessionId, event.at);
       }
       touch();
       return;
     }
     case 'statusline.received': {
       const p = event.payload as EventPayloads['statusline.received'];
-      db.prepare('UPDATE session_state SET last_activity_at = ? WHERE session_id = ?').run(
-        event.at,
-        sessionId,
-      );
+      // A status line older than the newest activity or than the current process (a spooled
+      // envelope imported late) must not overwrite the live context fill and limits.
+      const fresh = db
+        .prepare(
+          `SELECT 1 FROM session_state WHERE session_id = ?
+             AND (last_activity_at IS NULL OR last_activity_at <= ?)
+             AND (process_started_at IS NULL OR process_started_at <= ?)`,
+        )
+        .get(sessionId, event.at, event.at);
+      advanceActivity();
+      if (fresh === undefined) {
+        touch();
+        return;
+      }
       if (p.contextPct !== undefined) {
         db.prepare('UPDATE session_state SET context_pct = ? WHERE session_id = ?').run(
           p.contextPct,

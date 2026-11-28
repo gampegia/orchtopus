@@ -175,6 +175,56 @@ describe('projections', () => {
     expect(state?.processStartedAt).toBe('2026-11-28T08:00:00.000Z');
   });
 
+  it('an older spooled status line or hook does not rewind the session state', () => {
+    emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
+    const liveStop = emit('hook.received', { hookEventName: 'Stop' }, { sessionId: 's1' });
+    const liveAt = emit(
+      'statusline.received',
+      { contextPct: 64, rateLimits: { fiveHour: 30 } },
+      { sessionId: 's1' },
+    );
+    // Spooled envelopes from before the live ones, imported afterwards.
+    const old = '2000-01-01T00:00:00.000Z';
+    store.append({
+      id: 'spool-1',
+      type: 'statusline.received',
+      at: old,
+      sessionId: 's1',
+      payload: { contextPct: 12, rateLimits: { fiveHour: 1 } },
+    });
+    store.append({
+      id: 'spool-2',
+      type: 'hook.received',
+      at: old,
+      sessionId: 's1',
+      payload: { hookEventName: 'Stop' },
+    });
+
+    expect(getSessionState(store.db, 's1')).toMatchObject({
+      contextPct: 64,
+      rateLimits: { fiveHour: 30 },
+      lastStopAt: liveStop,
+      lastActivityAt: liveAt,
+    });
+  });
+
+  it('a spooled status line from before the current process does not set context_pct', () => {
+    emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
+    emit(
+      'session.started',
+      { claudeSessionId: 'c-123', shortId: 'ab12', processStartedAt: '2026-11-28T08:00:00.000Z' },
+      { sessionId: 's1' },
+    );
+    store.append({
+      id: 'spool-1',
+      type: 'statusline.received',
+      at: '2026-11-28T07:59:00.000Z',
+      sessionId: 's1',
+      payload: { contextPct: 90 },
+    });
+    expect(getSessionState(store.db, 's1')?.contextPct).toBeNull();
+  });
+
   it('session.removed drops the session and its state', () => {
     emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
     emit('session.removed', {}, { sessionId: 's1' });
