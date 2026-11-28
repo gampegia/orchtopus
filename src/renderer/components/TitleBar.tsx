@@ -1,6 +1,7 @@
 import { PRODUCT_NAME } from '../../shared/product';
 import { needsYouNote } from '../../shared/state-words';
 import { useAppStore } from '../state/store';
+import { Lamp } from './Lamp';
 
 /** The draggable title band: brand, project of the selected session, and who needs you. */
 export function TitleBar(): React.JSX.Element {
@@ -16,12 +17,7 @@ export function TitleBar(): React.JSX.Element {
       {projectName !== null && <span className="titlebar-crumb">{projectName}</span>}
       {note !== null && (
         <p className="titlebar-note">
-          <span
-            className="lamp"
-            data-lamp="needs-you"
-            data-signal="permission"
-            aria-hidden="true"
-          />
+          <Lamp word="needs-you" />
           <span>{note}</span>
         </p>
       )}

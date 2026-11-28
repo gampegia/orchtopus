@@ -132,7 +132,8 @@ export function AddProjectDialog({ onClose }: { onClose: () => void }): React.JS
   };
 
   const add = (): void => {
-    if (inspected === null || fields === null || adding) return;
+    // During a re-check the inspected root may be about to change.
+    if (inspected === null || fields === null || adding || checking) return;
     requestId.current ??= crypto.randomUUID();
     setAdding(true);
     setError(null);
@@ -163,6 +164,8 @@ export function AddProjectDialog({ onClose }: { onClose: () => void }): React.JS
   };
 
   const update = (change: (current: Fields) => Fields): void => {
+    // The server replays the params stored under a request id, so an edit needs a new one.
+    requestId.current = null;
     setFields((current) => (current === null ? current : change(current)));
   };
 
@@ -211,6 +214,7 @@ export function AddProjectDialog({ onClose }: { onClose: () => void }): React.JS
                     onChange={(event) => {
                       // What was found belongs to the old path; check the new one first.
                       setPath(event.target.value);
+                      requestId.current = null;
                       checkSeq.current += 1;
                       setChecking(false);
                       setInspected(null);
@@ -423,7 +427,7 @@ export function AddProjectDialog({ onClose }: { onClose: () => void }): React.JS
               <button
                 type="button"
                 className="btn primary"
-                disabled={inspected === null || adding}
+                disabled={inspected === null || adding || checking}
                 onClick={add}
               >
                 {adding ? 'Adding' : 'Add project'}
