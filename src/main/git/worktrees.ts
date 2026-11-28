@@ -64,13 +64,21 @@ export async function ensureWorktreesExcluded(
   }
   const ignored = await runGit(['check-ignore', '-q', `${WORKTREES_DIR}/probe`], { cwd: root });
   if (ignored.code === 0) return 'already-ignored';
+  if (ignored.code !== 1) return { refused: 'Git could not check the ignore rules.' };
 
   const rel = await gitOut(['rev-parse', '--git-path', 'info/exclude'], root);
   if (rel === null || rel === '') return { refused: 'Git could not locate .git/info/exclude.' };
   const file = resolve(root, rel);
   await mkdir(dirname(file), { recursive: true });
   const current = existsSync(file) ? await readFile(file, 'utf8') : '';
-  if (current.split(/\r?\n/).includes(EXCLUDE_LINE)) return 'already-ignored';
+  if (current.split(/\r?\n/).includes(EXCLUDE_LINE)) {
+    // The line is there, yet Git does not ignore the folder: a later rule starting with !
+    // (in info/exclude or a .gitignore) un-ignores it. A second line would not help.
+    return {
+      refused:
+        'A rule starting with ! un-ignores .claude/worktrees. Remove that rule from .gitignore or .git/info/exclude.',
+    };
+  }
   const prefix = current === '' || current.endsWith('\n') ? '' : '\n';
   await appendFile(file, `${prefix}${EXCLUDE_LINE}\n`, 'utf8');
   return 'added';
@@ -188,10 +196,26 @@ function isInside(parent: string, child: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
 }
 
-function unsafeEntry(entry: string): boolean {
-  if (entry.trim() === '') return true;
-  if (isAbsolute(entry) || win32.isAbsolute(entry) || /^[a-z]:/i.test(entry)) return true;
-  return entry.split(/[\\/]/).some((segment) => segment === '..');
+/**
+ * True for a copy-list entry that may be copied from the main folder into a worktree: a
+ * relative path without `..`, without `:` (a drive or an NTFS stream), not `.git` (it would
+ * overwrite the worktree's `.git` link file) and not `.claude` or anything under
+ * `.claude/worktrees` (a worktree inside a worktree).
+ */
+export function isSafeCopyEntry(entry: string): boolean {
+  if (entry.trim() === '' || entry.includes(':')) return false;
+  if (/^[\\/]/.test(entry) || isAbsolute(entry) || win32.isAbsolute(entry)) return false;
+  const names: string[] = [];
+  for (const segment of entry.split(/[\\/]/)) {
+    if (segment === '' || segment === '.') continue;
+    // Windows drops trailing dots and spaces, so `.git.` names `.git` and `.. ` names `..`.
+    const name = segment.replace(/[. ]+$/, '').toLowerCase();
+    if (name === '') return false;
+    names.push(name);
+  }
+  if (names.length === 0 || names[0] === '.git') return false;
+  if (names[0] === '.claude' && (names.length === 1 || names[1] === 'worktrees')) return false;
+  return true;
 }
 
 /** Copies the project's list of ignored files from the main folder into a worktree. */
@@ -206,7 +230,7 @@ export async function copyIntoWorktree(
   const realRoot = realpathSync.native(root);
   for (const entry of list) {
     const source = resolve(root, entry);
-    if (unsafeEntry(entry) || !isInside(resolve(root), source)) {
+    if (!isSafeCopyEntry(entry) || !isInside(resolve(root), source)) {
       refused.push(entry);
       continue;
     }
@@ -241,6 +265,9 @@ export async function removeWorktree(
   root: string,
   path: string,
 ): Promise<'removed' | { refused: string }> {
+  if (!isInside(resolve(root, WORKTREES_DIR), resolve(path))) {
+    return { refused: 'Orchtopus only removes worktrees under .claude/worktrees.' };
+  }
   const registered = (await listWorktrees(root)).some((w) => samePath(w.path, path));
   if (!registered) {
     if (!existsSync(path)) return 'removed';

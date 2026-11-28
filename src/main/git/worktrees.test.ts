@@ -8,6 +8,7 @@ import {
   copyIntoWorktree,
   createWorktree,
   ensureWorktreesExcluded,
+  isSafeCopyEntry,
   removeWorktree,
   resolveBase,
   worktreeIsClean,
@@ -96,6 +97,15 @@ describe('ensureWorktreesExcluded', () => {
     git(r.root, ['commit', '--quiet', '-m', 'track a file']);
     const result = await ensureWorktreesExcluded(r.root);
     expectRefused(result);
+  });
+
+  it('refuses when a later ! rule un-ignores .claude/worktrees', async () => {
+    const r = await repo();
+    mkdirSync(join(r.root, '.git', 'info'), { recursive: true });
+    writeFileSync(excludeFile(r.root), '/.claude/worktrees/\n!/.claude/worktrees/\n');
+    const result = await ensureWorktreesExcluded(r.root);
+    expectRefused(result);
+    expect((result as { refused: string }).refused).toContain('!');
   });
 });
 
@@ -222,22 +232,28 @@ describe('checkNewWorktree', () => {
       branch: 'orch/upload-fix',
       base: 'main',
     });
-    expect(await checkNewWorktree(r.root, 'upload-fix', 'orch/other')).toEqual(expect.any(String));
-    expect(await checkNewWorktree(r.root, 'report-export', 'orch/upload-fix')).toEqual(
-      expect.any(String),
+    expect(await checkNewWorktree(r.root, 'upload-fix', 'orch/other')).toContain(
+      'A worktree named upload-fix already exists',
+    );
+    expect(await checkNewWorktree(r.root, 'report-export', 'orch/upload-fix')).toContain(
+      'The branch orch/upload-fix already exists',
     );
 
     git(r.root, ['branch', 'orch/i18n-de', 'main']);
     git(r.root, ['push', '--quiet', 'origin', 'orch/i18n-de']);
     git(r.root, ['branch', '-D', 'orch/i18n-de']);
-    expect(await checkNewWorktree(r.root, 'i18n-de', 'orch/i18n-de')).toEqual(expect.any(String));
+    expect(await checkNewWorktree(r.root, 'i18n-de', 'orch/i18n-de')).toContain(
+      'A remote already has a branch orch/i18n-de',
+    );
   });
 
   it('rejects an invalid task name and branch', async () => {
     const r = await repo();
-    expect(await checkNewWorktree(r.root, 'Upload_Fix', 'orch/x')).toEqual(expect.any(String));
-    expect(await checkNewWorktree(r.root, 'upload-fix', 'orch/upload..fix')).toEqual(
-      expect.any(String),
+    expect(await checkNewWorktree(r.root, 'Upload_Fix', 'orch/x')).toContain(
+      'Use lower-case letters',
+    );
+    expect(await checkNewWorktree(r.root, 'upload-fix', 'orch/upload..fix')).toContain(
+      'is not a valid branch name',
     );
   });
 });
@@ -258,14 +274,46 @@ describe('copyIntoWorktree', () => {
       '../outside',
       'C:\\x',
       '/etc/passwd',
+      '.git',
+      '.claude/worktrees/upload-fix',
     ]);
     expect(result).toEqual({
       copied: ['.env'],
       missing: ['.env.local'],
-      refused: ['../outside', 'C:\\x', '/etc/passwd'],
+      refused: ['../outside', 'C:\\x', '/etc/passwd', '.git', '.claude/worktrees/upload-fix'],
     });
     expect(readFileSync(join(path, '.env'), 'utf8')).toBe('API_URL=http://localhost\n');
     expect(await worktreeIsClean(path)).toBe(true);
+  });
+});
+
+describe('isSafeCopyEntry', () => {
+  it.each(['.env', '.env.local', 'config/local.json', './.env', '.claude/settings.local.json'])(
+    'accepts %s',
+    (entry) => {
+      expect(isSafeCopyEntry(entry)).toBe(true);
+    },
+  );
+
+  it.each([
+    '',
+    '.',
+    '../outside',
+    'a/../../b',
+    'C:\\x',
+    '/etc/passwd',
+    '\\\\host\\share',
+    '.git',
+    '.GIT/config',
+    './.git/hooks',
+    '.git.',
+    '.claude',
+    '.claude/worktrees',
+    '.claude\\worktrees\\upload-fix',
+    '.Claude/Worktrees/x',
+    '.env:stream',
+  ])('refuses %s', (entry) => {
+    expect(isSafeCopyEntry(entry)).toBe(false);
   });
 });
 
@@ -350,5 +398,16 @@ describe('removeWorktree', () => {
     expect(listed).toContain('upload-fix');
     expect(git(r.root, ['branch', '--list', 'orch/report-export'])).toContain('orch/report-export');
     expect(await removeWorktree(r.root, path)).toBe('removed');
+  });
+
+  it('refuses a path outside .claude/worktrees, even a registered worktree', async () => {
+    const r = await repo();
+    const outside = join(r.root, '..', 'acme-app-side');
+    git(r.root, ['worktree', 'add', '--quiet', '-b', 'side', outside, 'main']);
+    const result = await removeWorktree(r.root, outside);
+    expectRefused(result);
+    expect((result as { refused: string }).refused).toContain('.claude/worktrees');
+    expect(existsSync(outside)).toBe(true);
+    expectRefused(await removeWorktree(r.root, r.root));
   });
 });
