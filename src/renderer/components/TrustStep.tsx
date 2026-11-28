@@ -24,9 +24,12 @@ function closeTrustTerminal(terminalId: string): void {
 function TrustTerminal({
   terminalId,
   onEnded,
+  onEscape,
 }: {
   terminalId: string;
   onEnded: () => void;
+  /** F6: xterm keeps Tab and Esc for the PTY, so this is the way back to the dialog. */
+  onEscape: () => void;
 }): React.JSX.Element {
   const hostRef = useRef<TerminalHost>(null);
 
@@ -34,7 +37,7 @@ function TrustTerminal({
     const host = hostRef.current;
     if (host === null) return;
     let disposed = false;
-    const { term, dispose } = mountXterm(host);
+    const { term, dispose } = mountXterm(host, { onEscape });
     const socket = apiClient().openTerminal(terminalId, (chunk) => {
       term.write(chunk);
     });
@@ -56,7 +59,7 @@ function TrustTerminal({
       socket.close();
       dispose();
     };
-  }, [terminalId, onEnded]);
+  }, [terminalId, onEnded, onEscape]);
 
   return (
     <div className="terminal-frame trust-terminal">
@@ -78,6 +81,10 @@ export function TrustStep({
   const trusted = trust === 'trusted';
   // The open terminal for the kill paths below, which must not depend on render timing.
   const terminalIdRef = useRef<string | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const focusCloseButton = useCallback(() => {
+    closeButtonRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     terminalIdRef.current = terminalId;
@@ -140,11 +147,21 @@ export function TrustStep({
             </div>
           ) : (
             <>
-              <TrustTerminal terminalId={terminalId} onEnded={closeTerminal} />
-              <div>
-                <button type="button" className="btn small" onClick={closeTerminal}>
+              <TrustTerminal
+                terminalId={terminalId}
+                onEnded={closeTerminal}
+                onEscape={focusCloseButton}
+              />
+              <div className="trust-actions">
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  className="btn small"
+                  onClick={closeTerminal}
+                >
                   Close terminal
                 </button>
+                <span className="field-hint">F6 leaves the terminal</span>
               </div>
             </>
           )}

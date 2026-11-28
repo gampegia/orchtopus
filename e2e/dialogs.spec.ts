@@ -167,6 +167,22 @@ test('Close terminal kills the trust PTY', async () => {
   await expect.poll(() => trustTerminalAlive(id), { timeout: 5_000 }).toBe(false);
 });
 
+test('F6 leaves the trust terminal for Close terminal, which Enter then presses', async () => {
+  const step = addDialog().getByRole('region', { name: 'Workspace trust' });
+  await step.getByRole('button', { name: 'Trust in Claude Code' }).click();
+  await expect.poll(trustTerminalText, { timeout: 15_000 }).toContain('Do you trust');
+  const id = await trustTerminalId();
+  await expect(step.getByText('F6 leaves the terminal')).toBeVisible();
+  await page.keyboard.press('F6');
+  const close = step.getByRole('button', { name: 'Close terminal' });
+  await expect(close).toBeFocused();
+  // xterm did not send F6 to the PTY.
+  expect(await trustTerminalText()).not.toContain('[17~');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-trust-terminal]')).toHaveCount(0);
+  await expect.poll(() => trustTerminalAlive(id), { timeout: 5_000 }).toBe(false);
+});
+
 test('trust step trusts an untrusted demo repo through the terminal and closes it', async () => {
   const step = addDialog().getByRole('region', { name: 'Workspace trust' });
   await step.getByRole('button', { name: 'Trust in Claude Code' }).click();

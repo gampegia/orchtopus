@@ -977,6 +977,12 @@ select.input {
   border-radius: var(--radius-control);
 }
 
+.trust-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .trust-done {
   display: flex;
   align-items: center;
