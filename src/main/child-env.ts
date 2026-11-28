@@ -29,3 +29,15 @@ export function cleanEnv(
   }
   return { ...env, ...extra };
 }
+
+// The main process sets this so libuv never runs a git.exe or where.exe planted in a
+// repository folder. Claude Code sessions do not get it: inside them cmd.exe would stop
+// finding programs in the current folder, which the user's own commands may rely on.
+const MAIN_ONLY_VARS = new Set(['NODEFAULTCURRENTDIRECTORYINEXEPATH']);
+
+/** The environment of every process that runs Claude Code (runClaude, `--bg`, attach PTY). */
+export function claudeEnv(base: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(cleanEnv({}, base)).filter(([key]) => !MAIN_ONLY_VARS.has(key.toUpperCase())),
+  );
+}

@@ -3,7 +3,7 @@
 // Code (spike), so input waits for `ready`. The output tail is kept for late stream clients.
 import { randomUUID } from 'node:crypto';
 import { spawn as spawnNodePty } from 'node-pty';
-import { cleanEnv } from '../child-env';
+import { claudeEnv } from '../child-env';
 import type { TerminalExit, TerminalHandle, TerminalSize } from './agent-adapter';
 
 /** What this module needs from a PTY; node-pty's IPty fits it. */
@@ -60,7 +60,7 @@ export function openPtyTerminal(opts: {
     cwd: opts.cwd,
     cols: opts.size.cols,
     rows: opts.size.rows,
-    env: opts.env ?? cleanEnv(),
+    env: opts.env ?? claudeEnv(),
   });
 
   const dataListeners = new Set<(chunk: string) => void>();

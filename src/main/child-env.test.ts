@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanEnv } from './child-env';
+import { claudeEnv, cleanEnv } from './child-env';
 
 describe('cleanEnv', () => {
   it('drops Claude Code, Electron and API redirect variables and keeps the rest', () => {
@@ -43,5 +43,34 @@ describe('cleanEnv', () => {
     expect(
       cleanEnv({}, { ClaudeCode: '1', claude_code_x: '1', Git_Dir: 'C:\\x', Path: 'C:\\bin' }),
     ).toEqual({ Path: 'C:\\bin' });
+  });
+});
+
+describe('claudeEnv', () => {
+  it('leaves out NoDefaultCurrentDirectoryInExePath that git and where keep', () => {
+    const base = { PATH: 'C:\bin', NoDefaultCurrentDirectoryInExePath: '1', CLAUDECODE: '1' };
+    expect(cleanEnv({}, base)).toEqual({ PATH: 'C:\bin', NoDefaultCurrentDirectoryInExePath: '1' });
+    expect(claudeEnv(base)).toEqual({ PATH: 'C:\bin' });
+  });
+
+  it('matches the name case-insensitively', () => {
+    expect(claudeEnv({ Path: 'C:\bin', nodefaultcurrentdirectoryinexepath: '1' })).toEqual({
+      Path: 'C:\bin',
+    });
+  });
+
+  it('reads the parent process environment by default', () => {
+    const key = 'NoDefaultCurrentDirectoryInExePath';
+    const has = (env: Record<string, string>): boolean =>
+      Object.keys(env).some((k) => k.toLowerCase() === key.toLowerCase());
+    const before = process.env[key];
+    process.env[key] = '1';
+    try {
+      expect(has(cleanEnv())).toBe(true);
+      expect(has(claudeEnv())).toBe(false);
+    } finally {
+      if (before === undefined) Reflect.deleteProperty(process.env, key);
+      else process.env[key] = before;
+    }
   });
 });

@@ -4,7 +4,7 @@
 import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { compareVersions, MIN_CLAUDE_VERSION } from '../../shared/claude-version';
-import { cleanEnv } from '../child-env';
+import { claudeEnv, cleanEnv } from '../child-env';
 
 export interface ClaudeCommand {
   command: string;
@@ -87,7 +87,7 @@ export function runClaude(
       [...cmd.prefixArgs, ...args],
       {
         cwd: opts.cwd,
-        env: cleanEnv(),
+        env: claudeEnv(),
         timeout: opts.timeoutMs,
         windowsHide: true,
         maxBuffer: 16 * 1024 * 1024,
