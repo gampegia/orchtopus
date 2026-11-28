@@ -143,6 +143,17 @@ Installed: Claude Code 2.1.332 (updated by the user on 2026-11-27; this section 
 **Sending input to a session**
 - Background sessions accept `claude --resume <id> "<message>"` as the next turn (not for messages that start with `/` or `!`). Otherwise write to the PTY.
 
+## Decisions by the user (2026-11-28)
+
+- Every Claude Code setup, model, effort or harness choice rests on `docs/evidence/claude-code-setup.md`: a current official source or our own measurement, otherwise the documented default or a setting. No unexplained own numbers. Quality first; usage optimisation later.
+- Lead: Opus 5.5 `high` by default; Fable 5.2 chosen per phase or task. Haiku only for classification and routing; summaries and mechanical work on Sonnet.
+- One lead session per phase (brainstorming, spec and plan; implementation), handoff through this file.
+- Plans mark parallel lanes; independent tasks run in parallel (used from M1 Task 3 on). The rule "at most three Opus agents" is withdrawn.
+- Agent task board as in Anthropic's multi-agent post: build it in the SQLite event log, behind the user's gates (backlog).
+- WSL2 sandbox: a setting per project with a setup assistant, later possibly the default (backlog).
+
+For the M1 final fix wave (from the evidence register): minimum Claude Code version 2.1.295 with a "not tested" hint below 2.1.332 [EV-H10]; drop the 120-word limit of the workflow-instruction test [EV-H8]; state timing constants in one place with their source, and measure stale-after-Stop and start grace [EV-H9]; remove the no-op `timeout` on async state hooks.
+
 ## Open decisions
 
 - **Addendum on Claude Code best practices** (`docs/specs/2026-11-27-claude-code-best-practices-addendum.md`): approved by the user on 2026-11-27 with the merge of pull request 6. It overrides the product spec where they differ (auto mode by default, minimum Claude Code 2.1.302, Stop hook check, simpler context management, extended learnings). It adds five questions to the M1 spike. D1 (auto mode) still depends on the spike. Read it before the M1 spec.

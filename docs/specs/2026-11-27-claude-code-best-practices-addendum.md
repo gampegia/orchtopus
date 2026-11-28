@@ -39,7 +39,7 @@ Since Claude Code 2.1.283, interactive sessions start in `auto` permission mode:
 
 ### D2. Minimum Claude Code version
 
-Orchtopus requires Claude Code 2.1.302 or newer and checks the version at app start and when a project is added. Reasons: auto mode as the default (2.1.283), `onFailure` on hooks (2.1.295), manual mode as the default for `claude -p` (2.1.302). An older version shows a clear message with the update command; Orchtopus does not update Claude Code itself.
+Orchtopus requires Claude Code 2.1.295 or newer, the documented floor for `onFailure` on command and http hooks, and checks the version at app start and when a project is added. Below 2.1.332, the version the spike and M1 were tested on, it shows "not tested on this version". The earlier reasons for 2.1.302 (auto mode and manual-mode defaults) do not apply, because Orchtopus passes `--permission-mode` explicitly. An older version shows a clear message with the update command; Orchtopus does not update Claude Code itself. Basis: `docs/evidence/claude-code-setup.md` [EV-H10] (corrected 2026-11-28).
 
 ### D3. Base setup of every session, all from outside the repository
 
@@ -59,7 +59,7 @@ Orchtopus requires Claude Code 2.1.302 or newer and checks the version at app st
 
 - When a project has fast check commands (type check, lint), Orchtopus adds a `Stop` hook that runs them. A failure goes back to Claude (exit code 2) so it fixes the problem before it reports "done".
 - The hook reads `stop_hook_active` and exits early when it is set. Claude Code itself ends the loop after 8 blocks in a row without a tool call.
-- The hook has a time budget (default 60 seconds). A check that takes longer is skipped with a hint in the inbox. Tests are opt-in per project for the same reason.
+- The hook has a time budget: a setting, own default 60 seconds [EV-H3]. A check that takes longer is skipped with a hint in the inbox. Tests are opt-in per project for the same reason.
 - On by default when fast commands are known, with a switch per project.
 - This supersedes, for these fast checks only, the rule in the parent spec, section 5.4, that skipped steps become hints and never send the session back. Everything else stays light: no follow-up prompts, no block on edits before plan approval.
 
@@ -105,7 +105,7 @@ A read-only check when a project is added, and on request later:
 
 - Claude Code version (D2).
 - A check Claude can run exists (test, lint or type check command).
-- `CLAUDE.md` is under 200 lines, has no emphasis words in capitals, and does not describe what the code already shows.
+- `CLAUDE.md` is under 200 lines [EV-H8], has no emphasis words in capitals, and does not describe what the code already shows.
 - Secrets are covered by deny rules (D1 adds them for Orchtopus sessions in any case).
 - superpowers is installed.
 - A hint that `/doctor prompt-audit` exists.

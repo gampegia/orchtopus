@@ -55,7 +55,7 @@ These come later, as the parent spec plans:
 
 ## Constraints
 
-- Claude Code 2.1.332 is installed; minimum supported is 2.1.302 (D2). Before the plan builds on a flag, setting key or hook field, the lead checks the current documentation. The items under "Checks at the start of the plan" are open until tested.
+- Claude Code 2.1.332 is installed; minimum supported is 2.1.295, with a "not tested" hint below 2.1.332 (D2, [EV-H10]). Before the plan builds on a flag, setting key or hook field, the lead checks the current documentation. The items under "Checks at the start of the plan" are open until tested.
 - Internal formats of Claude Code (transcript JSONL, `~/.claude/jobs/`) are not parsed.
 - CI has no Claude Code login. Everything that CI tests runs against a fake `claude` CLI.
 - Public repository, English only, generic demo names only (`acme-app`, `upload-fix`, ...).
@@ -94,7 +94,7 @@ Runs when a project is added and on request. Every result has a status (ok, hint
 
 | Item | Status when it fails | Source |
 |---|---|---|
-| Claude Code version is at least 2.1.302 | problem (sessions cannot start) | D2 |
+| Claude Code version is at least 2.1.295; below 2.1.332 a "not tested on this version" hint | problem (sessions cannot start) below 2.1.295 | D2, [EV-H10] |
 | Workspace trust for the folder | problem until trusted (see section 1) | spike |
 | At least one check command exists (test, lint or type check) | hint | D4, best practices "Give Claude a check to run" |
 | `CLAUDE.md` (project and user) has fewer than 200 lines | hint | docs `memory`: target under 200 lines |

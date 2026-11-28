@@ -16,31 +16,37 @@ Windows desktop app (Electron, TypeScript) that runs and supervises several Clau
 - The user approves spec and plan. Never push to `main` directly; every change goes through a PR.
 - The lead merges a PR itself after a review by a suitable review agent has no open blocking findings (user decision, 2026-11-27). The privacy review still runs before every push. This is about this repository; the product rule that Orchtopus never merges the user's project PRs is unchanged.
 - Conventional Commits. Small commits.
-- Parallel implementation work only after the walking skeleton (M1) exists. The design step and M0 are the exception.
+- Plans mark which tasks are independent; those run in parallel lanes, each in its own worktree (user decision 2026-11-28, [EV-P1]).
 - Before building on Claude Code internals (hooks, status line fields, resume, background sessions, agent teams), check the current documentation and the installed version, and tell the user what you found.
 - At the end of each session the lead updates `docs/progress.md`: done, next, open decisions, gotchas.
 
 ## Lead and agents
 The lead plans, decides, dispatches, reviews and talks to the user. It does not write large amounts of code and keeps its own context lean. Agents live in `.claude/agents/`.
 
+Every model, effort, limit or number in this section rests on `docs/evidence/claude-code-setup.md` (ids in brackets). A new rule of this kind gets an entry there first, with a current source or our own measurement.
+
 | Work | Model | Effort |
 |---|---|---|
-| Architecture, planning, security, hard bugs | Opus | high |
-| Implementation (`implementer`) | Opus | medium to high |
-| Critical reviews (`code-reviewer`, `security-reviewer`) | Opus | high |
-| Checklist reviews (`spec-reviewer`, `ui-reviewer`, `privacy-reviewer`) | Sonnet | medium to high |
-| Mechanical work (rename, move, format) | Sonnet | low |
-| Summaries of logs and similar | Haiku | low |
+| Lead (plans, reviews, decides) | Opus 5.5 | high [EV-M1] |
+| Lead for a phase with long, open-ended work (architecture, root-cause hunts) | Fable 5.2, chosen per phase | high [EV-M2] |
+| Implementation (`implementer`) | Opus | medium; high for hard or long tasks [EV-M4] |
+| Critical reviews (`code-reviewer`, `security-reviewer`) | Opus | high [EV-M5] |
+| Checklist reviews (`spec-reviewer`, `ui-reviewer`, `privacy-reviewer`) | Sonnet | medium; high for long or judgement-heavy checklists [EV-M6] |
+| Mechanical work (rename, move, format) and summaries of logs | Sonnet | medium [EV-M7] |
+| Classification, extraction, routing only | Haiku | medium, never low [EV-M7] |
 
-Note at each milestone which agents ran with which model and effort.
+Agent files set `model` and `effort` explicitly [EV-M8]. Note at each milestone which agents ran with which model and effort.
 
-## Usage
-Quality comes first; these rules cut waste, not care.
-- One lead session per milestone. At a milestone boundary the lead brings `docs/progress.md`, specs and plans up to date, then asks the user to run `/clear` and gives the one-line prompt to continue. No `/compact` in the middle of work.
-- Implementation runs at Opus medium; high effort is for architecture, security and hard bugs. Checklist reviews run at Sonnet medium. The agent files carry these defaults.
-- At most three Opus agents in parallel, so a usage limit does not interrupt work halfway.
+## Sessions and context
+Quality comes first; usage optimisation is a later step.
+- One lead session per phase: brainstorming, spec and plan in one; implementation in a fresh one [EV-C1]. At the boundary the lead brings `docs/progress.md` up to date as a handoff brief (goal, constraints, files, ruled-out approaches, open decisions) [EV-C2], then asks the user to run `/clear` and gives the one-line prompt to continue.
+- Rules the user gives in chat go into `CLAUDE.md` or auto memory the same day, never only into the conversation [EV-C3].
+- No `/compact` in the middle of work; if a phase must continue, compact at a natural break with a focus hint [EV-C5]. No context-fill threshold [EV-C4].
+- Never switch the model of a running session [EV-M9].
+- Agents reply with a short summary; large output goes into a file and the reply names the path [EV-C6].
+- Fan-outs follow the plan's independent lanes, within Claude Code's defaults; there is no fixed cap on parallel agents [EV-P1]. Plans mark from the start which tasks can run in parallel.
 - A follow-up to an agent that just finished (re-review, small fix) goes to the same agent, not to a new one.
-- Briefs tell agents how much checking is enough. No open-ended screenshot or retry loops.
+- Briefs tell agents how much checking is enough. No open-ended screenshot or retry loops. Fix rounds after a review: 2, then the case comes back to the lead [EV-H1].
 - Fan-outs of several similar agents run as one workflow when the user has allowed workflows, so the lead is not woken for each agent.
 
 ## Architecture rules
