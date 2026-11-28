@@ -247,10 +247,12 @@ for (let i = 0; i < 200; i++) {
     at: new Date(Date.UTC(2026, 10, 27, 9, 0, 0, i)).toISOString(),
     mode: 'hook', hook: 'PreToolUse', sessionId: null, cwd: null, fields: { tool_name: 'Bash' },
   }));
-  if (i % 20 === 0) await new Promise((r) => setTimeout(r, 1));
+  // Spread the appends over a few hundred ms so imports run while children still write.
+  if (i % 10 === 0) await new Promise((r) => setTimeout(r, 15));
 }
 `,
     );
+    let running = 4;
     const children = [0, 1, 2, 3].map(
       (n) =>
         new Promise<number | null>((resolve, reject) => {
@@ -260,15 +262,24 @@ for (let i = 0; i < 200; i++) {
             { stdio: 'ignore' },
           );
           child.on('error', reject);
-          child.on('exit', resolve);
+          child.on('exit', (code) => {
+            running -= 1;
+            resolve(code);
+          });
         }),
     );
     let damaged = 0;
-    for (let round = 0; round < 3; round++) {
-      damaged += (await importSpool(store, paths)).damaged;
-      await new Promise((r) => setTimeout(r, 30));
+    // Imports that finished while every child was still running; they prove the overlap.
+    let importedWhileAppending = 0;
+    while (running > 0) {
+      const before = running;
+      const result = await importSpool(store, paths);
+      damaged += result.damaged;
+      if (before === 4 && running === 4) importedWhileAppending += result.imported;
+      await new Promise((r) => setTimeout(r, 10));
     }
     expect(await Promise.all(children)).toEqual([0, 0, 0, 0]);
+    expect(importedWhileAppending).toBeGreaterThan(0);
     damaged += (await importSpool(store, paths)).damaged;
     expect(damaged).toBe(0);
     const ids = received().map((e) => e.id);
