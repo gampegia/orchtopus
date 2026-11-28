@@ -5,12 +5,16 @@
 // well enough to find a program call at the start of every simple command (after `&&`, `;`, `|`,
 // `&`, a new line, `(`, `$(`, a backtick), with quotes removed, a path or `.exe` on the program,
 // leading variable assignments, shell keywords (`if`, `then`, `do`, `!`, …) and wrappers like
-// `env`, and inside `bash -c` / `cmd /c` /
+// `env`, `sudo -u x` or `timeout 30`, and inside `bash -c` / `bash -lc` / `cmd /c` /
 // `pwsh -Command` strings. Text inside quotes is never a command, except `$(…)` and backticks
-// inside double quotes, which a shell runs. It errs toward blocking. The full set of hard blocks
-// (API calls, force pushes, …) comes in M3.
+// inside double quotes, which a shell runs. It errs toward blocking: after a wrapper, every later
+// `gh`, `glab` or shell word is checked, whatever options stand before it, and a command nested
+// deeper than it reads is blocked. The full set of hard blocks (API calls, force pushes, …) comes
+// in M3.
 
-export type PrCommandKind = 'gh-pr-create' | 'gh-pr-merge' | 'glab-mr-create' | 'glab-mr-merge';
+/** `too-deep`: shells or substitutions nested deeper than the matcher reads. */
+export type PrCommandKind =
+  'gh-pr-create' | 'gh-pr-merge' | 'glab-mr-create' | 'glab-mr-merge' | 'too-deep';
 
 export const PR_BLOCK_REASON =
   'Orchtopus does not let sessions create or merge pull requests or merge requests. Commit and push your branch instead; Orchtopus opens the pull request after the user releases the work.';
@@ -101,9 +105,25 @@ function programName(word: string): string {
   return base.toLowerCase().replace(/\.(exe|cmd|bat|com)$/, '');
 }
 
-const WRAPPERS = new Set(['env', 'command', 'exec', 'time', 'nohup', 'sudo', 'nice', 'start']);
-const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'cmd', 'pwsh', 'powershell']);
+const WRAPPERS = new Set([
+  'env',
+  'command',
+  'exec',
+  'time',
+  'nohup',
+  'sudo',
+  'nice',
+  'start',
+  'timeout',
+  'xargs',
+  'npx',
+  'wsl',
+]);
+/** POSIX shells, where `-c` can be combined with other flags (`-lc`, `-ec`). */
+const POSIX_SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
+const SHELLS = new Set([...POSIX_SHELLS, 'cmd', 'pwsh', 'powershell']);
 const SHELL_COMMAND_FLAGS = new Set(['-c', '/c', '/k', '-command', '/command']);
+const POSIX_COMMAND_FLAG = /^-[a-z]*c[a-z]*$/;
 /** Shell keywords that can stand before a command; skipped like assignments. */
 const KEYWORDS = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{']);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
@@ -131,23 +151,20 @@ function positionals(args: readonly string[]): string[] {
   return found;
 }
 
-function detectSegment(words: readonly string[], depth: number): PrCommandKind | null {
-  let i = 0;
-  for (; i < words.length; i++) {
-    const word = words[i] ?? '';
-    if (ASSIGNMENT.test(word) || KEYWORDS.has(word) || word === '.' || word === '') continue;
-    if (WRAPPERS.has(programName(word))) {
-      while ((words[i + 1] ?? '').startsWith('-')) i++;
-      continue;
-    }
-    break;
-  }
-  if (i >= words.length) return null;
+function isCommandFlag(shell: string, arg: string): boolean {
+  const flag = arg.toLowerCase();
+  return (
+    SHELL_COMMAND_FLAGS.has(flag) || (POSIX_SHELLS.has(shell) && POSIX_COMMAND_FLAG.test(flag))
+  );
+}
+
+/** Checks the program at `words[i]` with its arguments. */
+function detectProgram(words: readonly string[], i: number, depth: number): PrCommandKind | null {
   const program = programName(words[i] ?? '');
   const args = words.slice(i + 1);
 
   if (SHELLS.has(program)) {
-    const flag = args.findIndex((arg) => SHELL_COMMAND_FLAGS.has(arg.toLowerCase()));
+    const flag = args.findIndex((arg) => isCommandFlag(program, arg));
     return flag === -1 ? null : detect(args.slice(flag + 1).join(' '), depth + 1);
   }
 
@@ -161,8 +178,29 @@ function detectSegment(words: readonly string[], depth: number): PrCommandKind |
   return null;
 }
 
+function detectSegment(words: readonly string[], depth: number): PrCommandKind | null {
+  let i = 0;
+  while (i < words.length) {
+    const word = words[i] ?? '';
+    if (!(ASSIGNMENT.test(word) || KEYWORDS.has(word) || word === '.' || word === '')) break;
+    i++;
+  }
+  if (i >= words.length) return null;
+  if (!WRAPPERS.has(programName(words[i] ?? ''))) return detectProgram(words, i, depth);
+  // Wrapper options may take values (`nice -n 10`, `sudo -u x`, `timeout 30`), so every later
+  // word that names a tool or a shell is checked.
+  for (let j = i + 1; j < words.length; j++) {
+    const program = programName(words[j] ?? '');
+    if (TOOLS[program] === undefined && !SHELLS.has(program)) continue;
+    const kind = detectProgram(words, j, depth);
+    if (kind !== null) return kind;
+  }
+  return null;
+}
+
 function detect(command: string, depth: number): PrCommandKind | null {
-  if (depth > MAX_DEPTH) return null;
+  // Errs toward blocking: a command nested this deep is not read, so it cannot be ruled out.
+  if (depth > MAX_DEPTH) return 'too-deep';
   const { segments, nested } = lex(command);
   for (const words of segments) {
     const kind = detectSegment(words, depth);
