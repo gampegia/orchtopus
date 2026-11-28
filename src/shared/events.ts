@@ -61,6 +61,8 @@ export interface SessionStatePayload {
   reason?: string | null;
   /** Set when the start failed; the reason shown in the session header. */
   startFailed?: string | null;
+  /** Set when a start or resume begins (true) or ends; kept in session_state.starting. */
+  starting?: boolean;
 }
 
 export type SessionRemovedPayload = Record<string, never>;

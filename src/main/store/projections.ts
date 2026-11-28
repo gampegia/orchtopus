@@ -110,6 +110,15 @@ function applyProjectEvent(db: Db, event: StoredEvent): void {
   }
 }
 
+/** True for hook data whose `source` is `startup` or `resume` (a new process). */
+function isNewProcessSource(data: unknown): boolean {
+  if (typeof data !== 'object' || data === null) return false;
+  const fields = (data as { fields?: unknown }).fields;
+  if (typeof fields !== 'object' || fields === null) return false;
+  const source = (fields as { source?: unknown }).source;
+  return source === 'startup' || source === 'resume';
+}
+
 function applySessionEvent(db: Db, event: StoredEvent): void {
   const sessionId = event.sessionId;
   if (sessionId === undefined) return;
@@ -190,6 +199,12 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
           'UPDATE session_state SET start_failed = ?, starting = 0 WHERE session_id = ?',
         ).run(p.startFailed, sessionId);
       }
+      if (p.starting !== undefined) {
+        db.prepare('UPDATE session_state SET starting = ? WHERE session_id = ?').run(
+          p.starting ? 1 : 0,
+          sessionId,
+        );
+      }
       touch();
       return;
     }
@@ -205,6 +220,14 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
         db.prepare(
           `UPDATE session_state SET last_stop_at = ?
              WHERE session_id = ? AND (last_stop_at IS NULL OR last_stop_at <= ?)`,
+        ).run(event.at, sessionId, event.at);
+      }
+      if (p.hookEventName === 'SessionStart' && isNewProcessSource(p.data)) {
+        // A new or resumed process: its context fill is unknown until its first status line.
+        // Status lines older than this hook no longer count; an older hook changes nothing.
+        db.prepare(
+          `UPDATE session_state SET context_pct = NULL, rate_limits = NULL, context_at = ?
+             WHERE session_id = ? AND (context_at IS NULL OR context_at <= ?)`,
         ).run(event.at, sessionId, event.at);
       }
       touch();

@@ -301,6 +301,7 @@ function interactive() {
   const cfg = configDir();
   const cwd = process.cwd();
   let trusted = isTrusted(cfg, cwd);
+  const select = loadScenario().trustDialog === 'select';
   if (trusted) {
     process.stdout.write(`${PROMPT_BOX}\r\n`);
   } else {
@@ -311,7 +312,9 @@ function interactive() {
       (raw) => {
         const line = raw.trim();
         if (!trusted) {
-          if (line === '1') {
+          // In a select list (like the real CLI) typed text is ignored and Enter confirms
+          // the focused 'Yes, proceed'; otherwise only '1' accepts.
+          if (line === '1' || (select && line !== '2')) {
             writeTrust(cfg, cwd);
             trusted = true;
             process.stdout.write(`${PROMPT_BOX}\r\n`);

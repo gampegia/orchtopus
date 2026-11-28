@@ -59,8 +59,12 @@ interface Interactive {
   exited: Promise<number | null>;
 }
 
-function interactive(args: string[], cwd = root): Interactive {
-  const child = spawn(NODE, [CLI, ...args], { cwd, env, windowsHide: true });
+function interactive(args: string[], cwd = root, scenario?: string): Interactive {
+  const child = spawn(NODE, [CLI, ...args], {
+    cwd,
+    env: { ...env, ...(scenario === undefined ? {} : { ORCH_FAKE_SCENARIO: scenario }) },
+    windowsHide: true,
+  });
   let out = '';
   child.stdout.on('data', (d: Buffer) => (out += d.toString('utf8')));
   child.stderr.on('data', (d: Buffer) => (out += d.toString('utf8')));
@@ -378,5 +382,30 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     expect(config.projects['C:/elsewhere']).toEqual({ allowedTools: [] });
     expect(config.projects[dir.replace(/\\/g, '/')]?.hasTrustDialogAccepted).toBe(true);
     expect((await run(['--bg', 'hello'], { cwd: dir })).code).toBe(0);
+  });
+
+  it('trust-select: Enter accepts trust like the real select list', async () => {
+    const dir = await makeRepo('acme-web', false);
+    const session = interactive([], dir, 'trust-select');
+    await waitFor(
+      () => session.output().includes('Do you trust the files in this folder?') || undefined,
+    );
+    // Typed text is ignored by the select list; the Enter confirms 'Yes, proceed'.
+    session.child.stdin.write('/exit\n');
+    await waitFor(() => session.output().includes('╭─ fake prompt ─╮') || undefined);
+    session.child.stdin.write('/exit\n');
+    expect(await session.exited).toBe(0);
+    expect((await run(['--bg', 'hello'], { cwd: dir })).code).toBe(0);
+  });
+
+  it('trust-select: 2 declines trust', async () => {
+    const dir = await makeRepo('docs-site', false);
+    const session = interactive([], dir, 'trust-select');
+    await waitFor(
+      () => session.output().includes('Do you trust the files in this folder?') || undefined,
+    );
+    session.child.stdin.write('2\n');
+    expect(await session.exited).not.toBe(0);
+    expect((await run(['--bg', 'hello'], { cwd: dir })).code).toBe(1);
   });
 });

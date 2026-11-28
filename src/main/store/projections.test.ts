@@ -175,6 +175,46 @@ describe('projections', () => {
     expect(state?.processStartedAt).toBe('2026-11-28T08:00:00.000Z');
   });
 
+  it('a SessionStart hook from startup or resume makes the context unknown until a status line', () => {
+    emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
+    emit('statusline.received', { contextPct: 40, rateLimits: { a: 1 } }, { sessionId: 's1' });
+    emit(
+      'hook.received',
+      { hookEventName: 'SessionStart', data: { fields: { source: 'compact' } } },
+      { sessionId: 's1' },
+    );
+    expect(getSessionState(store.db, 's1')?.contextPct).toBe(40);
+
+    emit(
+      'hook.received',
+      { hookEventName: 'SessionStart', data: { fields: { source: 'resume' } } },
+      { sessionId: 's1' },
+    );
+    expect(getSessionState(store.db, 's1')?.contextPct).toBeNull();
+    expect(getSessionState(store.db, 's1')?.rateLimits).toBeNull();
+
+    emit('statusline.received', { contextPct: 3 }, { sessionId: 's1' });
+    expect(getSessionState(store.db, 's1')?.contextPct).toBe(3);
+  });
+
+  it('session.state with starting sets and clears the starting flag', () => {
+    emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
+    emit(
+      'session.state',
+      { word: 'failed', reason: 'boom', startFailed: 'boom' },
+      { sessionId: 's1' },
+    );
+    expect(getSessionState(store.db, 's1')?.starting).toBe(false);
+    emit(
+      'session.state',
+      { word: 'running', reason: 'Starting', startFailed: null, starting: true },
+      { sessionId: 's1' },
+    );
+    const state = getSessionState(store.db, 's1');
+    expect(state?.starting).toBe(true);
+    expect(state?.startFailed).toBeNull();
+  });
+
   it('an older spooled status line or hook does not rewind the session state', () => {
     emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
     const liveStop = emit('hook.received', { hookEventName: 'Stop' }, { sessionId: 's1' });
