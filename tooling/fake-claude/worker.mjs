@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { gateFile, logFile, pipeName, ranFile, writeSession } from './store.mjs';
+import { FAKE_VERSION, gateFile, logFile, pipeName, ranFile, writeSession } from './store.mjs';
 
 const [home, encoded] = process.argv.slice(2);
 const init = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
@@ -85,7 +85,9 @@ const MATCH_FIELD = {
   Notification: 'notification_type',
 };
 
-function matches(matcher, value) {
+/** Like Claude Code: events without a match field ignore the matcher. */
+function matches(event, matcher, value) {
+  if (MATCH_FIELD[event] === undefined) return true;
   if (matcher === undefined || matcher === '' || matcher === '*') return true;
   try {
     return new RegExp(`^(?:${matcher})$`).test(value ?? '');
@@ -158,7 +160,7 @@ function report(event, hook, result) {
  */
 async function runHooks(event, payload = {}) {
   const groups = readSettings().hooks?.[event];
-  if (!Array.isArray(groups)) return;
+  if (!Array.isArray(groups)) return false;
   const input = {
     session_id: record.sessionId,
     transcript_path: path.join(path.dirname(log), `${record.id}.jsonl`),
@@ -169,7 +171,7 @@ async function runHooks(event, payload = {}) {
   };
   const waits = [];
   for (const group of groups) {
-    if (!matches(group?.matcher, payload[MATCH_FIELD[event]])) continue;
+    if (!matches(event, group?.matcher, payload[MATCH_FIELD[event]])) continue;
     for (const hook of group.hooks ?? []) {
       if (hook?.type !== 'command' || typeof hook.command !== 'string') continue;
       const run = runCommand(hook, input);
@@ -187,7 +189,7 @@ async function runStatusLine(contextPct) {
     {
       session_id: record.sessionId,
       cwd: record.cwd,
-      version: '2.1.332',
+      version: FAKE_VERSION,
       model: { id: options.model ?? 'fake-model', display_name: options.model ?? 'Fake' },
       workspace: { current_dir: record.cwd },
       context_window: { used_percentage: contextPct ?? null },
@@ -287,6 +289,8 @@ const server = net.createServer((socket) => {
       if (message.t === 'attach') {
         attachClient(socket);
       } else if (message.t === 'in' && typeof message.line === 'string' && client === socket) {
+        // An empty line (Enter alone) starts no turn, like the prompt box.
+        if (message.line.trim() === '') continue;
         void enqueue(() => turn(message.line, true));
       } else if (message.t === 'stop') {
         void enqueue(stop);

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ranFile } from './store.mjs';
 
 const CLI = fileURLToPath(new URL('./cli.mjs', import.meta.url));
 const NODE = process.execPath;
@@ -423,6 +424,26 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     await waitFor(async () => ((await byName('report-export')) === 'done' ? true : undefined));
   });
 
+  it('ORCH_FAKE_SCENARIOS that is not JSON fails with exit code 2', async () => {
+    const dir = await makeRepo('acme-app');
+    const res = await run(['--bg', '--name', 'upload-fix', 'Install.'], {
+      cwd: dir,
+      env: { ORCH_FAKE_SCENARIOS: '{not json' },
+    });
+    expect(res.code).toBe(2);
+    expect(res.stderr).toContain('ORCH_FAKE_SCENARIOS is not JSON');
+    expect(await agents()).toEqual([]);
+  });
+
+  it('--fake-release refuses missing or bad arguments', async () => {
+    for (const args of [[], ['upload-fix'], ['../upload-fix', 'finish'], ['upload-fix', 'a/b']]) {
+      const res = await run(['--fake-release', ...args]);
+      expect(res.code).toBe(2);
+      expect(res.stderr).toContain('bad gate name');
+    }
+    await expect(fs.readdir(join(cfg, 'fake', 'gates'))).rejects.toThrow();
+  });
+
   it('mid-turn: the turn waits for --fake-release, then finishes', async () => {
     const dir = await makeRepo('acme-app');
     const id = await startBg(dir, ['--name', 'upload-fix', 'Fix the upload.'], 'mid-turn');
@@ -458,11 +479,143 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     // pr-attempt calls `gh pr create` (denied here) and then `git push` through PowerShell.
     const id = await startBg(dir, ['--settings', settings, 'Open a pull request.'], 'pr-attempt');
     await waitFor(async () => ((await agents())[0]?.state === 'done' ? true : undefined));
-    const ran = (await fs.readFile(join(cfg, 'fake', 'sessions', `${id}.ran.jsonl`), 'utf8'))
+    const ran = (await fs.readFile(ranFile(join(cfg, 'fake'), id), 'utf8'))
       .split('\n')
       .filter((l) => l !== '')
       .map((l) => JSON.parse(l) as { tool_name: string; tool_input: { command: string } });
     expect(ran.map((r) => r.tool_input.command)).toEqual(['git push -u origin HEAD']);
     expect(ran[0]?.tool_name).toBe('PowerShell');
+  });
+
+  it('waits for sync hooks but not for async hooks', async () => {
+    const dir = await makeRepo('acme-app');
+    const timeline = join(root, 'timeline.jsonl');
+    const line = (name: string): string =>
+      `appendFileSync(${JSON.stringify(timeline)}, JSON.stringify({ name: ${JSON.stringify(name)} }) + '\\n');`;
+    const script = async (name: string, body: string[]): Promise<string> => {
+      const file = join(root, `${name}.mjs`);
+      await fs.writeFile(
+        file,
+        [
+          "import { appendFileSync, readFileSync } from 'node:fs';",
+          "process.stdin.on('data', () => {});",
+          "process.stdin.on('end', () => {",
+          ...body,
+          '});',
+        ].join('\n'),
+      );
+      return file;
+    };
+    // The sync hook finishes late; the fake must still wait for it before the prompt.
+    const sync = await script('sync', [`  setTimeout(() => { ${line('sync')} }, 600);`]);
+    // The async hook only finishes after the prompt hook ran. If the fake waited for it,
+    // the prompt hook would never run and the test would time out (handshake, no timing margin).
+    const asyncHook = await script('async', [
+      '  const until = Date.now() + 20_000;',
+      '  const poll = () => {',
+      '    let text = "";',
+      `    try { text = readFileSync(${JSON.stringify(timeline)}, 'utf8'); } catch {}`,
+      `    if (text.includes('"prompt"')) { ${line('async')} return; }`,
+      '    if (Date.now() < until) setTimeout(poll, 25);',
+      '  };',
+      '  poll();',
+    ]);
+    const prompt = await script('prompt', [`  ${line('prompt')}`]);
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [
+                { type: 'command', command: NODE, args: [sync] },
+                { type: 'command', command: NODE, args: [asyncHook], async: true },
+              ],
+            },
+          ],
+          UserPromptSubmit: [{ hooks: [{ type: 'command', command: NODE, args: [prompt] }] }],
+        },
+      }),
+    );
+    await startBg(dir, ['--settings', settings, 'Export the report.']);
+    const rows = await waitFor(async () => {
+      try {
+        const text = await fs.readFile(timeline, 'utf8');
+        const parsed = text
+          .split('\n')
+          .filter((l) => l !== '')
+          .map((l) => JSON.parse(l) as { name: string });
+        return parsed.length === 3 ? parsed : undefined;
+      } catch {
+        return undefined;
+      }
+    }, 15_000);
+    expect(rows.map((r) => r.name)).toEqual(['sync', 'prompt', 'async']);
+  });
+
+  it('runs a group with a matcher on events without a match field', async () => {
+    const dir = await makeRepo('acme-app');
+    const record = await hookScript('record', false);
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [
+            { matcher: 'Bash', hooks: [{ type: 'command', command: NODE, args: [record] }] },
+          ],
+          Stop: [{ matcher: 'Bash', hooks: [{ type: 'command', command: NODE, args: [record] }] }],
+        },
+      }),
+    );
+    await startBg(dir, ['--settings', settings, 'Export the report.']);
+    const rows = await waitFor(async () => {
+      const r = await readJsonl('record');
+      return r.length === 2 ? r : undefined;
+    });
+    expect(rows.map((r) => r.hook_event_name)).toEqual(['UserPromptSubmit', 'Stop']);
+  });
+
+  it('an empty typed line does not start a turn', async () => {
+    const dir = await makeRepo('acme-app');
+    const record = await hookScript('record', false);
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [{ hooks: [{ type: 'command', command: NODE, args: [record] }] }],
+        },
+      }),
+    );
+    const id = await startBg(dir, ['--settings', settings]);
+    const view = interactive(['attach', id]);
+    await waitFor(() => view.output().includes('╭─ fake prompt ─╮') || undefined);
+    view.child.stdin.write('\n   \n');
+    view.child.stdin.write('hello there\n');
+    await waitFor(() => view.output().includes('fake reply: hello there') || undefined);
+    expect(view.output()).not.toContain('fake reply: \r\n');
+    expect((await readJsonl('record')).map((r) => r.prompt)).toEqual(['hello there']);
+    view.child.kill();
+  });
+
+  it('--fake-cleanup removes only the fake state, not other files in the home', async () => {
+    const home = join(root, 'acme-home');
+    await fs.mkdir(home, { recursive: true });
+    await fs.writeFile(join(home, 'keep.txt'), 'keep');
+    const dir = await makeRepo('acme-app');
+    const opts = { cwd: dir, env: { ORCH_FAKE_CLAUDE_HOME: home } };
+    expect((await run(['--bg', 'Export the report.'], opts)).code).toBe(0);
+    expect((await run(['--fake-cleanup'], opts)).code).toBe(0);
+    expect(await fs.readFile(join(home, 'keep.txt'), 'utf8')).toBe('keep');
+    await expect(fs.stat(join(home, 'sessions'))).rejects.toThrow();
+  });
+
+  it('--fake-cleanup removes the default home when only fake state is in it', async () => {
+    const dir = await makeRepo('acme-app');
+    expect((await run(['--bg', 'Export the report.'], { cwd: dir })).code).toBe(0);
+    expect((await run(['--fake-cleanup'])).code).toBe(0);
+    await expect(fs.stat(join(cfg, 'fake'))).rejects.toThrow();
   });
 });

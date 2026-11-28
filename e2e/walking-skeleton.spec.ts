@@ -4,23 +4,22 @@
 // and removing a session while keeping its branch.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import Database from 'better-sqlite3';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import type { AppSnapshot, SessionView } from '../src/shared/api-types';
 import type { PreloadApi } from '../src/shared/preload-api';
 import { PR_BLOCK_REASON } from '../src/shared/pr-block';
+import { SETUP_ITEM_IDS } from '../src/main/projects/setup-check';
 import { git } from '../src/main/test-helpers/temp-repo';
+import { ranFile } from '../tooling/fake-claude/store.mjs';
 import { createDemoRepo, type DemoRepo } from './fixtures/demo-repo';
-import { cleanupFakeClaude, closeApp, launchApp } from './launch';
+import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
 
 const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
 /** PROMPT_BOX in tooling/fake-claude/store.mjs. */
 const PROMPT_BOX = 'fake prompt';
-/** SETUP_ITEM_IDS in src/main/projects/setup-check.ts. */
-const SETUP_ITEM_COUNT = 12;
 /** The line Orchtopus adds to .git/info/exclude (src/main/git/worktrees.ts). */
 const EXCLUDE_LINE = '/.claude/worktrees/';
 
@@ -31,14 +30,26 @@ const SCENARIOS = {
   'image-resize': 'mid-turn',
 };
 
-const dataDir = mkdtempSync(join(tmpdir(), 'orchtopus-e2e-data-'));
+let dataDirPath: string | undefined;
+/** The data folder; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function dataDir(): string {
+  if (dataDirPath === undefined) throw new Error('data folder not created');
+  return dataDirPath;
+}
 // No .claude.json: the demo repo starts untrusted and is trusted through the dialog.
-const claudeHome = mkdtempSync(join(tmpdir(), 'orchtopus-e2e-claude-'));
-const fakeEnv = { ...process.env, CLAUDE_CONFIG_DIR: claudeHome };
+let claudeHomeDir: string | undefined;
+/** The Claude home; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function claudeHome(): string {
+  if (claudeHomeDir === undefined) throw new Error('Claude home not created');
+  return claudeHomeDir;
+}
+function fakeEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, CLAUDE_CONFIG_DIR: claudeHome() };
+}
 
 let app: ElectronApplication | undefined;
 let page: Page;
-let repo: DemoRepo;
+let repo: DemoRepo | undefined;
 let repoBefore: RepoSnapshot;
 
 // ---- helpers ------------------------------------------------------------------------------
@@ -47,8 +58,8 @@ async function launch(): Promise<void> {
   // Always the unpacked app: a packaged build ignores ORCHTOPUS_CLAUDE_COMMAND and would reach
   // the real claude CLI.
   const launched = await launchApp({
-    dataDir,
-    claudeHome,
+    dataDir: dataDir(),
+    claudeHome: claudeHome(),
     unpacked: true,
     env: { ORCH_FAKE_SCENARIOS: JSON.stringify(SCENARIOS) },
   });
@@ -92,12 +103,16 @@ interface FakeAgent {
   status?: string;
 }
 
-function fakeAgent(name: string): FakeAgent {
+function fakeAgents(): FakeAgent[] {
   const out = execFileSync(process.execPath, [FAKE_CLAUDE, 'agents', '--json', '--all'], {
-    env: fakeEnv,
+    env: fakeEnv(),
     encoding: 'utf8',
   });
-  const agent = (JSON.parse(out) as FakeAgent[]).find((a) => a.name === name);
+  return JSON.parse(out) as FakeAgent[];
+}
+
+function fakeAgent(name: string): FakeAgent {
+  const agent = fakeAgents().find((a) => a.name === name);
   if (agent === undefined) throw new Error(`No fake session ${name}`);
   return agent;
 }
@@ -113,7 +128,7 @@ function isAlive(pid: number): boolean {
 
 function releaseTurn(name: string): void {
   execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-release', name, 'finish'], {
-    env: fakeEnv,
+    env: fakeEnv(),
   });
 }
 
@@ -168,7 +183,7 @@ interface SpoolLine {
 }
 
 function spoolLines(): SpoolLine[] {
-  const file = join(dataDir, 'spool', 'events.jsonl');
+  const file = join(dataDir(), 'spool', 'events.jsonl');
   if (!existsSync(file)) return [];
   return readFileSync(file, 'utf8')
     .split('\n')
@@ -200,7 +215,7 @@ interface EventRow {
 }
 
 function storedEvents(ids: readonly string[]): EventRow[] {
-  const db = new Database(join(dataDir, 'state.db'), { readonly: true, fileMustExist: true });
+  const db = new Database(join(dataDir(), 'state.db'), { readonly: true, fileMustExist: true });
   try {
     const marks = ids.map(() => '?').join(', ');
     return db
@@ -261,6 +276,8 @@ function walk(dir: string, base: string, skip: (rel: string) => boolean, out: Ma
 }
 
 function snapshotRepo(root: string): RepoSnapshot {
+  // Status first: it can rewrite .git/index (a refreshed stat cache), which the walk below hashes.
+  const status = git(root, ['status', '--porcelain', '--ignored']);
   const work = new Map<string, string>();
   walk(root, root, (rel) => rel === '.git' || rel === '.claude/worktrees', work);
   const gitDir = new Map<string, string>();
@@ -269,21 +286,23 @@ function snapshotRepo(root: string): RepoSnapshot {
   return {
     work,
     gitDir,
-    status: git(root, ['status', '--porcelain', '--ignored']),
+    status,
     exclude: readFileSync(join(dotGit, 'info', 'exclude'), 'utf8'),
   };
 }
 
 /**
  * Files under .git that may change: what `git worktree add` writes (the worktree's admin folder,
- * the new branch ref and its reflog), git's own record of the fetch before a start, and the
- * exclude file (its content is checked exactly).
+ * the new branch ref and its reflog), git's own record of the fetch before a start, the index
+ * (git status and git worktree refresh its stat cache, the content is unchanged) and the exclude
+ * file (its content is checked exactly).
  */
 const ALLOWED_GIT_CHANGES = [
   /^worktrees\//,
   /^refs\/heads\/orch\//,
   /^logs\/refs\/heads\/orch\//,
   /^FETCH_HEAD$/,
+  /^index$/,
   /^info\/exclude$/,
 ];
 
@@ -292,30 +311,47 @@ const ALLOWED_GIT_CHANGES = [
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
+  dataDirPath = makeTempDir('orchtopus-e2e-data-');
+  claudeHomeDir = makeTempDir('orchtopus-e2e-claude-');
   repo = await createDemoRepo();
-  repoBefore = snapshotRepo(repo.root);
+  repoBefore = snapshotRepo(demo().root);
   await launch();
 });
 
+/** The demo repo; beforeAll made it, so every test can rely on it. */
+function demo(): DemoRepo {
+  if (repo === undefined) throw new Error('demo repo not created');
+  return repo;
+}
+
 test.afterAll(async () => {
-  if (app !== undefined) await closeApp(app);
-  cleanupFakeClaude(claudeHome);
-  await repo.cleanup();
+  try {
+    if (app !== undefined) await closeApp(app);
+  } finally {
+    // Ends the fake background workers, then removes the repo and the temp folders.
+    try {
+      if (claudeHomeDir !== undefined) cleanupFakeClaude(claudeHomeDir);
+    } finally {
+      await repo?.cleanup();
+      if (claudeHomeDir !== undefined) removeTempDir(claudeHomeDir);
+      if (dataDirPath !== undefined) removeTempDir(dataDirPath);
+    }
+  }
 });
 
 test('adds acme-app through the dialog and shows the checklist', async () => {
   if (app === undefined) throw new Error('app not started');
   await app.evaluate(({ dialog }, picked) => {
     dialog.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [picked] });
-  }, repo.root);
+  }, demo().root);
   await page.getByRole('button', { name: 'Add a project' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add a project' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Browse' }).click();
-  await expect(dialog.getByLabel('Folder')).toHaveValue(repo.root);
+  await expect(dialog.getByLabel('Folder')).toHaveValue(demo().root);
 
   const items = dialog.getByRole('list', { name: 'Setup check' }).getByRole('listitem');
-  await expect(items).toHaveCount(SETUP_ITEM_COUNT, { timeout: 15_000 });
+  await expect(items).toHaveCount(SETUP_ITEM_IDS.length, { timeout: 15_000 });
   for (const item of await items.all()) {
     await expect(item.locator('[data-status-word]')).toHaveText(/^(ok|hint|problem|info)$/);
   }
@@ -351,9 +387,11 @@ test('starts upload-fix with a first prompt and shows live output and running wi
   await dialog.getByLabel('First prompt').fill('Fix the upload of large files.');
   await dialog.getByRole('button', { name: 'Start session' }).click();
   await expect(dialog).toHaveCount(0, { timeout: 15_000 });
+  // The row shows 'running' within 2 s of the start returning. That does not measure N2 (the
+  // start sets the row to running at once); the Task 11 unit test pins N2.
   await expect(row('upload-fix')).toContainText('running', { timeout: 2_000 });
 
-  const worktree = join(repo.root, '.claude', 'worktrees', 'upload-fix');
+  const worktree = join(demo().root, '.claude', 'worktrees', 'upload-fix');
   expect(existsSync(worktree)).toBe(true);
   expect(git(worktree, ['branch', '--show-current'])).toBe('orch/upload-fix');
   const session = await sessionByTask('upload-fix');
@@ -386,7 +424,7 @@ test('the PR attempt scenario is blocked by the hook', async () => {
 
   // The fake ran the push but never the PR command.
   const agent = fakeAgent('report-export');
-  const ran = readFileSync(join(claudeHome, 'fake', 'sessions', `${agent.id}.ran.jsonl`), 'utf8')
+  const ran = readFileSync(ranFile(join(claudeHome(), 'fake'), agent.id), 'utf8')
     .split('\n')
     .filter((line) => line !== '')
     .map((line) => (JSON.parse(line) as { tool_input: { command: string } }).tool_input.command);
@@ -420,6 +458,7 @@ test('killed app (TerminateProcess) keeps the session and recovers', async () =>
     mode: 'auto',
     requestId: 'walking-skeleton-image-resize',
   });
+  // As for upload-fix: not a measure of N2.
   await expect(row('image-resize')).toContainText('running', { timeout: 2_000 });
   await expect.poll(() => fakeAgent('image-resize').state).toBe('working');
   const agent = fakeAgent('image-resize');
@@ -444,7 +483,7 @@ test('killed app (TerminateProcess) keeps the session and recovers', async () =>
 test('the repository changed only by one exclude line and worktree metadata', async () => {
   // Let the sessions' last writes settle; nothing below may depend on timing.
   await expect(row('image-resize')).toContainText('idle');
-  const after = snapshotRepo(repo.root);
+  const after = snapshotRepo(demo().root);
 
   expect([...after.work.entries()]).toEqual([...repoBefore.work.entries()]);
   // The worktrees folder is the only new path, and git sees it as ignored (the exclude line).
@@ -452,7 +491,7 @@ test('the repository changed only by one exclude line and worktree metadata', as
   expect(statusLines(after.status).sort()).toEqual(
     [...statusLines(repoBefore.status), '!! .claude/'].sort(),
   );
-  expect(readdirSync(join(repo.root, '.claude'))).toEqual(['worktrees']);
+  expect(readdirSync(join(demo().root, '.claude'))).toEqual(['worktrees']);
   expect(after.exclude).toBe(`${repoBefore.exclude}${EXCLUDE_LINE}\n`);
 
   const changed = new Set<string>();
@@ -471,6 +510,7 @@ test('the repository changed only by one exclude line and worktree metadata', as
 });
 
 test('removes the session and keeps the branch', async () => {
+  const worker = fakeAgent('upload-fix').pid;
   await row('upload-fix').click();
   await header().getByRole('button', { name: 'More for upload-fix' }).click();
   await page.getByRole('menuitem', { name: 'Remove session' }).click();
@@ -478,11 +518,18 @@ test('removes the session and keeps the branch', async () => {
   await expect(row('upload-fix')).toHaveCount(0, { timeout: 15_000 });
 
   await expect
-    .poll(() => existsSync(join(repo.root, '.claude', 'worktrees', 'upload-fix')), {
+    .poll(() => existsSync(join(demo().root, '.claude', 'worktrees', 'upload-fix')), {
       timeout: 15_000,
     })
     .toBe(false);
-  expect(git(repo.root, ['branch', '--list', 'orch/upload-fix'])).toContain('orch/upload-fix');
+  expect(git(demo().root, ['branch', '--list', 'orch/upload-fix'])).toContain('orch/upload-fix');
+  // git no longer lists the worktree, and the fake background worker has ended.
+  expect(git(demo().root, ['worktree', 'list', '--porcelain'])).not.toMatch(
+    /worktrees[\\/]upload-fix/,
+  );
+  await expect.poll(() => isAlive(worker), { timeout: 15_000 }).toBe(false);
   // The exclude line stays for the other sessions.
-  expect(readFileSync(join(repo.root, '.git', 'info', 'exclude'), 'utf8')).toContain(EXCLUDE_LINE);
+  expect(readFileSync(join(demo().root, '.git', 'info', 'exclude'), 'utf8')).toContain(
+    EXCLUDE_LINE,
+  );
 });

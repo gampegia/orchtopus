@@ -23,6 +23,7 @@ function rgb(mode: Mode, token: string): string {
 let app: ElectronApplication | undefined;
 let page: Page;
 let dataDir = '';
+let cleanupLaunch: (() => void) | undefined;
 
 function electronApp(): ElectronApplication {
   if (app === undefined) throw new Error('Electron did not launch');
@@ -34,6 +35,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
   const launched = await launchApp();
+  cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
   dataDir = launched.dataDir;
@@ -47,7 +49,12 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   // A failed launch leaves app undefined; closing it would hide the launch error.
-  if (app !== undefined) await app.close();
+  try {
+    if (app !== undefined) await app.close();
+  } finally {
+    // Removes the data folder and Claude home launchApp made for this suite.
+    cleanupLaunch?.();
+  }
 });
 
 test('starts without console errors', () => {

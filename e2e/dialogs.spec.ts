@@ -1,22 +1,23 @@
 // The add-project dialog (refusals, setup checklist, trust step) and the new-session dialog
 // (derived branch, fetch failure, field errors, remembered start values) against the fake CLI.
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, renameSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { mkdirSync, renameSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { SETUP_ITEM_IDS } from '../src/main/projects/setup-check';
 import { createTempRepo, type TempRepo } from '../src/main/test-helpers/temp-repo';
-import { closeApp, launchApp } from './launch';
-
-const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
-/** SETUP_ITEM_IDS in src/main/projects/setup-check.ts. */
-const SETUP_ITEM_COUNT = 12;
+import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
 
 let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo;
 // No .claude.json in this Claude home: the demo repo starts untrusted.
-const claudeHome = mkdtempSync(join(tmpdir(), 'orchtopus-e2e-claude-'));
+let claudeHomeDir: string | undefined;
+/** The Claude home; beforeAll creates it, so the runner's listing pass leaves no folder behind. */
+function claudeHome(): string {
+  if (claudeHomeDir === undefined) throw new Error('Claude home not created');
+  return claudeHomeDir;
+}
+let cleanupLaunch: (() => void) | undefined;
 
 /** Makes the folder picker return this path, as if the user picked it. */
 async function pickFolderReturns(path: string): Promise<void> {
@@ -73,21 +74,26 @@ async function openNewSession(): Promise<void> {
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
+  claudeHomeDir = makeTempDir('orchtopus-e2e-claude-');
   repo = await createTempRepo({ withRemote: true });
   mkdirSync(join(repo.root, 'src'));
-  const launched = await launchApp({ claudeHome });
+  const launched = await launchApp({ claudeHome: claudeHome() });
+  cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
   await expect(page.getByRole('contentinfo')).toContainText('API connected', { timeout: 15_000 });
 });
 
 test.afterAll(async () => {
-  if (app !== undefined) await closeApp(app);
-  execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-cleanup'], {
-    env: { ...process.env, CLAUDE_CONFIG_DIR: claudeHome },
-    stdio: 'ignore',
-  });
-  await repo.cleanup();
+  try {
+    if (app !== undefined) await closeApp(app);
+  } finally {
+    // Ends the fake background workers this test started, then removes the temp folders.
+    if (claudeHomeDir !== undefined) cleanupFakeClaude(claudeHomeDir);
+    await repo.cleanup();
+    if (claudeHomeDir !== undefined) removeTempDir(claudeHomeDir);
+    cleanupLaunch?.();
+  }
 });
 
 test('refuses a subfolder with a clear message', async () => {
@@ -106,7 +112,7 @@ test('shows every setup item with a word', async () => {
   await folder.fill(repo.root);
   await addDialog().getByRole('button', { name: 'Check' }).click();
   const items = addDialog().getByRole('list', { name: 'Setup check' }).getByRole('listitem');
-  await expect(items).toHaveCount(SETUP_ITEM_COUNT);
+  await expect(items).toHaveCount(SETUP_ITEM_IDS.length);
   for (const item of await items.all()) {
     await expect(item.locator('[data-status-word]')).toHaveText(/^(ok|hint|problem|info)$/);
   }
