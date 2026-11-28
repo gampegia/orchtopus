@@ -16,6 +16,9 @@ import { dirname, join } from 'node:path';
 import {
   envelopeValue,
   HOOK_FIELDS,
+  HOOK_PATTERN,
+  isRecord,
+  isShortString,
   MAX_CWD_LENGTH,
   MAX_HOOK_LENGTH,
   MAX_SESSION_ID_LENGTH,
@@ -65,10 +68,6 @@ export interface HelperResult {
 
 const MODES: Readonly<Record<string, EnvelopeMode>> = { state: 'hook', statusline: 'statusline' };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function parseInput(stdin: string): Record<string, unknown> | null {
   try {
     const value: unknown = JSON.parse(stdin);
@@ -83,7 +82,7 @@ function child(value: unknown, key: string): unknown {
 }
 
 function shortString(value: unknown, max: number): string | null {
-  return typeof value === 'string' && value.length > 0 && value.length <= max ? value : null;
+  return isShortString(value, max) ? value : null;
 }
 
 function put(fields: Record<string, EnvelopeValue>, key: string, raw: unknown): void {
@@ -123,9 +122,7 @@ function buildEnvelope(
   at: Date,
 ): HookEnvelope | null {
   const hook = mode === 'statusline' ? 'statusline' : input['hook_event_name'];
-  if (typeof hook !== 'string' || hook.length > MAX_HOOK_LENGTH || !/^[A-Za-z0-9_-]+$/.test(hook)) {
-    return null;
-  }
+  if (!isShortString(hook, MAX_HOOK_LENGTH) || !HOOK_PATTERN.test(hook)) return null;
   return {
     v: 1,
     id: randomUUID(),

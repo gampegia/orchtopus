@@ -55,13 +55,14 @@ export const MAX_CWD_LENGTH = 1024;
 export const MAX_FIELD_LENGTH = 256;
 
 const ID_PATTERN = /^[A-Za-z0-9-]+$/;
-const HOOK_PATTERN = /^[A-Za-z0-9_-]+$/;
+/** A hook event name as an envelope carries it. */
+export const HOOK_PATTERN = /^[A-Za-z0-9_-]+$/;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isShortString(value: unknown, max: number): value is string {
+export function isShortString(value: unknown, max: number): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= max;
 }
 
