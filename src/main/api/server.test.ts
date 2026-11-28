@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, request as httpRequest, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { connect, type AddressInfo } from 'node:net';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
 import { z } from 'zod';
 import { parseBody } from './schemas';
 import { isPortUnavailable } from './server';
@@ -112,6 +112,38 @@ describe('startApiServer', () => {
       req.end();
     });
     expect(status).toBe(421);
+  });
+
+  it('closes after a refused upgrade whose client keeps its side open', async () => {
+    const test = await started();
+    const socket = connect({ host: '127.0.0.1', port: test.server.port, allowHalfOpen: true });
+    socket.on('error', () => undefined);
+    onTestFinished(() => {
+      socket.destroy();
+    });
+    const response = await new Promise<string>((resolve) => {
+      let text = '';
+      socket.on('data', (chunk: Buffer) => {
+        text += chunk.toString('latin1');
+        if (text.includes('\r\n\r\n')) resolve(text);
+      });
+      socket.write(
+        'GET /v1/events HTTP/1.1\r\n' +
+          `Host: 127.0.0.1:${String(test.server.port)}\r\n` +
+          'Connection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+      );
+    });
+    expect(response.startsWith('HTTP/1.1 401 ')).toBe(true);
+    // The client never ends its side; the server must still drop the socket and shut down.
+    const timeout = new Promise<'timeout'>((resolve) =>
+      setTimeout(() => {
+        resolve('timeout');
+      }, 2000),
+    );
+    expect(await Promise.race([test.server.close().then(() => 'done' as const), timeout])).toBe(
+      'done',
+    );
   });
 
   it('GET /v1/health with the token returns apiVersion 1', async () => {

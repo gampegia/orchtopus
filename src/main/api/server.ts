@@ -147,9 +147,14 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 
 function rejectUpgrade(socket: Duplex, status: number): void {
   const text = STATUS_TEXT[status] ?? 'Error';
-  // end closes the socket after the status line is flushed; a destroy here could drop it.
+  // Destroy only once the status line is flushed: a destroy right away could drop it, and end
+  // alone only half-closes (server sockets allow half-open), so a client that never closes its
+  // side would keep the socket, and with it server.close(), waiting forever.
   socket.end(
     `HTTP/1.1 ${String(status)} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+    () => {
+      socket.destroy();
+    },
   );
 }
 
