@@ -101,6 +101,9 @@ export interface ApiError {
   field?: string;
 }
 
+/** The 409 message of open, stop and remove while the session's start is still running. */
+export const STILL_STARTING_MESSAGE = 'This session is still starting.';
+
 export interface HealthResponse {
   apiVersion: typeof API_VERSION;
   appVersion: string;

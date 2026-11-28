@@ -17,7 +17,7 @@ import {
   type SessionRow,
   type SessionStateRow,
 } from '../store/projections';
-import { deriveState, type ObservedTriple } from './state-rules';
+import { START_GRACE_MS, deriveState, type ObservedTriple } from './state-rules';
 
 export type PollResult = { ok: true; entries: AgentEntry[] } | { ok: false; error: string };
 
@@ -110,6 +110,12 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
   /** Entries of the last good poll; null before one and after a failed poll. */
   let entries: AgentEntry[] | null = null;
   let reachable = false;
+  /**
+   * Sessions whose process the app just started and no poll has listed yet, with the time of
+   * the start. A poll that began before the process registered does not list it, so a missing
+   * entry does not stop such a session until START_GRACE_MS has passed.
+   */
+  const unseen = new Map<string, number>();
   // Hook times per session, read from the log incrementally (spooled events included).
   const facts = new Map<string, HookFacts>();
   let cursor = 0;
@@ -163,8 +169,12 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
   const evaluate = (row: SessionRow, state: SessionStateRow): boolean => {
     let changed = false;
     let observed: ObservedTriple | 'missing' | 'unknown' = 'unknown';
-    if (entries !== null) {
-      const entry = findEntry(entries, row);
+    const startedAt = unseen.get(row.id);
+    const entry = entries === null ? undefined : findEntry(entries, row);
+    if (entry !== undefined || (startedAt !== undefined && now() - startedAt >= START_GRACE_MS)) {
+      unseen.delete(row.id);
+    }
+    if (entries !== null && (entry !== undefined || !unseen.has(row.id))) {
       const next = entry ? triple(entry) : null;
       observed = next ?? 'missing';
       if (!sameObserved(state.observed, next)) {
@@ -247,6 +257,7 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
       if (state.starting || state.startFailed !== null) {
         append('session.started', sessionId, { claudeSessionId: null, shortId: null });
       }
+      unseen.set(sessionId, now());
       run(sessionId, true);
     },
     onStartFailed: (sessionId, reason) => {

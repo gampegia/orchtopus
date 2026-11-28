@@ -10,7 +10,13 @@ import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
-import type { AppStatus, SessionMode, SessionView, StreamMessage } from '../../shared/api-types';
+import {
+  STILL_STARTING_MESSAGE,
+  type AppStatus,
+  type SessionMode,
+  type SessionView,
+  type StreamMessage,
+} from '../../shared/api-types';
 import { validateTaskName } from '../../shared/task-name';
 import type { AgentAdapter, SessionRef, TerminalSize } from '../adapter/agent-adapter';
 import type { TerminalRegistry } from '../adapter/terminals';
@@ -140,7 +146,7 @@ interface SessionParams {
 export const MAX_START_ATTEMPTS = 2;
 export const INTERRUPTED_TWICE = 'Start was interrupted twice';
 const NEVER_STARTED = 'This session never started; remove it and start again';
-const STILL_STARTING = 'This session is still starting.';
+const STILL_STARTING = STILL_STARTING_MESSAGE;
 const BUSY_RETRY_MS = 250;
 const BUSY_RETRY_TRIES = 20;
 const WHERE_TIMEOUT_MS = 5_000;
@@ -537,6 +543,9 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
       refOf(row);
       const word = getSessionState(db, sessionId)?.word;
       if (word === 'stopped' || word === 'failed') {
+        // The process is gone, so any attach PTY left from it is dead even if its exit has
+        // not been reported yet; the resumed process gets a fresh one.
+        await terminals.closeSession(sessionId);
         const params: SessionParams = { sessionId };
         const record = actions.begin('session.open', params);
         await runResume(record.id, row);

@@ -7,7 +7,7 @@ import { openStore, readEvents, type Store } from '../store/event-log';
 import { getSessionState } from '../store/projections';
 import { makeTempDir, type TempDir } from '../store/testing';
 import { createAgentsPoller } from './agents-poller';
-import { POLL_INTERVAL_MS } from './state-rules';
+import { POLL_INTERVAL_MS, START_GRACE_MS } from './state-rules';
 import { createStateTracker, type StateTracker } from './state-tracker';
 
 const T0 = Date.UTC(2026, 10, 28, 9, 0, 0);
@@ -281,6 +281,32 @@ describe('state tracker', () => {
     const before = stateEvents().length;
     tracker.clearStarting('s1');
     expect(stateEvents()).toHaveLength(before);
+  });
+
+  it('a process just started is not stopped by polls that do not list it yet', () => {
+    tracker.onStartBegun('s1');
+    // The last poll ran before the start: the session is not in it.
+    tracker.onPoll({ ok: true, entries: [] });
+    tracker.onProcessStarted('s1');
+    expect(word()).toBe('running');
+    clock += 1000;
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).toBe('running');
+    clock += 1000;
+    tracker.onPoll({ ok: true, entries: [entry({ state: 'done', status: 'idle' })] });
+    expect(word()).not.toBe('stopped');
+    // Once listed, a later missing entry stops it as usual.
+    clock += 1000;
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).toBe('stopped');
+  });
+
+  it('a process start that never shows up is stopped after the start grace', () => {
+    tracker.onStartBegun('s1');
+    tracker.onProcessStarted('s1');
+    clock += START_GRACE_MS;
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).toBe('stopped');
   });
 
   it('missing from a good poll is stopped', () => {

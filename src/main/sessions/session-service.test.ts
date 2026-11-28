@@ -356,6 +356,21 @@ describe('session service', { timeout: 60_000 }, () => {
     expect(registry.get(terminalId)).toBeDefined();
   });
 
+  it('open drops a leftover attach terminal before it resumes', async () => {
+    const s = service();
+    const view = await s.start(input());
+    const first = await s.open(view.id, SIZE);
+    await s.stop(view.id);
+    await poll();
+    expect(ctx.sessionView(view.id)?.state).toBe('stopped');
+    // The PTY of a process that is gone may not have reported its exit yet.
+    const closeSession = vi.spyOn(registry, 'closeSession');
+    const { terminalId } = await s.open(view.id, SIZE);
+    expect(closeSession).toHaveBeenCalledWith(view.id);
+    expect(terminalId).not.toBe(first.terminalId);
+    expect(registry.get(terminalId)).toBeDefined();
+  });
+
   it('a session that never started answers open with 409', async () => {
     trust(join(repo.root, '..', 'elsewhere'));
     const s = service();
