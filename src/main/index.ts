@@ -13,6 +13,7 @@ import { registerIpc } from './ipc';
 import { loadRenderer, resolveRendererTarget } from './load-renderer';
 import { denyAllPermissions, hardenWebContents } from './security';
 import { showMainWindow } from './show-window';
+import { tryStartupStep } from './startup-step';
 import { importSpool } from './spool/import';
 import { openStore, type Store } from './store/event-log';
 import { createMainWindowOptions, pageBackgroundColor } from './window-options';
@@ -80,10 +81,16 @@ async function startServices(): Promise<void> {
   store = opened;
   const ctx = createAppContext({ paths, store: opened });
   // Hooks of running sessions call the launcher in bin\; refresh it before anything else.
-  await installHookFiles(paths, {
-    exePath: process.execPath,
-    helperBundle: join(__dirname, 'hook-helper.js'),
-  });
+  // A failure keeps the old launcher and must not stop the app from starting.
+  await tryStartupStep(
+    'Hook file install',
+    () =>
+      installHookFiles(paths, {
+        exePath: process.execPath,
+        helperBundle: join(__dirname, 'hook-helper.js'),
+      }),
+    warn,
+  );
   const server = await startApiServer({
     paths,
     preferredPort: DEFAULT_API_PORT,
@@ -98,8 +105,10 @@ async function startServices(): Promise<void> {
   api = server;
   ctx.attachPublisher(server.publish);
   // Envelopes spooled while the app was closed. Task 12 moves this into the restart sequence.
-  const spooled = await importSpool(opened, paths);
-  if (spooled.damaged > 0) warn(`Spool import kept ${String(spooled.damaged)} damaged lines`);
+  // A spool that cannot be imported now (locked file, unwritable folder) waits for the next import.
+  const spooled = await tryStartupStep('Spool import', () => importSpool(opened, paths), warn);
+  if (spooled !== null && spooled.damaged > 0)
+    warn(`Spool import kept ${String(spooled.damaged)} damaged lines`);
   registerIpc({
     ipcMain,
     pickFolder: async (event) => {
