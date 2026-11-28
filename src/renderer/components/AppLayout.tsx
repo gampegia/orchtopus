@@ -6,10 +6,9 @@ import {
   type LayoutStorage,
 } from 'react-resizable-panels';
 import { EmptyState } from './EmptyState';
-import { SessionHeader } from './SessionHeader';
 import { SessionList } from './SessionList';
+import { SessionPane } from './SessionPane';
 import { StatusBar } from './StatusBar';
-import { TerminalView } from './TerminalView';
 import { TitleBar } from './TitleBar';
 import { selectedSession, useAppStore } from '../state/store';
 
@@ -114,12 +113,7 @@ function MainColumn(): React.JSX.Element {
         />
       );
   } else {
-    content = (
-      <section className="panel session-pane" aria-label={session.task}>
-        <SessionHeader session={session} />
-        <TerminalView key={session.id} session={session} />
-      </section>
-    );
+    content = <SessionPane session={session} />;
   }
   return <main className="main-column">{content}</main>;
 }
