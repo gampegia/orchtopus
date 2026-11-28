@@ -22,7 +22,8 @@ export type HttpDecision =
 export type UpgradeDecision =
   { kind: 'reject'; status: 401 | 403 | 421 } | { kind: 'ok'; token: string };
 
-const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
+/** A token: 32 random bytes as lowercase hex. */
+export const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
 function header(headers: Headers, name: string): string | undefined {
   const value = (headers as Record<string, string | string[] | undefined>)[name];
