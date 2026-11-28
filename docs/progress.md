@@ -1,6 +1,6 @@
 # Progress
 
-Last update: 2026-11-27 (M1 spike done on branch `spike/m1-claude-code-internals`, lead: Fable)
+Last update: 2026-11-28 (M1 walking skeleton built on branch `feat/m1-walking-skeleton`, PR open, Task 17 open; lead: Opus 5.5 high)
 
 ## Done
 
@@ -28,6 +28,33 @@ Last update: 2026-11-27 (M1 spike done on branch `spike/m1-claude-code-internals
   - Document `ORCHTOPUS_BACKGROUND_WINDOW` in the README.
 
 Agents for M0: implementers 10x Opus (medium) plus fix rounds, task reviews 10x Sonnet (medium), final reviews code and security Opus (high), spec, UI and privacy Sonnet, fix wave Opus (medium), re-review Opus (high), docs Sonnet. Lead: Fable. Tasks 7b to 10 and the final review ran as workflows.
+
+### M1 walking skeleton (2026-11-28, branch `feat/m1-walking-skeleton`, PR open)
+
+Spec: `docs/specs/2026-11-27-m1-walking-skeleton-design.md`. Plan: `docs/plans/2026-11-27-m1-walking-skeleton.md`.
+
+- Tasks 2 to 16 done: event store and idempotent actions, local API (127.0.0.1, token, event and terminal streams), hook helper with launcher and spool, git worktrees, setup check, fake CLI, base setup with the PR block hook, background-session adapter (`claude --bg`, attach PTY), state tracker and rules, restart recovery, session list, session view with live terminal, add-project and new-session dialogs, trust step, e2e of the whole flow against the fake CLI.
+- Fix wave: about 485 review findings triaged to about 310 unique. The 14 must-fix items and the should-fix lanes (A1, A2, B, C, D, E, F, G1, G2, R1, R2) are merged into the branch. The 42 deferred items are in "M1 leftovers".
+- Final whole-branch review (code, security, spec, UI, privacy): no open blocking finding after the last fixes. Its 47 non-blocking findings are in "M1 leftovers".
+- After the review: `NoDefaultCurrentDirectoryInExePath=1` for the main process, kept out of Claude Code processes (`claudeEnv()`). F6 leaves a terminal; the trust step and the session header show the hint "F6 leaves the terminal".
+- Tests on 2026-11-28: 912 unit tests in 69 files (`npm run check` exit 0), 55 e2e tests (`npm run e2e`, all passed).
+- Open: Task 17 (manual real-CLI check with the user, about 20 minutes), then merge the M1 PR.
+
+Agents for M1:
+
+| Agent | Model and effort |
+|---|---|
+| implementer | Opus medium |
+| code-reviewer and security-reviewer | Opus high |
+| spec-reviewer | Sonnet medium |
+| ui-reviewer | Sonnet high |
+| privacy-reviewer | Sonnet medium |
+| merge agents | Sonnet medium |
+| triage | Opus high |
+| research and verification | Opus high |
+| docs writer | Sonnet medium |
+
+Lead: Opus 5.5 high. Workflows ran the parallel lanes. One usage-limit stop was resumed after the reset.
 
 ### M1 spike (2026-11-27)
 
@@ -74,7 +101,11 @@ Agents used in session 1: mockup and prototype analysis 2× Sonnet; concept tran
 
 ## Next
 
-**M1 spec is next** (brainstorming, then spec, then plan). The M1 spike is done; read its findings first. M0 is done. Spec: `docs/specs/2026-11-27-m0-tooling-design.md`. Plan: `docs/plans/2026-11-27-m0-tooling.md`.
+1. **Task 17 with the user** (about 20 minutes): the manual check against the real CLI in plan `docs/plans/2026-11-27-m1-walking-skeleton.md`, Task 17. Record each step with date and CLI version here. Add the README development section (`ORCHTOPUS_DATA_DIR`, `ORCHTOPUS_CLAUDE_COMMAND`, fake CLI). Check the Task 17 items under "Gotchas from M1".
+2. **Merge the M1 PR** after Task 17 and a green windows-latest CI run.
+3. **M2 lead session** starts with brainstorming. Inputs: the spikes on cross-session messaging (PR 16, `docs/spikes/2026-11-28-cross-session-messaging.md`) and mods versus hooks (PR 18), the review-page design (merged PR 17, `docs/specs/2026-11-28-review-page-template-design.md`), and "M1 leftovers".
+
+Earlier notes, kept for reference:
 
 The M0 leftovers PR (branch `fix/m0-leftovers`) does the dev reload, redirect handling, parsed `loadURL` value, CI concurrency and the `app://` protocol. The built renderer loads from `APP_ORIGIN` (`app://orchtopus`, `src/shared/app-origin.ts`); M1 Tasks 3 and 12 import it. `location.reload()` fires `will-navigate` in Electron 45, so a reload by the page works with the dev server only; `e2e/dev-reload.spec.ts` checks it against a local http server that stands in for Vite.
 
@@ -152,7 +183,34 @@ Installed: Claude Code 2.1.332 (updated by the user on 2026-11-27; this section 
 - Agent task board as in Anthropic's multi-agent post: build it in the SQLite event log, behind the user's gates (backlog).
 - WSL2 sandbox: a setting per project with a setup assistant, later possibly the default (backlog).
 
-For the M1 final fix wave (from the evidence register): minimum Claude Code version 2.1.295 with a "not tested" hint below 2.1.332 [EV-H10]; drop the 120-word limit of the workflow-instruction test [EV-H8]; state timing constants in one place with their source, and measure stale-after-Stop and start grace [EV-H9]; remove the no-op `timeout` on async state hooks.
+Done in the M1 fix wave (from the evidence register): minimum Claude Code version 2.1.295 with a "not tested" hint below 2.1.332 [EV-H10]; drop the 120-word limit of the workflow-instruction test [EV-H8]; state timing constants in one place with their source, and measure stale-after-Stop and start grace [EV-H9]; remove the no-op `timeout` on async state hooks.
+
+## M1 leftovers
+
+From the fix-wave Defer list and the 47 non-blocking findings of the final review, grouped and deduplicated.
+
+**M2: correctness and security**
+- Sessions: project remove ignores a pending `session.start`; the pending-start check compares only the task, not the branch; `stop()` has no skip for a stopped session; a timed-out `--bg` without ids cannot be stopped on remove (look it up by worktree path); auto-selection resumes a stopped session through POST /open (lead decides: intended, or a Resume button).
+- Startup: mutating routes are live before poll and resume (answer 503 until ready, or serialize `session.open`); the data-folder character check runs after `session.created` (move it into validation).
+- Session self-approval: a session can read `<data>\api-token` and edit its own settings and hook files (add deny rules `Read(<data>/api-token)` and `Edit(<data>/**)`); raw terminal input can answer Claude Code's own permission prompt (gate it on the PermissionRequest hook and the hold button, own capability for terminal input).
+- Git and paths: `git fetch` without `--`, no refusal of a leading `-` in branch or remote names; Windows device names (`aux`, `nul`, `com1`) pass `validateTaskName`; inspect and add check `DRIVE_PATH` on the input string, not the realpath (symlink to a UNC share); `where claude` searches the current folder first.
+- Stored data: the first prompt stays verbatim in `action.started` params in state.db; raw `error.message` and CLI stderr in logs need a shared redaction helper.
+
+**M2: UX, renderer and docs**
+- Session view: failed-start reason truncated without `title`; Reattach shown for a session that never started; copy-list hints never reach the UI; xterm `minimumContrastRatio` 4.5 on the light theme; TerminalView reuse path; StrictMode double POST /open in dev.
+- Dialogs: setup status words show raw ids (ok, hint, problem, info) and the e2e pins them; no branch error when the branch field is cleared; selection after a start can jump to the first row; trust poll runs a full inspect every 2 s; project menu keeps a stale error and removes without confirm.
+- Renderer client: no unit tests for backoff, 401 refetch and 4401 reconnect; `host.orchtopusTerminal` ships in production for the e2e; xterm font not rebuilt on a theme switch.
+- Spec and plan text: trust terminal is killed without `/exit`; `git fetch` writes `FETCH_HEAD` and remote refs (Done-when 6); "running" has no time bound for `working` / `idle`; `fix: null` for several setup items; plan says minimum 2.1.302 and lacks `@types/better-sqlite3 9.6.0`; extra scope (single-instance lock, `startup-step.ts`, `envelope-event.ts`, standalone bundle plugin).
+
+**M3: hard-block set**
+- PR block misses `eval`, `iex` / `Invoke-Expression`, `source <(...)`, `bash <<<`, PowerShell `-Command` prefixes such as `-Comm`, `cmd /cgh ...`, backtick and backslash escapes, heredoc bodies, `gh api`, `-EncodedCommand`, `Start-Process`.
+
+**Backlog**
+- Hardening: `connect-src` allows every loopback port; `writePortFile` failing after listen leaks the server; `app.exit(1)` leaves `api.json`; trust terminals have no idle timeout or count; 1008 close without a terminate fallback; `elsewhere` read from output text; a prompt starting with `-` gets a leading space.
+- Refactors: four copies of temp-plus-rename; `z.object` vs `z.strictObject` and the repeated StartSessionInput schema; store pass (step after fail, prepare per event, prefix routing, insert semantics, weak projection asserts); `resolveBase` `base: ''`; module-level envelope listener; double `matchSession`; `KEPT_FIELDS` per mode; export `EXCLUDE_LINE`; test helper under `src/main`; cli.ts maxBuffer error, `where` timeout, `whereClaude` untested.
+- Perf and rare cases: trust read twice per inspect; one `check-ignore` per file; a remote named `team/acme`; detached HEAD falls back to `main`; stat and cp errors per copy-list entry; `rememberStart` not logged; `Read(/.env)` semantics in user settings; launcher `chcp` not restored (after Task 17).
+- Tests and tooling: shared `e2e/helpers.ts`; `dialogs.spec.ts` teardown without `?.` and a request listener never removed; fake CLI liveness is pid-only; a settings fixture path that looks like a person name (rename to `Zoë demo`).
+- Design polish (needs DESIGN.md or tokens): dialog scrim and `size.dialog` token; list min and max and stroke 1.5 as tokens; terminal frame header, lamp halo, octopus; danger tint for destructive confirms; input focus rule vs the 2 px ring; `.btn:active` scale on keyboard presses; green check in the trust step; aria-live in the copy button; no-projects note; Figtree and JetBrains Mono not bundled.
 
 ## Open decisions
 
@@ -193,3 +251,20 @@ For the M1 final fix wave (from the evidence register): minimum Claude Code vers
 - A red check that launches a broken package shows an Electron error dialog on the desktop.
 - Known gap: CI does not run `npm run package`.
 - In three handover themes the decision card chrome is hard-coded amber, also for the danger and PR cards. Do not copy that.
+
+## Gotchas from M1
+
+- xterm needs the CSP exception `style-src-elem 'self' 'unsafe-inline'` (security.ts, index.html), reviewed by the security-reviewer. Keep the renderer free of innerHTML. After a WebGL context loss the DOM renderer loses 24-bit colours (the CSP blocks style attributes) and logs CSP violations the e2e does not check.
+- The main process sets `NoDefaultCurrentDirectoryInExePath=1` before any child process, so libuv never runs a `git.exe` or `where.exe` from a repository folder. libuv reads it from the parent; a child env alone does not help. Claude Code processes get `claudeEnv()`, which drops it, so cmd.exe in the user's sessions behaves as usual. git and `where` keep it.
+- Flaky git and session-service tests under 100 % CPU (EPERM on temp cleanup, timeouts with many workers). Done: test timeout 30 s in `vitest.config.mts`, a `removeDir` retry loop in `src/main/test-helpers/temp-repo.ts`, waiting for the PTY exit before removing fake folders, a `check-ignore` retry in `detect.ts`, a stable repo snapshot in the e2e. Left: node-pty "AttachConsole failed" traces and one vitest worker crash seen on Windows; watch CI.
+- F6 is the way out of a terminal, because xterm keeps Tab and Esc for the PTY. F6 moves to the selected row (session view) or to Close terminal (trust step). Both show the hint "F6 leaves the terminal".
+- The fake CLI kills a command hook without a `timeout` after 60 s; real Claude Code waits 600 s by default. Do not read hook timing from the fake.
+- `--permission-mode` takes `manual`, not `default`.
+- Electron fuses: keep `RunAsNode` on; the hook launcher runs the app's executable in Node mode. Packaging must not flip it silently.
+- A stale `api.json` after a crash can point hooks at a port another local process holds, and that process gets the token. Accepted in M1 (a pid check was added); revisit in M2, where hooks carry decisions. Spooled events carry no token: never let them drive privileged actions.
+- Once the data folder location is configurable, `bin\` must not be writable by others.
+- A dev `state.db` from before 37db898 lacks `context_at` (MIGRATION_1 was edited in place). Delete the dev data folder.
+- Dev watch mode does not rebuild `out/main/hook-helper.js` when only the helper changes.
+- A failed start after `session.created` answers 201 with the failed SessionView.
+- For Task 17: `chcp 65001` with a non-ASCII exe path leaves the console code page changed (look at the attached TUI); Claude Code must write `hasTrustDialogAccepted` at once, because closing the trust step kills the PTY; check xterm contrast of the real CLI colours on the light theme.
+- Before merge the lead confirms a green windows-latest CI run of the pushed branch.
