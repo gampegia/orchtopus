@@ -68,6 +68,7 @@ export function SessionHeader({ session }: { session: SessionView }): React.JSX.
         </div>
       </div>
       <div className="session-header-actions">
+        <span className="field-hint">F6 leaves the terminal</span>
         <button
           type="button"
           className="btn small"

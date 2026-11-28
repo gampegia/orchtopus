@@ -216,6 +216,7 @@ test('arrow keys keep focus on the rows while the terminal attaches', async () =
 test('F6 moves focus from the terminal to the selected row', async () => {
   await row('upload-fix').click();
   await expectTerminal(PROMPT_BOX);
+  await expect(header().getByText('F6 leaves the terminal', { exact: true })).toBeVisible();
   await page.locator('[data-terminal]').click();
   expect(await focused()).toMatchObject({ role: null });
   await page.keyboard.press('F6');
