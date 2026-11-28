@@ -1,7 +1,7 @@
 // UI state of the renderer: the app state from the event stream, the connection, the selected
 // session and which dialog is asked for. The event stream is the only writer of `state`.
 import { create } from 'zustand';
-import type { ProjectView, SessionView, StreamMessage } from '../../shared/api-types';
+import type { SessionView, StreamMessage } from '../../shared/api-types';
 import {
   applyStreamMessage,
   initialClientState,
@@ -39,10 +39,20 @@ export function sessionsInListOrder(state: ClientState): SessionView[] {
 }
 
 /** The selection after a state change: kept while the session exists, else the first row. */
-function keepSelection(state: ClientState, selected: string | null): string | null {
+export function keepSelection(state: ClientState, selected: string | null): string | null {
   const ordered = sessionsInListOrder(state);
   if (selected !== null && ordered.some((session) => session.id === selected)) return selected;
   return ordered[0]?.id ?? null;
+}
+
+/** The connection word after a stream status: a drop after a working connection is "lost". */
+export function nextConnection(
+  current: ConnectionState,
+  status: ConnectionStatus,
+): ConnectionState {
+  if (status === 'open') return 'connected';
+  // Before the first working connection a drop is still "connecting".
+  return current === 'connected' || current === 'lost' ? 'lost' : 'connecting';
 }
 
 export const useAppStore = create<AppStore>()((set) => ({
@@ -70,25 +80,12 @@ export const useAppStore = create<AppStore>()((set) => ({
     });
   },
   setConnection: (status) => {
-    set((current) => ({
-      // A drop after a working connection is "lost"; before the first one it is "connecting".
-      connection:
-        status === 'open'
-          ? 'connected'
-          : current.connection === 'connected' || current.connection === 'lost'
-            ? 'lost'
-            : 'connecting',
-    }));
+    set((current) => ({ connection: nextConnection(current.connection, status) }));
   },
 }));
 
 export function selectedSession(store: AppStore): SessionView | null {
   return store.state.sessions.find((session) => session.id === store.selectedSessionId) ?? null;
-}
-
-export function projectOf(store: AppStore, session: SessionView | null): ProjectView | null {
-  if (session === null) return null;
-  return store.state.projects.find((project) => project.id === session.projectId) ?? null;
 }
 
 let client: ApiClient | null = null;
