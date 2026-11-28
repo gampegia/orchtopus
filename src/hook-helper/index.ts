@@ -138,11 +138,29 @@ function buildEnvelope(
   };
 }
 
-/** The port and token of the running app, or null when either file is missing or damaged. */
+/** True when a process with this pid runs. EPERM means it runs under another user. */
+export function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as { code?: unknown }).code === 'EPERM';
+  }
+}
+
+/**
+ * The port and token of the running app, or null when either file is missing or damaged, or
+ * when the app that wrote api.json is gone (a crash leaves the file behind, and another
+ * program may listen on its port now, so the token is not sent).
+ */
 function readConnection(dataDir: string): { port: number; token: string } | null {
   try {
     const portFile: unknown = JSON.parse(readFileSync(join(dataDir, HELPER_FILES.apiFile), 'utf8'));
     const port = child(portFile, 'port');
+    const pid = child(portFile, 'pid');
+    if (typeof pid !== 'number' || !Number.isInteger(pid) || pid < 1 || !isProcessAlive(pid)) {
+      return null;
+    }
     const token = readFileSync(join(dataDir, HELPER_FILES.tokenFile), 'utf8').trim();
     if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
       return null;
