@@ -95,7 +95,7 @@ Not measured yet: the Orchtopus app itself, real project tools (a full test suit
 
 ## Plans and specs that are quick to review
 
-Added 2026-11-27. Status: idea, to be evaluated.
+Added 2026-11-27. Status: idea, to be evaluated. Updated 2026-11-28: user decision below.
 
 **Problem:** plans and specs that the user must approve are often long, dense and tiring to read (the M1 plan has about 750 lines). A long review is easy to put off or to skim, and then the approval means little.
 
@@ -107,12 +107,142 @@ Added 2026-11-27. Status: idea, to be evaluated.
 
 **Idea 2, nicer presentation:** show plans and specs so they are pleasant to read: rendered page with headings, short sections, diagrams of the flow, progress per task, colour labels that say what needs the user (red) and what is information (green), collapsed details.
 
+**Decision 2026-11-28 (user): HTML review pages inside Orchtopus.** The user reviews specs and plans as designed HTML pages, not as Markdown or rendered Markdown. This supersedes F50's rendered Markdown editor as the default view.
+
+- The session writes an HTML review page next to the Markdown plan. The Markdown stays the agents' source of truth and is what gets committed.
+- The page comes from a versioned building-block template that uses design tokens. It has a short summary on top, red "needs you" and green "info" labels, flow diagrams, collapsible details and progress per task.
+- Orchtopus shows the page in the plan view, with Spec OK and Plan Go on it, and a raw-text fallback.
+- Orchtopus checks that the HTML and the Markdown belong to the same revision. The session regenerates the HTML on every change.
+- Source: Thariq Shihipar's essay on HTML as the plan format, 2026-05-20 (https://claude.dev/blog/using-claude-code-the-unreasonable-effectiveness-of-html/). He does not read Markdown plans over about 100 lines. See `docs/research/2026-11-28-playground-and-staff-setups.md`, section 2.4.
+- New project setting **"Keep specs and plans in the repository"**. Default yes, as superpowers does. When off, they live in the Orchtopus data folder and stay out of the PR.
+
 **Where it applies:**
 
 - Our own workflow in this repository (the lead's specs and plans).
 - The product: the spec and plan view of M3 (F38 to F41, F50) shows superpowers plans to the user. The same ideas would make that view better.
 
 **To evaluate:** whether smaller approvals still catch cross-task problems; how much extra work the summary costs per plan; whether superpowers' plan format allows a separate user summary without changing the skill; which presentation (rendered Markdown in the app, an artifact page, a generated HTML file) fits best.
+
+## Guard commands that lose work (blast radius)
+
+Added 2026-11-28. Status: idea, researched once. Suggested place: M2 (dangerous commands, hold card, product spec 5.3).
+
+**Decision 2026-11-28 (user):** Orchtopus also serves users who are not experienced developers. So by default, anything that can lose work counts as dangerous, also inside the session's own worktree:
+
+- `git clean`
+- `git checkout -- .` and `git restore .`
+- `git reset --hard`
+- force pushes, including `+refspec` and `--force-with-lease`
+- migrations
+
+**Card:** it explains in plain words what would be lost: files and sizes, dirty files, dropped commits. The same summary goes into the deny reason, so Claude can tell the user what was avoided.
+
+**How:** compute it in the main process with Node `fs` and `git`, never by running project tools. Read-only. Do not run migration listers: they load project code before the user decides. For force pushes, say "as of the last fetch".
+
+**Settings:** every rule is a setting the user can toggle in the settings.
+
+**Source:** the Blast Radius mod in `anthropics/claude-code-playground` (`blast-radius.mjs`, last commit 2026-10-01). Its known misses (`xargs rm`, `find -delete`, `timeout 5 rm`, `doas rm`) become test cases. Details: `docs/research/2026-11-28-playground-and-staff-setups.md`, sections 2.1 and 2.2.
+
+**Effort:** about 8 to 12 hours with tests.
+
+## User mods in Orchtopus sessions
+
+Added 2026-11-28. Status: needs a check in M2, before the dangerous-command hold ships.
+
+**Finding:** mods load by default from Claude Code v2.1.287, and only `--safe-mode`, `--bare` or `disableAllHooks` turn them off. Orchtopus passes none of these, so a user's installed mods probably load in our sessions. This is an inference and is not tested. See [EV-I3].
+
+**Risks:**
+
+- A mod can approve tool calls that `PreToolUse` hooks would stop (the built-in guard prevents this by default).
+- Double holds: a mod such as Blast Radius and our hook both hold the same command.
+- Our PR block or dangerous-command hold being bypassed.
+- `disableAllHooks` is no fix: it also stops our own hooks.
+
+**The M2 spec must test this and decide.** Test with Blast Radius installed, and with a mod that approves a command that our hook holds. Possible outcomes: an information line in the setup check that lists mods with hooks, or `--safe-mode` for sessions that need a hard guarantee. Reading the plugin list stays read-only.
+
+## Checks out of the change's reach
+
+Added 2026-11-28. Status: idea, researched once. Suggested place: M3 (gates) and M4 (review).
+
+**Source:** Addy Osmani (Anthropic), 2026-11-16, https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/
+
+**What to take:**
+
+- Load gate rules from the base branch or the data folder, never from the worktree.
+- Flag a diff that changes check config (lint, test, CI files, `package.json` scripts) as "judge changed". The user decides.
+- Stamp each commit with how it was verified, "none" included. Show the stamp in the review detail.
+- Gate modes: off, observe, enforce. Every new gate starts in observe.
+
+**Open difference:** his team brings in a human after 3 failed rounds. Our setting default is 2 [EV-H1]. Both are settings. Recheck in M4 and decide the default with a reason.
+
+**Effort:** stamps and observe mode about 1 day. Base-branch loading and "judge changed" detection 1 to 2 days.
+
+## Review council additions (M4)
+
+Added 2026-11-28. Status: idea, researched once. Suggested place: M4 (review council, E11, F16, F42, F44).
+
+**Verified ideas to add. This is additive: our own reviewers do the work and none is removed.**
+
+- Every finding is verified by a separate read-only agent before it counts. The verifier reads code. It does not build or run it. Source: Code Review docs and Lydia Hallie's talk (date unverified).
+- Reviewer depth follows a level or risk: Quick, Standard, Deep.
+- Human approvals per path, like Claude Approvals (`.claude/approvals.yml`). "Risk tier" there means the number of human reviewers. Orchtopus may read an existing policy read-only to show "needs 2 people" on the board. It never writes one into a user repo.
+- A "pre-existing" severity, so authors are not blamed for old bugs.
+
+**Not adopted:** auto-merge of low-risk PRs (E24).
+
+**Effort:** finding verification and severity tags 1 to 2 days. Per-path approvals label about 1 day.
+
+## Cross-session messaging
+
+Added 2026-11-28. Status: spike of about 0.5 day. Suggested place: M5 (board, overlap warnings, usage).
+
+**What it is:** documented same-machine messaging between sessions. On native Windows it needs v2.1.234 and uses a named pipe. The pipe path is `CLAUDE_CODE_MESSAGING_SOCKET`. A first line with `CLAUDE_CODE_MESSAGING_TOKEN` is required. See [EV-I4] and [EV-I5].
+
+**Uses:**
+
+- Continue a session after a usage reset, without typing into the PTY.
+- Overlap warnings: tell the affected sessions when one lands a change (F14).
+- Course corrections to a running session.
+
+**Rule:** Orchtopus must set `crossSessionInbound` (`accept`, `hold` or `refuse`) explicitly in its `--settings`. When unset, the behaviour depends on the permission modes.
+
+**Spike questions:** can our hook helper post to its own session's pipe on Windows; does a background session bind a pipe; what does `hold` look like. Messages count toward usage and loops are only throttled, so Orchtopus sends and sessions do not chat freely.
+
+## Claude Code Projects: precedent, not a building block
+
+Added 2026-11-28. Status: researched once, one optional spike.
+
+**Finding:** Projects has no CLI and no API, works with github.com only, and is not on Team or Enterprise. Orchtopus cannot call it. Sources: https://code.claude.com/docs/en/claude-projects and https://claude.com/blog/projects-redesigned (2026-09-17).
+
+**Ideas to take:**
+
+- A **Landing** state on the board, derived from the PR (approved or queued to merge) with `gh` or `glab`.
+- Continue after a usage reset, on by default, one switch per project.
+- CI events wake the session. We poll `gh` and `glab` ourselves (no model cost) and wake a session only on an event. On native Windows the local `/steward` watch does not start, so we need our own watcher.
+- Auto-resolve after N idle days.
+
+**One possible bridge:** host `claude remote-control --spawn worktree --settings <ours>`, so that Projects threads run locally under our hooks. Unproven. It needs a claude.ai sign-in and an awake machine. Spike of about 0.5 day, only if users ask for Anthropic's coordinator. Open: does a spawned thread use our hooks, and can we attach a PTY.
+
+## Dev-workflow items for this repository
+
+Added 2026-11-28. Status: small tasks, not product work.
+
+- **Protect `main` with a ruleset.** PR plus green CI, no required human approval, because the lead merges itself. The user must set it in GitHub. It is currently unprotected (`gh api` says "Branch not protected"), so "never push to main" is text only.
+- **Dependabot.** Weekly `github-actions` and `npm`, grouped. Keep major updates of `electron`, `node-pty` and `better-sqlite3` separate. `npm run smoke:native` already guards native modules.
+- **PR template.** Short: summary, definition of done, agents with model and effort.
+- Lower value: a dependency licence check as an npm script, `SECURITY.md` (with private vulnerability reporting), and a not-affiliated line in the README.
+
+## Last-turn change list and context delta per turn
+
+Added 2026-11-28. Status: idea, read in the playground code, not tested. Suggested place: M4 (review detail) or M5 (board).
+
+**Last-turn change list:** show what a session changed in its last turn, one diff at a time. It answers "what did this session just do" faster than the branch diff (F33) and fits F03 "since you were away". Use `PostToolUse` for Edit and Write, so failed edits do not show. It misses edits made through Bash. File contents in the event log must pass the secret filter (F70) and a size cap, and the spool line cap of 4 KiB means content cannot go through the spool as is. Effort: 8 to 12 hours.
+
+**Context delta:** keep one reading per turn and show tokens of the window plus the change since the last turn (a big file read shows up). Note: the percent of the full window differs from Claude Code's own notice, which counts to the auto-compact point (81 % against 90 % in their test). No thresholds (EV-C4). Effort: 3 to 4 hours.
+
+**Check first:** field names for subagent ids in hook input and for status line tokens.
+
+**Source:** `replay-theater.mjs` and `token-weather.mjs` in `anthropics/claude-code-playground`.
 
 ## Logitech MX Master 4 integration
 
