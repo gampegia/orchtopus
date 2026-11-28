@@ -1,20 +1,25 @@
 import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, session } from 'electron';
 import { APP_ORIGIN, APP_SCHEME } from '../shared/app-origin';
 import { createCoreRoutes } from './api/routes/core';
 import { createHookRoutes } from './api/routes/hooks';
+import { createProjectRoutes } from './api/routes/projects';
 import { DEFAULT_API_PORT, startApiServer, type ApiServer } from './api/server';
 import { createAppContext } from './app-context';
+import { claudeConfigPaths } from './claude/claude-home';
 import { APP_SCHEME_PRIVILEGES, createAppProtocolHandler } from './app-protocol';
 import { resolveDataPaths } from './data-folder';
 import { installHookFiles } from './hooks/install';
 import { registerIpc } from './ipc';
 import { loadRenderer, resolveRendererTarget } from './load-renderer';
+import { createProjectService } from './projects/project-service';
 import { denyAllPermissions, hardenWebContents } from './security';
 import { showMainWindow } from './show-window';
 import { tryStartupStep } from './startup-step';
 import { importSpool } from './spool/import';
+import { createActionRunner } from './store/actions';
 import { openStore, type Store } from './store/event-log';
 import { createMainWindowOptions, pageBackgroundColor } from './window-options';
 
@@ -80,6 +85,19 @@ async function startServices(): Promise<void> {
   const opened = openStore(paths.stateDb);
   store = opened;
   const ctx = createAppContext({ paths, store: opened });
+  const clock = (): string => new Date().toISOString();
+  const projects = createProjectService({
+    paths,
+    store: opened,
+    actions: createActionRunner(opened, clock),
+    clock,
+    // Filled by the restart sequence (Task 12) from `claude --version`.
+    cliStatus: () => ctx.snapshot().status.cli,
+    claudePaths: claudeConfigPaths(process.env, homedir()),
+    env: process.env,
+    publish: ctx.publish,
+    log: warn,
+  });
   // Hooks of running sessions call the launcher in bin\; refresh it before anything else.
   // A failure keeps the old launcher and must not stop the app from starting.
   await tryStartupStep(
@@ -98,6 +116,7 @@ async function startServices(): Promise<void> {
     routes: {
       ...createCoreRoutes({ appVersion: app.getVersion(), snapshot: ctx.snapshot }),
       ...createHookRoutes({ store: opened, log: warn }),
+      ...createProjectRoutes({ service: projects }),
     },
     snapshot: ctx.snapshot,
     log: warn,

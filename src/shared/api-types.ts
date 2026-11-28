@@ -109,3 +109,63 @@ export interface HealthResponse {
 export interface TokenRenewResponse {
   token: string;
 }
+
+// Project routes: `POST /v1/projects/inspect { path }` → `InspectResult` (writes nothing),
+// `POST /v1/projects { path, checkCommands, copyList, branchPrefix, requestId }` → 201
+// `ProjectView` (idempotent by requestId), `DELETE /v1/projects/:id` → 204 (409 while the
+// project has sessions), `POST /v1/projects/:id/setup-check` → `SetupCheckResponse`.
+
+/** Setup check items (spec section 2), in the order the check returns them. */
+export type SetupItemId =
+  | 'claude-version'
+  | 'trust'
+  | 'check-command'
+  | 'claude-md-length'
+  | 'claude-md-emphasis'
+  | 'secret-deny'
+  | 'superpowers'
+  | 'auto-memory'
+  | 'default-mode'
+  | 'skill-length'
+  | 'committed-personal-settings'
+  | 'prompt-audit';
+
+export interface SetupItem {
+  id: SetupItemId;
+  status: 'ok' | 'hint' | 'problem' | 'info';
+  title: string;
+  detail: string;
+  /** A command or text the user can copy; Orchtopus never applies it. */
+  fix: string | null;
+}
+
+export type TrustStateView = 'trusted' | 'not-trusted' | 'unknown';
+
+export type RepoInspectionView =
+  | {
+      ok: true;
+      root: string;
+      defaultBranch: string;
+      currentBranch: string | null;
+      remotes: RemoteView[];
+      provider: 'github' | 'gitlab' | null;
+    }
+  | {
+      ok: false;
+      reason: 'not-a-repo' | 'not-top-level' | 'is-worktree' | 'is-bare' | 'git-missing';
+      message: string;
+    };
+
+export interface InspectResult {
+  repo: RepoInspectionView;
+  checkCommands: CheckCommandsView;
+  copyList: string[];
+  branchPrefix: string;
+  trust: TrustStateView;
+  /** Empty when the folder is not a usable repository. */
+  setup: SetupItem[];
+}
+
+export interface SetupCheckResponse {
+  items: SetupItem[];
+}
