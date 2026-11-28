@@ -73,6 +73,11 @@ interface HookRow {
   hook: string | null;
 }
 
+interface StopRow {
+  at: string;
+  sessionId: string | null;
+}
+
 function ms(iso: string | null): number | null {
   if (iso === null) return null;
   const value = Date.parse(iso);
@@ -114,7 +119,8 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
   /**
    * Sessions whose process the app just started and no poll has listed yet, with the time of
    * the start. A poll that began before the process registered does not list it, so a missing
-   * entry does not stop such a session until START_GRACE_MS has passed.
+   * entry does not stop such a session until START_GRACE_MS has passed, or until a logged stop
+   * of the session after that start.
    */
   const unseen = new Map<string, number>();
   // Hook times per session, read from the log incrementally (spooled events included).
@@ -124,9 +130,25 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
     `SELECT seq, at, session_id AS sessionId, json_extract(payload, '$.hookEventName') AS hook
        FROM events WHERE seq > ? AND type = 'hook.received' ORDER BY seq`,
   );
+  // The `stop` step of a session.stop or session.remove action: the process is gone or going.
+  const readStops = db.prepare<[number], StopRow>(
+    `SELECT step.at AS at, json_extract(begun.payload, '$.params.sessionId') AS sessionId
+       FROM events step JOIN events begun
+         ON begun.type = 'action.started'
+        AND json_extract(begun.payload, '$.actionId') = json_extract(step.payload, '$.actionId')
+        AND json_extract(begun.payload, '$.kind') IN ('session.stop', 'session.remove')
+      WHERE step.seq > ? AND step.type = 'action.step'
+        AND json_extract(step.payload, '$.name') = 'stop'`,
+  );
   const lastSeq = db.prepare<[], { seq: number | null }>('SELECT MAX(seq) AS seq FROM events');
 
   const refreshFacts = (): void => {
+    for (const row of readStops.all(cursor)) {
+      if (row.sessionId === null) continue;
+      const startedAt = unseen.get(row.sessionId);
+      const at = ms(row.at);
+      if (startedAt !== undefined && at !== null && at >= startedAt) unseen.delete(row.sessionId);
+    }
     for (const row of readHooks.all(cursor)) {
       if (row.sessionId === null || row.hook === null) continue;
       const at = ms(row.at);
@@ -197,14 +219,15 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
       processStartedAt,
       starting: state.starting,
       startFailed: state.startFailed,
-      previous: state.word ?? 'idle',
+      previous: state.word,
       previousReason: state.reason,
       lastHookAt: hookFacts.lastHookAt,
       promptSinceProcessStart:
         hookFacts.lastPromptAt !== null &&
         (processStartedAt === null || hookFacts.lastPromptAt >= processStartedAt),
     });
-    if (derived.word !== state.word || derived.reason !== state.reason) {
+    // A null word keeps a word that was never written: write none rather than make one up.
+    if (derived.word !== null && (derived.word !== state.word || derived.reason !== state.reason)) {
       append('session.state', row.id, { word: derived.word, reason: derived.reason });
       changed = true;
     }
@@ -215,6 +238,15 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
   const run = (only?: string, force = false): void => {
     refreshFacts();
     const rows = only === undefined ? listSessions(db) : [getSession(db, only)];
+    if (only === undefined) {
+      // Forget sessions that were removed.
+      const ids = new Set(rows.map((r) => r?.id));
+      for (const id of unseen.keys()) if (!ids.has(id)) unseen.delete(id);
+      for (const id of facts.keys()) if (!ids.has(id)) facts.delete(id);
+    } else if (rows[0] === undefined) {
+      unseen.delete(only);
+      facts.delete(only);
+    }
     for (const row of rows) {
       if (!row) continue;
       const state = getSessionState(db, row.id);
@@ -222,6 +254,22 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
       const changed = evaluate(row, state);
       if (changed || force) publishSession(row.id);
     }
+  };
+
+  /** Appends a `session.state` from a start action unless the stored state already says it. */
+  const appendStart = (sessionId: string, payload: EventPayloads['session.state']): void => {
+    const state = getSessionState(db, sessionId);
+    if (!state) return;
+    if (
+      state.word === payload.word &&
+      state.reason === (payload.reason ?? null) &&
+      state.startFailed === (payload.startFailed ?? null) &&
+      state.starting === (payload.starting ?? false)
+    ) {
+      return;
+    }
+    append('session.state', sessionId, payload);
+    publishSession(sessionId);
   };
 
   return {
@@ -241,14 +289,12 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
       if (sessionId !== null) run(sessionId, true);
     },
     onStartBegun: (sessionId) => {
-      if (!getSession(db, sessionId)) return;
-      append('session.state', sessionId, {
+      appendStart(sessionId, {
         word: 'running',
         reason: 'Starting',
         startFailed: null,
         starting: true,
       });
-      publishSession(sessionId);
     },
     onProcessStarted: (sessionId) => {
       const state = getSessionState(db, sessionId);
@@ -262,15 +308,15 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
       run(sessionId, true);
     },
     onStartFailed: (sessionId, reason) => {
-      if (!getSession(db, sessionId)) return;
-      append('session.state', sessionId, { word: 'failed', reason, startFailed: reason });
-      publishSession(sessionId);
+      appendStart(sessionId, { word: 'failed', reason, startFailed: reason, starting: false });
     },
     clearStarting: (sessionId) => {
       const state = getSessionState(db, sessionId);
       if (!state?.starting) return;
       append('session.state', sessionId, {
-        word: state.word ?? 'idle',
+        // No word was ever written, so no process of it was ever seen; the next good poll
+        // corrects this if one runs after all.
+        word: state.word ?? 'stopped',
         // "Starting" no longer holds; the next good poll decides the word.
         reason: state.reason === 'Starting' ? null : state.reason,
         starting: false,

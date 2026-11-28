@@ -25,15 +25,56 @@ function iso(ms: number): string {
   return new Date(ms).toISOString();
 }
 
-function append(type: Parameters<Store['append']>[0]['type'], payload: unknown, at = clock): void {
+function append(
+  type: Parameters<Store['append']>[0]['type'],
+  payload: unknown,
+  at = clock,
+  sessionId = 's1',
+): void {
   counter += 1;
   store.append({
     id: `ev-${String(counter)}`,
     type,
     at: iso(at),
     projectId: 'p1',
-    sessionId: 's1',
+    sessionId,
     payload,
+  });
+}
+
+/** A second session, created and started like s1 (worktree docs-site, short id ef56ab78). */
+function addSecondSession(): void {
+  append(
+    'session.created',
+    {
+      task: 'docs-site',
+      branch: 'orch/docs-site',
+      worktreePath: 'C:\\repos\\acme-app\\.claude\\worktrees\\docs-site',
+      mode: 'auto',
+      model: null,
+      effort: null,
+    },
+    clock,
+    's2',
+  );
+  append('session.started', { claudeSessionId: 'c-456', shortId: 'ef56ab78' }, clock, 's2');
+}
+
+/** What the session service logs for a stop: the action, then its `stop` step. */
+function logStop(sessionId = 's1', kind: 'session.stop' | 'session.remove' = 'session.stop'): void {
+  counter += 1;
+  const actionId = `act-${String(counter)}`;
+  store.append({
+    id: `action:${actionId}:started:1`,
+    type: 'action.started',
+    at: iso(clock),
+    payload: { actionId, kind, params: { sessionId } },
+  });
+  store.append({
+    id: `action:${actionId}:step:stop`,
+    type: 'action.step',
+    at: iso(clock),
+    payload: { actionId, name: 'stop', result: true },
   });
 }
 
@@ -83,8 +124,8 @@ function stateEvents(): unknown[] {
     .map((e) => e.payload);
 }
 
-function word(): string | null | undefined {
-  return getSessionState(store.db, 's1')?.word;
+function word(sessionId = 's1'): string | null | undefined {
+  return getSessionState(store.db, sessionId)?.word;
 }
 
 beforeEach(() => {
@@ -167,8 +208,17 @@ describe('state tracker', () => {
   });
 
   it('keeps last state when a poll fails', () => {
-    tracker.onPoll({ ok: true, entries: [entry()] });
+    addSecondSession();
+    const second = entry({
+      id: 'ef56ab78',
+      sessionId: 'c-456',
+      state: 'blocked',
+      status: 'waiting',
+      waitingFor: 'permission',
+    });
+    tracker.onPoll({ ok: true, entries: [entry(), second] });
     expect(word()).toBe('running');
+    expect(word('s2')).toBe('needs-you');
     expect(tracker.agentsReachable()).toBe(true);
     expect(statusChanges.at(-1)).toEqual({ agentsReachable: true });
     const before = readEvents(store.db).length;
@@ -179,12 +229,16 @@ describe('state tracker', () => {
       tracker.tick();
     }
     expect(word()).toBe('running');
+    expect(word('s2')).toBe('needs-you');
+    expect(getSessionState(store.db, 's2')?.reason).toBe('permission');
     expect(tracker.agentsReachable()).toBe(false);
     expect(statusChanges.at(-1)).toEqual({ agentsReachable: false });
     expect(readEvents(store.db)).toHaveLength(before);
-    expect(sessionMessages().every((s) => s.state === 'running')).toBe(true);
+    expect(
+      sessionMessages().every((s) => s.state === (s.id === 's2' ? 'needs-you' : 'running')),
+    ).toBe(true);
 
-    tracker.onPoll({ ok: true, entries: [entry()] });
+    tracker.onPoll({ ok: true, entries: [entry(), second] });
     expect(tracker.agentsReachable()).toBe(true);
     expect(statusChanges.at(-1)).toEqual({ agentsReachable: true });
   });
@@ -327,5 +381,88 @@ describe('state tracker', () => {
     });
     tracker.onPoll({ ok: true, entries: [entry()] });
     expect(view).toHaveBeenCalledWith('s1');
+  });
+  it('an envelope that matches no session changes and publishes nothing', () => {
+    const before = readEvents(store.db).length;
+    tracker.onEnvelope({
+      ...envelope('PreToolUse'),
+      sessionId: 'c-other',
+      cwd: 'C:\\repos\\acme-web',
+    });
+    expect(readEvents(store.db)).toHaveLength(before);
+    expect(messages).toEqual([]);
+  });
+
+  it('onProcessStarted after both flags are cleared logs no second start', () => {
+    const started = () => readEvents(store.db).filter((e) => e.type === 'session.started');
+    expect(started()).toHaveLength(1);
+    tracker.onProcessStarted('s1');
+    expect(started()).toHaveLength(1);
+    expect(sessionMessages().at(-1)?.id).toBe('s1');
+    // The start grace still holds: a poll that does not list it yet does not stop it.
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).not.toBe('stopped');
+  });
+
+  it('no state word is made up before the first good poll', () => {
+    expect(word()).toBeNull();
+    tracker.tick();
+    tracker.onPoll({ ok: false, error: 'Claude Code did not answer in time.' });
+    expect(stateEvents()).toEqual([]);
+    expect(word()).toBeNull();
+  });
+
+  it('clearStarting without any stored word writes stopped, not idle', () => {
+    append(
+      'session.created',
+      {
+        task: 'docs-site',
+        branch: 'orch/docs-site',
+        worktreePath: 'C:\\repos\\acme-app\\.claude\\worktrees\\docs-site',
+        mode: 'auto',
+        model: null,
+        effort: null,
+      },
+      clock,
+      's2',
+    );
+    expect(getSessionState(store.db, 's2')).toMatchObject({ word: null, starting: true });
+    tracker.clearStarting('s2');
+    expect(getSessionState(store.db, 's2')).toMatchObject({ word: 'stopped', starting: false });
+  });
+
+  it('onStartBegun and onStartFailed write session.state only on change', () => {
+    tracker.onStartBegun('s1');
+    tracker.onStartBegun('s1');
+    expect(stateEvents()).toHaveLength(1);
+    tracker.onStartFailed('s1', 'Claude Code could not start');
+    tracker.onStartFailed('s1', 'Claude Code could not start');
+    expect(stateEvents()).toHaveLength(2);
+    tracker.onStartFailed('s1', 'The resume was interrupted twice');
+    expect(stateEvents()).toHaveLength(3);
+    tracker.onStartBegun('s1');
+    expect(stateEvents()).toHaveLength(4);
+  });
+
+  it('a stop within the start grace is stopped on the next poll', () => {
+    tracker.onStartBegun('s1');
+    tracker.onPoll({ ok: true, entries: [] });
+    tracker.onProcessStarted('s1');
+    expect(word()).toBe('running');
+    clock += 500;
+    logStop();
+    clock += 500;
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).toBe('stopped');
+  });
+
+  it('a stop logged before a later start does not end the new start grace', () => {
+    logStop();
+    clock += 1000;
+    tracker.onStartBegun('s1');
+    tracker.onProcessStarted('s1');
+    clock += 1000;
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).toBe('running');
   });
 });
