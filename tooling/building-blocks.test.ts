@@ -1,5 +1,6 @@
-// D10 (best practices addendum): every prompt and skill Orchtopus ships is short, versioned and
-// free of shouted emphasis. Runs over every file in building-blocks/, so later files are covered.
+// D10 (best practices addendum): every prompt and skill Orchtopus ships is versioned and free of
+// shouted emphasis; every SKILL.md stays under the documented 500 lines. No own word cap (EV-H8).
+// Runs over every file in building-blocks/, so later files are covered.
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -22,10 +23,6 @@ const files = filesIn(ROOT).map((path) => ({
 }));
 const skills = files.filter((file) => basename(file.name) === 'SKILL.md');
 
-function words(text: string): number {
-  return text.split(/\s+/).filter(Boolean).length;
-}
-
 describe('building blocks (D10)', () => {
   it('ships the workflow instruction', () => {
     expect(files.map((file) => file.name)).toContain(WORKFLOW_INSTRUCTION);
@@ -40,11 +37,6 @@ describe('building blocks (D10)', () => {
       // Front matter too: a skill description is read by the model as well.
       expect(file.text).not.toMatch(EMPHASIS);
     });
-  });
-
-  it('the workflow instruction has at most 120 words', () => {
-    const file = files.find((entry) => entry.name === WORKFLOW_INSTRUCTION);
-    expect(words(parseFrontMatter(file?.text ?? '').body)).toBeLessThanOrEqual(120);
   });
 
   it.each(skills)('every SKILL.md has fewer than 500 lines ($name)', (file) => {
