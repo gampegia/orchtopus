@@ -3,12 +3,10 @@
 // output, input and resize. Leaving the session closes only the stream; the PTY stays attached.
 // A terminal that ended is never reopened by itself (Review Focus 3): the user clicks Reattach.
 import { useEffect, useRef, useState } from 'react';
-import { STILL_STARTING_MESSAGE, type SessionView } from '../../shared/api-types';
+import type { SessionView } from '../../shared/api-types';
 import { ApiRequestError } from '../api/client';
 import { apiClient, useAppStore } from '../state/store';
 import { mountXterm, type TerminalHost } from '../terminal/create-xterm';
-
-const STARTING_RETRY_MS = 500;
 
 type Phase = { kind: 'opening' } | { kind: 'live' } | { kind: 'ended'; error: string | null };
 
@@ -62,7 +60,6 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
       term.focus();
     };
 
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const open = (): void => {
       apiClient()
         .post<{ terminalId: string }>(`/v1/sessions/${encodeURIComponent(sessionId)}/open`, {
@@ -74,11 +71,6 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
         })
         .catch((error: unknown) => {
           if (disposed) return;
-          // A session selected while its start still runs: open it once the start is done.
-          if (error instanceof ApiRequestError && error.message === STILL_STARTING_MESSAGE) {
-            retryTimer = setTimeout(open, STARTING_RETRY_MS);
-            return;
-          }
           setPhase({
             kind: 'ended',
             error: error instanceof ApiRequestError ? error.message : 'Could not open the session',
@@ -96,7 +88,6 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
 
     return () => {
       disposed = true;
-      clearTimeout(retryTimer);
       closeSocket?.();
       dispose();
     };
