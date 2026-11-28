@@ -28,6 +28,7 @@ import {
 import {
   createTerminalRegistry,
   createTerminalStreamHandler,
+  MAX_BUFFERED_BYTES,
   MAX_INPUT_BYTES,
   type TerminalRegistry,
 } from './terminals';
@@ -365,6 +366,33 @@ describe('terminal stream', () => {
     const code = closed(socket);
     socket.send(Buffer.from(JSON.stringify({ type: 'input', data: 'x' })), { binary: true });
     expect(await code).toBe(1008);
+  });
+
+  it('closes a slow client with 1013 once its send buffer is full', async () => {
+    const { adapter, attached } = stubAdapter();
+    const registry = createTerminalRegistry(adapter);
+    const id = await registry.openForSession('upload-fix', REF, SIZE);
+    const sent: number[] = [];
+    const closes: number[] = [];
+    const socket = {
+      OPEN: 1,
+      readyState: 1,
+      bufferedAmount: 0,
+      send: (data: Buffer) => sent.push(data.length),
+      close: (code: number) => {
+        closes.push(code);
+        socket.readyState = 2;
+      },
+      on: () => socket,
+    };
+    createTerminalStreamHandler(registry)(id, socket as unknown as WebSocket);
+    attached[0]?.emit('fits');
+    socket.bufferedAmount = MAX_BUFFERED_BYTES + 1;
+    attached[0]?.emit('too much');
+    attached[0]?.emit('later');
+    // The replay frame (empty) and the first chunk; nothing after the buffer was full.
+    expect(sent).toEqual([0, 4]);
+    expect(closes).toEqual([1013]);
   });
 
   it('closes a stream for an unknown terminal id with 1008', async () => {
