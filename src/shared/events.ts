@@ -106,7 +106,8 @@ export interface ActionFailedPayload {
 export interface SpoolDamagedPayload {
   /** File in spool\damaged\ that keeps the line. */
   file: string;
-  line: number;
+  /** Line in that file, when the event is about one line. An import reports all at once. */
+  line?: number;
   reason: string;
   /** Number of damaged lines kept in that file by one import. */
   count?: number;
@@ -132,25 +133,3 @@ export interface EventPayloads {
 }
 
 export type EventType = keyof EventPayloads;
-
-export const EVENT_TYPES: readonly EventType[] = [
-  'project.added',
-  'project.updated',
-  'project.removed',
-  'session.created',
-  'session.started',
-  'session.observed',
-  'session.state',
-  'session.removed',
-  'hook.received',
-  'statusline.received',
-  'action.started',
-  'action.step',
-  'action.finished',
-  'action.failed',
-  'spool.damaged',
-];
-
-export function isEventType(value: string): value is EventType {
-  return (EVENT_TYPES as readonly string[]).includes(value);
-}

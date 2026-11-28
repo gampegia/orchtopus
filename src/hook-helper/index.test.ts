@@ -1,11 +1,24 @@
+import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHookRoutes } from '../main/api/routes/hooks';
+import { startTestApi } from '../main/api/testing';
 import { resolveDataPaths } from '../main/data-folder';
+import { openStore } from '../main/store/event-log';
 import { makeTempDir, type TempDir } from '../main/store/testing';
 import { parseEnvelope } from '../shared/hook-envelope';
 import { PR_BLOCK_REASON } from '../shared/pr-block';
-import { HELPER_FILES, POST_TIMEOUT_MS, runHelper, type PostFn } from './index';
+import {
+  HELPER_FILES,
+  httpPost,
+  isProcessAlive,
+  POST_TIMEOUT_MS,
+  PR_BLOCK_FAIL_EXIT,
+  runHelper,
+  type PostFn,
+} from './index';
 
 const TOKEN = 'a'.repeat(64);
 const NOW = new Date('2026-11-27T09:00:00.000Z');
@@ -21,8 +34,8 @@ afterEach(() => {
   temp.remove();
 });
 
-function writeApiFiles(port = 4321): void {
-  writeFileSync(join(temp.dir, 'api.json'), JSON.stringify({ port, pid: 1, startedAt: '' }));
+function writeApiFiles(port = 4321, pid = process.pid): void {
+  writeFileSync(join(temp.dir, 'api.json'), JSON.stringify({ port, pid, startedAt: '' }));
   writeFileSync(join(temp.dir, 'api-token'), `${TOKEN}\n`);
 }
 
@@ -62,6 +75,12 @@ const preToolUse = JSON.stringify({
   tool_input: { command: 'echo secret-command' },
   transcript_path: 'C:\\transcripts\\x.jsonl',
 });
+
+/** Pid of a process that has exited. */
+function exitedPid(): number {
+  const child = spawnSync(process.execPath, ['-e', '0']);
+  return child.pid;
+}
 
 function run(
   argv: string[],
@@ -124,6 +143,24 @@ describe('runHelper', () => {
     const lines = spoolLines();
     expect(lines).toHaveLength(1);
     expect(parseEnvelope(JSON.parse(lines[0] ?? 'null'))?.hook).toBe('PreToolUse');
+  });
+
+  it('spools without sending the token when the app in api.json is gone', async () => {
+    writeApiFiles(4321, exitedPid());
+    const { calls, post } = recordingPost(202);
+    const result = await run(['state'], preToolUse, post);
+    expect(result.exitCode).toBe(0);
+    expect(calls).toHaveLength(0);
+    expect(spoolLines()).toHaveLength(1);
+  });
+
+  it('spools when api.json has no pid', async () => {
+    writeFileSync(join(temp.dir, 'api.json'), JSON.stringify({ port: 4321 }));
+    writeFileSync(join(temp.dir, 'api-token'), TOKEN);
+    const { calls, post } = recordingPost(202);
+    await run(['state'], preToolUse, post);
+    expect(calls).toHaveLength(0);
+    expect(spoolLines()).toHaveLength(1);
   });
 
   it('spools when the token file is missing', async () => {
@@ -331,7 +368,7 @@ describe('runHelper pr-block', () => {
   it('pr-block exits non-zero on unreadable stdin', async () => {
     for (const stdin of ['', '{not json', '[]', 'null', shellCall(42), shellCall(undefined)]) {
       const result = await run(['pr-block'], stdin, fakePost);
-      expect(result.exitCode, stdin).not.toBe(0);
+      expect(result.exitCode, stdin).toBe(PR_BLOCK_FAIL_EXIT);
       expect(result.stdout).toBe('');
     }
   });
@@ -350,5 +387,39 @@ describe('runHelper pr-block', () => {
     await run(['pr-block'], shellCall('git status'), post);
     await run(['pr-block'], '{oops', post);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('isProcessAlive', () => {
+  it('is true for this process and false for one that exited', () => {
+    expect(isProcessAlive(process.pid)).toBe(true);
+    expect(isProcessAlive(exitedPid())).toBe(false);
+  });
+});
+
+describe('httpPost', () => {
+  it('gets 202 from the hook route and 401 with a wrong token', async () => {
+    const dir = makeTempDir();
+    const store = openStore(dir.file('state.db'));
+    const api = await startTestApi({ routes: createHookRoutes({ store }) });
+    try {
+      const url = api.url('/v1/hooks/events');
+      const body = JSON.stringify({
+        v: 1,
+        id: randomUUID(),
+        at: NOW.toISOString(),
+        mode: 'hook',
+        hook: 'Stop',
+        sessionId: null,
+        cwd: null,
+        fields: {},
+      });
+      await expect(httpPost(url, api.server.token(), body, POST_TIMEOUT_MS)).resolves.toBe(202);
+      await expect(httpPost(url, 'b'.repeat(64), body, POST_TIMEOUT_MS)).resolves.toBe(401);
+    } finally {
+      await api.stop();
+      store.close();
+      dir.remove();
+    }
   });
 });

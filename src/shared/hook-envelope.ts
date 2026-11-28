@@ -47,7 +47,10 @@ export const STATUSLINE_FIELDS = [
 
 const KEPT_FIELDS: ReadonlySet<string> = new Set<string>([...HOOK_FIELDS, ...STATUSLINE_FIELDS]);
 
-/** Caps that keep one spool line well under 4 KiB, so an append is one small write. */
+/**
+ * Caps that keep one spool line and one API body small. They count characters, not bytes: a
+ * long non-ASCII cwd can make a line a few KiB, which is fine (see spool-append.ts).
+ */
 export const MAX_ID_LENGTH = 64;
 export const MAX_HOOK_LENGTH = 64;
 export const MAX_SESSION_ID_LENGTH = 128;
@@ -55,13 +58,14 @@ export const MAX_CWD_LENGTH = 1024;
 export const MAX_FIELD_LENGTH = 256;
 
 const ID_PATTERN = /^[A-Za-z0-9-]+$/;
-const HOOK_PATTERN = /^[A-Za-z0-9_-]+$/;
+/** A hook event name as an envelope carries it. */
+export const HOOK_PATTERN = /^[A-Za-z0-9_-]+$/;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isShortString(value: unknown, max: number): value is string {
+export function isShortString(value: unknown, max: number): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= max;
 }
 

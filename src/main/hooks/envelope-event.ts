@@ -4,7 +4,7 @@ import type { HookReceivedPayload, StatuslineReceivedPayload } from '../../share
 import type { EnvelopeValue, HookEnvelope } from '../../shared/hook-envelope';
 import type { Db } from '../store/db';
 import type { NewEvent } from '../store/event-rows';
-import { getSession, listSessions } from '../store/projections';
+import { listSessions, type SessionRow } from '../store/projections';
 
 /** Case-insensitive on Windows, separators unified, no trailing separator. */
 function normalizePath(path: string): string {
@@ -21,22 +21,27 @@ function contains(folder: string, path: string): boolean {
  * one whose worktree contains the envelope's cwd (hooks such as SessionStart fire before the
  * adapter knows the id). With nested worktrees the innermost wins. Null when none fits.
  */
-export function matchSession(db: Db, envelope: HookEnvelope): string | null {
+export function matchSessionRow(db: Db, envelope: HookEnvelope): SessionRow | null {
   const sessions = listSessions(db);
   if (envelope.sessionId !== null) {
     const byId = sessions.find((s) => s.claudeSessionId === envelope.sessionId);
-    if (byId) return byId.id;
+    if (byId) return byId;
   }
   if (envelope.cwd === null) return null;
   const cwd = normalizePath(envelope.cwd);
-  let best: { id: string; length: number } | null = null;
+  let best: { session: SessionRow; length: number } | null = null;
   for (const session of sessions) {
     const folder = normalizePath(session.worktreePath);
     if (contains(folder, cwd) && (best === null || folder.length > best.length)) {
-      best = { id: session.id, length: folder.length };
+      best = { session, length: folder.length };
     }
   }
-  return best?.id ?? null;
+  return best?.session ?? null;
+}
+
+/** The id of the session `matchSessionRow` finds. */
+export function matchSession(db: Db, envelope: HookEnvelope): string | null {
+  return matchSessionRow(db, envelope)?.id ?? null;
 }
 
 function numberOrNull(value: EnvelopeValue | undefined): number | null {
@@ -61,8 +66,7 @@ function statuslinePayload(fields: Record<string, EnvelopeValue>): StatuslineRec
 
 /** The event for an envelope; its id is the envelope id, so a second delivery is a duplicate. */
 export function envelopeToEvent(db: Db, envelope: HookEnvelope): NewEvent {
-  const sessionId = matchSession(db, envelope);
-  const session = sessionId === null ? undefined : getSession(db, sessionId);
+  const session = matchSessionRow(db, envelope);
   const base = {
     id: envelope.id,
     at: envelope.at,

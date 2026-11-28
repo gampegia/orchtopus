@@ -1,6 +1,13 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -85,6 +92,11 @@ function spoolFiles(): string[] {
     : [];
 }
 
+/** Spool files other than drained ones, which wait for the next import. */
+function pendingSpoolFiles(): string[] {
+  return spoolFiles().filter((n) => !n.startsWith('events.drained-'));
+}
+
 function received(): ReturnType<typeof readEvents> {
   return readEvents(store.db).filter((e) => e.type.endsWith('.received'));
 }
@@ -147,7 +159,7 @@ describe('importSpool', () => {
     expect(state?.lastStopAt).toBe(items[2]?.at);
     expect(state?.lastActivityAt).toBe(items[3]?.at);
     expect(state?.contextPct).toBe(18);
-    expect(spoolFiles()).toEqual([]);
+    expect(pendingSpoolFiles()).toEqual([]);
   });
 
   it('skips ids already in the store', async () => {
@@ -200,12 +212,12 @@ describe('importSpool', () => {
     expect(kept).toBe('{torn\n{"v":2,"id":"x"}\nplain text\n');
     const logged = readEvents(store.db).filter((e) => e.type === 'spool.damaged');
     expect(logged).toHaveLength(1);
-    expect(logged[0]?.payload).toMatchObject({
+    expect(logged[0]?.payload).toEqual({
       file: `damaged/${damagedFiles[0] ?? ''}`,
-      line: 1,
+      reason: 'not a valid envelope',
       count: 3,
     });
-    expect(spoolFiles()).toEqual([]);
+    expect(pendingSpoolFiles()).toEqual([]);
   });
 
   it('imports a leftover importing file from a crash', async () => {
@@ -222,6 +234,40 @@ describe('importSpool', () => {
       damaged: 0,
     });
     expect(received().map((e) => e.id)).toEqual([...old, ...current].map((e) => e.id));
+    expect(pendingSpoolFiles()).toEqual([]);
+  });
+
+  it('keeps the drained file and imports a late append on the next import', async () => {
+    const first = envelope();
+    writeSpool([JSON.stringify(first)]);
+    await importSpool(store, paths);
+    const drained = spoolFiles().filter((n) => n.startsWith('events.drained-'));
+    expect(drained).toHaveLength(1);
+    // A helper that opened events.jsonl before the rename and stalled past the settle time.
+    const late = envelope();
+    appendFileSync(
+      join(paths.spoolDir, drained[0] ?? ''),
+      `${JSON.stringify(late)}
+`,
+    );
+    await expect(importSpool(store, paths)).resolves.toEqual({
+      imported: 1,
+      duplicates: 0,
+      damaged: 0,
+    });
+    expect(received().map((e) => e.id)).toEqual([first.id, late.id]);
+    expect(spoolFiles()).toEqual([]);
+  });
+
+  it('does not report damaged lines of a drained file twice', async () => {
+    writeSpool(['{torn', JSON.stringify(envelope())]);
+    await expect(importSpool(store, paths)).resolves.toMatchObject({ damaged: 1 });
+    await expect(importSpool(store, paths)).resolves.toEqual({
+      imported: 0,
+      duplicates: 0,
+      damaged: 0,
+    });
+    expect(readEvents(store.db).filter((e) => e.type === 'spool.damaged')).toHaveLength(1);
     expect(spoolFiles()).toEqual([]);
   });
 
