@@ -31,8 +31,6 @@ import {
 } from './project-config';
 import { runSetupCheck } from './setup-check';
 
-export type { InspectResult } from '../../shared/api-types';
-
 export interface AddProjectInput {
   path: string;
   checkCommands: ProjectConfig['checkCommands'];
