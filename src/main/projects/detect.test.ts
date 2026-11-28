@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createTempRepo, git, isolatedGitEnv, type TempRepo } from '../test-helpers/temp-repo';
+import type { GitResult } from '../git/git';
 import { detectCheckCommands, suggestCopyList } from './detect';
 
 let dirs: string[] = [];
@@ -133,11 +134,53 @@ describe('suggestCopyList', () => {
     await expect(suggestCopyList(r.root)).resolves.toEqual(['.env', '.env.local']);
   });
 
-  it('is empty without .env files or outside a repository', async () => {
+  it('is empty without .env files', async () => {
     const r = await createTempRepo();
     repos.push(r);
     rmSync(join(r.root, '.env'));
     await expect(suggestCopyList(r.root)).resolves.toEqual([]);
-    await expect(suggestCopyList(folder({ '.env': 'X=1' }))).resolves.toEqual([]);
+  });
+
+  it('outside a repository git cannot answer, so the names come back unfiltered', async () => {
+    await expect(suggestCopyList(folder({ '.env': 'X=1' }))).resolves.toEqual(['.env']);
+  });
+
+  it('counts only exit code 1 as not ignored and retries a git error once', async () => {
+    const r = await createTempRepo();
+    repos.push(r);
+    writeFileSync(join(r.root, '.env.local'), 'API_URL=\n');
+    const calls: string[] = [];
+    // .env fails once, then is ignored; the other names are not ignored.
+    const run = (args: readonly string[]): Promise<GitResult> => {
+      const name = args[args.length - 1] ?? '';
+      calls.push(name);
+      if (name === '.env') {
+        const first = calls.filter((c) => c === '.env').length === 1;
+        return Promise.resolve({ code: first ? 128 : 0, stdout: '', stderr: '' });
+      }
+      return Promise.resolve({ code: 1, stdout: '', stderr: '' });
+    };
+    await expect(suggestCopyList(r.root, run)).resolves.toEqual(['.env']);
+    expect(calls).toEqual(['.env', '.env', '.env.example', '.env.local']);
+  });
+
+  it('returns the names unfiltered when git keeps failing, so none is dropped silently', async () => {
+    const r = await createTempRepo();
+    repos.push(r);
+    writeFileSync(join(r.root, '.env.local'), 'API_URL=\n');
+    const timeout = (): Promise<GitResult> =>
+      Promise.resolve({ code: -1, stdout: '', stderr: 'git timed out after 30 s' });
+    await expect(suggestCopyList(r.root, timeout)).resolves.toEqual([
+      '.env',
+      '.env.example',
+      '.env.local',
+    ]);
+    const missing = (): Promise<GitResult> =>
+      Promise.reject(new Error('git could not be started.'));
+    await expect(suggestCopyList(r.root, missing)).resolves.toEqual([
+      '.env',
+      '.env.example',
+      '.env.local',
+    ]);
   });
 });
