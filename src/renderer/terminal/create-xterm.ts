@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal } from '@xterm/xterm';
+import { isTerminalEscapeKey } from './terminal-focus';
 import { buildXtermTheme, xtermFont } from './xterm-theme';
 
 /** The host element keeps its xterm, so e2e tests can read the buffer. */
@@ -18,7 +19,12 @@ export interface MountedXterm {
 const readToken = (name: string): string =>
   getComputedStyle(document.documentElement).getPropertyValue(name);
 
-export function mountXterm(host: TerminalHost): MountedXterm {
+export interface MountOptions {
+  /** Called on F6, which xterm then does not send: the way out, since Tab goes to the PTY. */
+  onEscape?: () => void;
+}
+
+export function mountXterm(host: TerminalHost, options: MountOptions = {}): MountedXterm {
   const term = new Terminal({
     ...xtermFont(readToken),
     theme: buildXtermTheme(readToken),
@@ -32,6 +38,15 @@ export function mountXterm(host: TerminalHost): MountedXterm {
   term.loadAddon(fit);
   term.loadAddon(new Unicode11Addon());
   term.unicode.activeVersion = '11';
+  const { onEscape } = options;
+  if (onEscape !== undefined) {
+    term.attachCustomKeyEventHandler((event) => {
+      if (!isTerminalEscapeKey(event)) return true;
+      event.preventDefault();
+      onEscape();
+      return false;
+    });
+  }
   term.open(host);
   host.orchtopusTerminal = term;
   try {

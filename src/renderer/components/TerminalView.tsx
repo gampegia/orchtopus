@@ -7,11 +7,19 @@ import type { SessionView } from '../../shared/api-types';
 import { ApiRequestError } from '../api/client';
 import { apiClient, useAppStore } from '../state/store';
 import { mountXterm, type TerminalHost } from '../terminal/create-xterm';
+import { mayTakeFocus } from '../terminal/terminal-focus';
 
 type Phase = { kind: 'opening' } | { kind: 'live' } | { kind: 'ended'; error: string | null };
 
 function resumable(word: SessionView['state'] | undefined): boolean {
   return word === 'stopped' || word === 'failed';
+}
+
+/** F6 in the terminal: back to the selected row, from where arrow keys and Tab work again. */
+function focusSelectedRow(): void {
+  document
+    .querySelector<HTMLElement>('nav[aria-label="Sessions"] [role="option"][aria-selected="true"]')
+    ?.focus();
 }
 
 function currentSession(id: string): SessionView | undefined {
@@ -34,7 +42,7 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
     if (attempt === 0 && first?.terminal.status === 'elsewhere') return;
 
     let disposed = false;
-    const { term, dispose } = mountXterm(host);
+    const { term, dispose } = mountXterm(host, { onEscape: focusSelectedRow });
 
     let closeSocket: (() => void) | null = null;
     const connect = (terminalId: string): void => {
@@ -57,7 +65,10 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
         socket.close();
       };
       setPhase({ kind: 'live' });
-      term.focus();
+      // Attaching is async: a row the user reached by arrow keys meanwhile keeps the focus.
+      if (mayTakeFocus(document.activeElement, document.body, host.closest('.terminal-frame'))) {
+        term.focus();
+      }
     };
 
     const open = (): void => {

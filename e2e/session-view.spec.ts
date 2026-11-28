@@ -195,6 +195,34 @@ test('typed text reaches the session and the reply appears', async () => {
   await expectTerminal('fake reply: hello there');
 });
 
+/** Role and selection of the focused element. */
+function focused(): Promise<{ role: string | null; selected: string | null }> {
+  return page.evaluate(() => ({
+    role: document.activeElement?.getAttribute('role') ?? null,
+    selected: document.activeElement?.getAttribute('aria-selected') ?? null,
+  }));
+}
+
+test('arrow keys keep focus on the rows while the terminal attaches', async () => {
+  await row('upload-fix').focus();
+  for (const key of ['ArrowDown', 'ArrowUp']) {
+    await page.keyboard.press(key);
+    // The terminal of the newly selected session attaches meanwhile.
+    await page.waitForTimeout(1_500);
+    expect(await focused()).toEqual({ role: 'option', selected: 'true' });
+  }
+});
+
+test('F6 moves focus from the terminal to the selected row', async () => {
+  await row('upload-fix').click();
+  await expectTerminal(PROMPT_BOX);
+  await page.locator('[data-terminal]').click();
+  expect(await focused()).toMatchObject({ role: null });
+  await page.keyboard.press('F6');
+  expect(await focused()).toEqual({ role: 'option', selected: 'true' });
+  await expect(row('upload-fix')).toBeFocused();
+});
+
 test('stop changes the word to stopped within 2 s', async () => {
   const stopped = page.waitForResponse(
     (response) => response.url().includes('/stop') && response.request().method() === 'POST',
