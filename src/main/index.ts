@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, session } from 'electron';
 import { APP_ORIGIN, APP_SCHEME } from '../shared/app-origin';
 import { createCoreRoutes } from './api/routes/core';
-import { createHookRoutes } from './api/routes/hooks';
+import { createHookRoutes, setEnvelopeListener } from './api/routes/hooks';
 import { DEFAULT_API_PORT, startApiServer, type ApiServer } from './api/server';
 import { createAppContext } from './app-context';
 import { APP_SCHEME_PRIVILEGES, createAppProtocolHandler } from './app-protocol';
@@ -12,6 +12,7 @@ import { installHookFiles } from './hooks/install';
 import { registerIpc } from './ipc';
 import { loadRenderer, resolveRendererTarget } from './load-renderer';
 import { denyAllPermissions, hardenWebContents } from './security';
+import { createStateTracker } from './sessions/state-tracker';
 import { showMainWindow } from './show-window';
 import { tryStartupStep } from './startup-step';
 import { importSpool } from './spool/import';
@@ -80,6 +81,15 @@ async function startServices(): Promise<void> {
   const opened = openStore(paths.stateDb);
   store = opened;
   const ctx = createAppContext({ paths, store: opened });
+  // Hook envelopes update the session state at once; the agents poller comes with Task 12.
+  const tracker = createStateTracker({
+    store: opened,
+    publish: ctx.publish,
+    now: Date.now,
+    setStatus: ctx.setStatus,
+    sessionView: ctx.sessionView,
+  });
+  setEnvelopeListener(tracker.onEnvelope);
   // Hooks of running sessions call the launcher in bin\; refresh it before anything else.
   // A failure keeps the old launcher and must not stop the app from starting.
   await tryStartupStep(
