@@ -16,7 +16,11 @@ Added 2026-11-28. Status: researched once, needs a spike. Suggested place: M5 (r
 - The repository and worktrees belong on the Linux file system (ext4), not under `/mnt/c`. The distro has its own `~/.claude` and `~/.claude.json`: a separate Claude Code login and a separate workspace trust.
 - Hooks must reach the app's local API. With WSL2 mirrored networking (`networkingMode=mirrored`), Linux reaches Windows on `127.0.0.1`. In the default NAT mode the API would have to listen on another interface, which changes the security model; do not do that.
 - Other isolation options with network isolation: the sandbox runtime `srt` (beta, wraps the whole process including hooks), dev containers (Docker), cloud sessions. On this machine WSL2 plus bubblewrap is the lightest, because Docker Desktop adds its own VM.
-- Resources (estimate, not documented): about 0.3 to 0.6 GB per Claude process plus the project's own tools (0.5 to 2 GB for npm installs, tests, dev servers). WSL2 is one VM for all sessions. The machine has about 30 GB RAM; the WSL cap in `.wslconfig` is 6 GB today, which is tight for 3 to 5 sessions.
+- Resources: see "Resource-aware sessions" for measured values. WSL2 is one VM for all sessions; its default memory cap is 50 % of Windows RAM. Suggested caps (inference): 9 to 10 GB on a 16 GB machine, 18 to 20 GB on a 30 GB machine.
+- Working on WSL files from Windows (documented): Explorer opens `\\wsl.localhost\<Distro>\home\<user>\…` (`explorer.exe .` from inside WSL); VS Code uses the official WSL extension (`code .` in a WSL terminal), so git, language servers and terminals run inside Linux. Do not open the share as a plain Windows folder, and do not run Windows git or Node on it. Small hand edits (an `.env` value) are fine while no session runs. Keep LF line endings on both sides.
+- Further risks (documented): Windows interop (`/mnt/c`, `.exe`) is reachable from the sandbox unless the seccomp filter (`@anthropic-ai/sandbox-runtime`) is installed or interop is disabled in `wsl.conf`; Ubuntu's AppArmor user-namespace setting can break bubblewrap; the sandbox alone is not meant for fully unattended runs (the docs point to containers, VMs or `srt` for that).
+
+**Lead's recommendation (2026-11-28):** build it, as an opt-in per project, not as the default, and not before M4. Reasons: the sandbox adds the one protection that deny rules and hooks cannot give, a network allow list and OS-enforced write limits for scripts that a session writes and runs. It matters most for goal runs (D5) and unfamiliar repositories. It covers only shell commands, needs a second Claude Code login, and moves the repository into the Linux file system, so it costs setup and some convenience. Native Windows with deny rules, hooks and auto mode stays the default.
 
 **Ideas from the multi-agent article** (Anthropic blog on scaling agent teams, a research run, not Claude Code): one isolated VM per agent without network and without credentials, a gateway as the only way out, each agent pushes only its own branch, a classifier checks every tool call and fails closed. Orchtopus already has the branch rule and the hard-block hooks; the WSL sandbox is the local, practical version of the VM idea.
 
@@ -41,7 +45,10 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M5 (usage view
 
 **What the research found** (official docs and support pages, 2026-11-28; check again before building):
 
-- Max has a 5-hour limit and a weekly limit, shared by Claude and Claude Code and by all models. Max also has a separate weekly limit for Fable, and Fable can bill to usage credits. No source gives numbers for how much faster Fable or Opus use the allowance than Sonnet; Opus "costs several times more per turn than Sonnet".
+- Max has a 5-hour limit and a weekly limit, shared by Claude and Claude Code and by all models. Fable has no pool of its own: it draws faster from the normal weekly limit, and at most 50 % of the weekly limit can go to Fable without usage credits (support page "Claude Fable models on your plan"; corrected 2026-11-28, an earlier note here said "separate weekly limit"). No source gives numbers for how much faster Fable or Opus use the allowance than Sonnet; Opus "costs several times more per turn than Sonnet".
+- Effort guidance (platform docs "Effort", vendor guidance without published sweeps): Opus 5.5, Sonnet 5.5 and Haiku 5.5 default to `medium`; `high` is the starting point for harder or longer work; Fable 5.2 starts at `high`, `xhigh` only where a gain was measured, `max` often adds little at a much higher cost; Haiku at `low` more often skips checks in long agent prompts; subagents are a typical `low` use.
+- Benchmarks (vendor tables, relayed by third parties, not like-for-like): Fable 5.2 leads on long-horizon work (Remote Labor Index about 41 % against 21 % for Opus 5.5) and is about level with Opus 5.5 on coding at `high`; Sonnet 5.5 is close to Opus 5.5 on coding benchmarks at half the price. No benchmark measures an orchestrator or lead role.
+- Anthropic's multi-agent research post (2025, research tasks, Opus 4 lead with Sonnet 4 workers): token use explained about 80 % of the performance variance; multi-agent runs used about 15 times the tokens of a chat; subagents typically returned condensed results of 1,000 to 2,000 tokens or a reference to a file. Not yet repeated for coding or for the current models.
 - The status line has `rate_limits.five_hour` and `rate_limits.seven_day` (`used_percentage`, `resets_at`) and prompt cache data. `/usage` attributes usage to skills, subagents, plugins and MCP servers.
 - Model and effort per agent are set in the agent file (`model`, `effort`) or per call. Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.2 default to `medium`; Anthropic states Opus 5.5 at `medium` matches Opus 5 at `high`. `max` effort is described as prone to overthinking.
 - Prompt cache: each model has its own cache, so switching the model of a running session recomputes everything; changing effort keeps the cache on the current models. Subagents and workflow agents cache for 5 minutes by default. `/compact` is a large request; `/clear` is free.
@@ -50,12 +57,41 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M5 (usage view
 **Ideas for Orchtopus:**
 
 1. Usage bar with burn rate: 5-hour and weekly use, the time to the reset, and a forecast ("at this rate the limit is reached in 40 minutes"). Warn before a limit, never cap (F69).
-2. Defaults per role that follow the docs: Opus `medium` for implementing sessions, Opus `high` for critical reviews, Sonnet for checklist reviews, Haiku for summaries. Fable only when the user picks it on purpose, with a note that it has its own weekly limit.
+2. Defaults per role that follow the docs and can be changed: `high` for sessions that plan or coordinate, Opus `high` for critical reviews, Sonnet for checklist reviews, Haiku at `medium` (not `low`) for summaries. Fable as an offer for planning and architecture sessions, with the 50 % weekly share shown. Orchtopus records fix rounds and usage per role, so the defaults can be checked against data (an A/B of Sonnet against Opus implementers is the first candidate).
 3. Cache awareness: never switch the model of a running session; suggest a fresh session at a task boundary instead of a compaction in the middle of work (D7).
-4. Parallel lanes from the plan: Orchtopus reads the task dependencies of an approved plan (what each task consumes) and proposes which tasks can run in parallel sessions, with a cap on concurrent heavy sessions that the user sets. The M1 build did this by hand and saved about a third of the time.
+4. Parallel lanes from the plan: Orchtopus reads the task dependencies of an approved plan (what each task consumes) and proposes which tasks can run in parallel sessions, with a cap on concurrent heavy sessions that the user sets. The M1 build did this by hand and saved about a third of the time. A shared task board (idea from Anthropic's 1,000-agent post, where agents claimed tasks from shared tables and split them into subtasks) fits here: the tasks of an approved plan go onto the board in the state store, and free sessions take the next task whose dependencies are done. The user's gates stay in front: only tasks of an approved plan go onto the board, and every result still ends in a PR the user releases.
 5. Limit pauses: when a session hits a limit, show "paused until <time>" and continue it after the reset with one click.
 
 **Open:** whether usage per session can be measured at all (the status line limits are per account), and how to estimate a forecast from whole-percent steps.
+
+## Resource-aware sessions (16 GB machines)
+
+Added 2026-11-28. Status: measured once on the 30 GB machine. Suggested place: M5 ("resources and ports", F69).
+
+**Problem:** the user's work laptop has 16 GB RAM. Many parallel sessions plus the project's own tools can fill it.
+
+**Measured** (2026-11-28, Claude Code 2.1.332, Windows 11, Haiku, median of 3; working set / private bytes):
+
+| What | Working set | Private bytes |
+|---|---|---|
+| One idle background session (one `claude.exe`) | about 300 MB | about 600 MB |
+| One session while a Bash tool runs (with shells and Node) | about 380 MB | about 610 MB |
+| Claude Code supervisor (once for all sessions) | about 230 MB | about 410 MB |
+| Three sessions plus supervisor | about 1.6 GB | about 2.4 GB |
+| `npm i -D vitest` (peak) / a trivial vitest run (peak) | about 380 / 280 MB | about 340 / 190 MB |
+
+Not measured yet: the Orchtopus app itself, real project tools (a full test suite, a dev server, `tsc`), the 16 GB laptop.
+
+**Findings:** the fixed cost per session is the `claude.exe` worker, not the model. The project's tools come next and vary a lot. Private bytes are about twice the working set, so the commit limit matters as much as free RAM.
+
+**Ideas for Orchtopus** (the rule "show load, warn, do not cap by default" stays):
+
+1. Show RAM per session and in total, read live from the process tree, plus free memory and the commit charge.
+2. Warn before starting a session when free memory is low; offer "start when memory is free" as a queue the user turns on. The thresholds are settings; the first values (warn below about 3 GB free, suggest waiting below about 2 GB) are the lead's estimate from the measurement above, to be checked on the 16 GB laptop.
+3. Suggest fewer parallel lanes (see "Usage-aware orchestration") when memory is short.
+4. Rough guide from the measurement (estimate): a 16 GB machine with Windows, VS Code and a browser open has room for about 4 to 5 active sessions; a 30 GB machine is limited by usage and review capacity first, not by memory.
+
+**Next step:** measure the same table on the 16 GB laptop and with a real project test run.
 
 ## Plans and specs that are quick to review
 
