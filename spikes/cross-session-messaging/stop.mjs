@@ -1,5 +1,7 @@
-// Stops and removes every session listed in msg-started.jsonl, and only those.
+// Stops and removes every session listed in msg-started.jsonl, and only those,
+// then deletes the captured tokens in config\msg-tokens\.
 // Usage: node stop.mjs [--dry-run]
+import { rmSync } from 'node:fs';
 import { claude, listOwnAgents, msgPaths, parseArgs, readJsonl } from './lib.mjs';
 
 const a = parseArgs(process.argv.slice(2));
@@ -22,3 +24,8 @@ for (const s of list) {
 }
 const left = listOwnAgents();
 console.log(JSON.stringify(Array.isArray(left) ? left.filter((s) => ours.has(s.id)) : left));
+// Captured tokens are secrets of sessions that no longer run: remove them.
+if (!a['dry-run']) {
+  rmSync(msgPaths.tokens, { recursive: true, force: true });
+  console.log(`removed ${msgPaths.tokens}`);
+}

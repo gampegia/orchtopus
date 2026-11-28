@@ -35,6 +35,7 @@ export function registryEntry(pid) {
 
 /** `peerToken` from the `<pid>.<hash>.key` file next to the registry entry, or null. */
 export function registryPeerToken(pid) {
+  if (!existsSync(registryDir())) return null;
   const key = readdirSync(registryDir()).find((f) => f.startsWith(`${pid}.`) && f.endsWith('.key'));
   if (!key) return null;
   try {
@@ -42,6 +43,17 @@ export function registryPeerToken(pid) {
   } catch {
     return null;
   }
+}
+
+/** Registry entry whose sessionId matches, or null. Read-only. */
+export function registryBySession(sessionId) {
+  if (!existsSync(registryDir())) return null;
+  for (const f of readdirSync(registryDir())) {
+    if (!/^\d+\.json$/.test(f)) continue;
+    const entry = registryEntry(f.slice(0, -5));
+    if (entry?.sessionId === sessionId) return entry;
+  }
+  return null;
 }
 
 /** Token that the SessionStart hook captured from CLAUDE_CODE_MESSAGING_TOKEN. */

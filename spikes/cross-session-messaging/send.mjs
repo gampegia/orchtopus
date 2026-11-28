@@ -2,7 +2,7 @@
 // Orchtopus adapter would, and logs what the pipe does (data back, close,
 // errors). Tokens are never logged, only their fingerprints.
 //
-// Usage: node send.mjs --id <short id> [--text "<message>"]
+// Usage: node send.mjs (--id <short id> | --session <uuid>) [--text "<message>"]
 //          [--auth captured|key|wrong|none|late]  (default captured)
 //          [--raw '<json line>']   replaces the message line
 //          [--wait-before ms]      connect, then wait before writing anything
@@ -19,23 +19,39 @@ import {
   listOwnAgents,
   msgPaths,
   parseArgs,
+  registryBySession,
   registryEntry,
   registryPeerToken,
   sleep,
 } from './lib.mjs';
 
 const a = parseArgs(process.argv.slice(2));
-const list = listOwnAgents();
-const agent = Array.isArray(list) ? list.find((s) => s.id === a.id) : undefined;
-if (!agent) throw new Error(`no session ${a.id} in agents --json`);
+let agent;
+if (typeof a.session === 'string') {
+  // -p sessions have no short id in agents --json; find them in the registry.
+  const reg = registryBySession(a.session);
+  if (!reg) throw new Error(`no registry entry for session ${a.session}`);
+  agent = {
+    id: a.session.slice(0, 8),
+    pid: reg.pid,
+    sessionId: a.session,
+    state: reg.kind,
+    status: reg.status,
+  };
+} else {
+  const list = listOwnAgents();
+  agent = Array.isArray(list) ? list.find((s) => s.id === a.id) : undefined;
+  if (!agent) throw new Error(`no session ${a.id} in agents --json`);
+}
 const reg = registryEntry(agent.pid);
 const socketPath = reg?.messagingSocketPath;
 if (!socketPath) throw new Error(`no messagingSocketPath for pid ${agent.pid}`);
 
 const authMode = String(a.auth ?? 'captured');
+const keyToken = authMode === 'key' ? registryPeerToken(agent.pid) : null;
 const token =
   authMode === 'key'
-    ? registryPeerToken(agent.pid)
+    ? keyToken
     : authMode === 'wrong'
       ? '0'.repeat(32)
       : capturedToken(agent.sessionId);
@@ -58,8 +74,9 @@ const record = {
   authMode,
   tokenFp: fingerprint(token),
   capturedFp: fingerprint(capturedToken(agent.sessionId)),
-  keyFp: fingerprint(registryPeerToken(agent.pid)),
-  msgLine: typeof a.raw === 'string' ? a.raw : undefined,
+  keyFp: fingerprint(keyToken),
+  // A raw line may carry anything; log only its fingerprint.
+  rawFp: typeof a.raw === 'string' ? fingerprint(a.raw) : undefined,
   text: a.text,
   events: [],
 };

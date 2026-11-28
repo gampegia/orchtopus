@@ -195,7 +195,7 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M4 (review cou
 
 ## Cross-session messaging
 
-Added 2026-11-28. Status: spiked 2026-11-28, see [the spike](spikes/2026-11-28-cross-session-messaging.md): works on native Windows; set `crossSessionInbound: "accept"`. Suggested place: M5 (board, overlap warnings, usage).
+Added 2026-11-28. Status: spiked 2026-11-28, see [the spike](spikes/2026-11-28-cross-session-messaging.md): works on native Windows; the `crossSessionInbound` value is open until a bypass receiver is tested. Suggested place: M5 (board, overlap warnings, usage).
 
 **What it is:** documented same-machine messaging between sessions. On native Windows it needs v2.1.234 and uses a named pipe. The pipe path is `CLAUDE_CODE_MESSAGING_SOCKET`. A first line with `CLAUDE_CODE_MESSAGING_TOKEN` is required. See [EV-I4] and [EV-I5].
 
@@ -205,7 +205,7 @@ Added 2026-11-28. Status: spiked 2026-11-28, see [the spike](spikes/2026-11-28-c
 - Overlap warnings: tell the affected sessions when one lands a change (F14).
 - Course corrections to a running session.
 
-**Rule:** Orchtopus must set `crossSessionInbound` (`accept`, `hold` or `refuse`) explicitly in its `--settings`. When unset, the behaviour depends on the permission modes.
+**Rule:** open decision. When unset, the behaviour depends on the permission modes; manual and auto sessions deliver Orchtopus messages (spike, Q2). Whether to leave it unset or set `accept` for bypass sessions waits for one bypass receiver test (spike, "Setting").
 
 **Spike questions:** can our hook helper post to its own session's pipe on Windows; does a background session bind a pipe; what does `hold` look like. Messages count toward usage and loops are only throttled, so Orchtopus sends and sessions do not chat freely.
 
