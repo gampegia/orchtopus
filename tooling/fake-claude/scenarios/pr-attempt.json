@@ -1,0 +1,29 @@
+{
+  "description": "The session tries to open a pull request; the PR block hook should deny it.",
+  "steps": [
+    { "at": 0, "state": "working", "status": "busy", "output": "● Opening a pull request\r\n" },
+    {
+      "at": 150,
+      "hook": {
+        "event": "PreToolUse",
+        "payload": {
+          "tool_name": "Bash",
+          "tool_input": { "command": "gh pr create --draft --fill" }
+        }
+      }
+    },
+    {
+      "at": 400,
+      "state": "done",
+      "status": "idle",
+      "output": "● The branch is pushed; the pull request was not created.\r\n",
+      "hook": {
+        "event": "Stop",
+        "payload": {
+          "stop_hook_active": false,
+          "last_assistant_message": "The branch is pushed; the pull request was not created."
+        }
+      }
+    }
+  ]
+}
