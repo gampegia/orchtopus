@@ -239,6 +239,25 @@ test('content security policy blocks inline scripts', async () => {
   expect(ran).toBe(false);
 });
 
+test('content security policy blocks style attributes and allows style elements', async () => {
+  const applied = await page.evaluate(() => {
+    const probe = document.createElement('div');
+    probe.id = 'csp-style-probe';
+    probe.setAttribute('style', 'order: 7');
+    document.body.append(probe);
+    const fromAttribute = getComputedStyle(probe).order;
+    // xterm 6 inserts <style> elements (style-src-elem allows them).
+    const style = document.createElement('style');
+    style.textContent = '#csp-style-probe { z-index: 9; position: relative }';
+    document.head.append(style);
+    const fromElement = getComputedStyle(probe).zIndex;
+    probe.remove();
+    style.remove();
+    return { fromAttribute, fromElement };
+  });
+  expect(applied).toEqual({ fromAttribute: '0', fromElement: '9' });
+});
+
 test('new windows are denied', async () => {
   expect(await page.evaluate(() => window.open('https://example.com/') !== null)).toBe(false);
   expect(

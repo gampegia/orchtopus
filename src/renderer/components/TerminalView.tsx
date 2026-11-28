@@ -62,7 +62,9 @@ export function TerminalView({ session }: { session: SessionView }): React.JSX.E
     host.orchtopusTerminal = term;
     try {
       const webgl = new WebglAddon();
-      // Context loss: dispose the addon and xterm falls back to the DOM renderer.
+      // Context loss: dispose the addon and xterm falls back to the DOM renderer. The CSP blocks
+      // the style attributes that renderer sets for 24-bit colours, so such text shows in the
+      // default terminal colour; palette colours, layout and input keep working.
       webgl.onContextLoss(() => {
         webgl.dispose();
       });

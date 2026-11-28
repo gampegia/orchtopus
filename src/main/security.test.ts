@@ -40,7 +40,8 @@ describe('CONTENT_SECURITY_POLICY', () => {
 
   it('is exactly the reviewed policy', () => {
     expect(CONTENT_SECURITY_POLICY).toBe(
-      "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; " +
+      "default-src 'none'; script-src 'self'; style-src 'self'; " +
+        "style-src-elem 'self' 'unsafe-inline'; img-src 'self'; " +
         "font-src 'self'; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*; " +
         "base-uri 'none'; form-action 'none'; " +
         "object-src 'none'",
@@ -51,6 +52,9 @@ describe('CONTENT_SECURITY_POLICY', () => {
     expect(policy.get('default-src')).toEqual(["'none'"]);
     expect(policy.get('script-src')).toEqual(["'self'"]);
     expect(policy.get('style-src')).toEqual(["'self'"]);
+    // xterm inserts <style> elements; style attributes fall back to style-src and stay blocked.
+    expect(policy.get('style-src-elem')).toEqual(["'self'", "'unsafe-inline'"]);
+    expect(policy.has('style-src-attr')).toBe(false);
     expect(policy.get('img-src')).toEqual(["'self'"]);
     expect(policy.get('font-src')).toEqual(["'self'"]);
     // The local API only: loopback on any port (the port is chosen at start).
@@ -60,8 +64,18 @@ describe('CONTENT_SECURITY_POLICY', () => {
     expect(policy.get('form-action')).toEqual(["'none'"]);
   });
 
-  it('contains no unsafe keyword, wildcard or remote source outside the loopback API', () => {
-    const rest = CONTENT_SECURITY_POLICY.replace(' http://127.0.0.1:* ws://127.0.0.1:*', '');
+  it('allows no unsafe script source and no script-src-elem or -attr override', () => {
+    expect(policy.get('script-src')).not.toContain("'unsafe-inline'");
+    expect(policy.get('script-src')).not.toContain("'unsafe-eval'");
+    expect(policy.has('script-src-elem')).toBe(false);
+    expect(policy.has('script-src-attr')).toBe(false);
+  });
+
+  it('contains no unsafe keyword, wildcard or remote source outside the reviewed exceptions', () => {
+    const rest = CONTENT_SECURITY_POLICY.replace(
+      ' http://127.0.0.1:* ws://127.0.0.1:*',
+      '',
+    ).replace("; style-src-elem 'self' 'unsafe-inline'", '');
     expect(rest).not.toMatch(/unsafe-|\*|https?:|wss?:|data:|blob:/);
   });
 });

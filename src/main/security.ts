@@ -10,6 +10,10 @@ export const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
+  // xterm 6 inserts <style> elements itself and has no nonce option (Viewport.ts,
+  // DomRenderer.ts). Only elements: style attributes fall back to style-src and stay blocked,
+  // and script-src stays 'self'.
+  "style-src-elem 'self' 'unsafe-inline'",
   "img-src 'self'",
   "font-src 'self'",
   // The local API (src/main/api) listens on 127.0.0.1 on a port chosen at start.
