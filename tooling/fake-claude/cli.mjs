@@ -33,6 +33,7 @@ import {
   ranFile,
   readLines,
   sessionFile,
+  sessionsDir,
   writeSession,
   writeTrust,
 } from './store.mjs';
@@ -277,7 +278,11 @@ async function endWorker(home, record) {
     } catch {
       // Already gone.
     }
-    while (isAlive(record.pid)) await sleep(25);
+    const killUntil = Date.now() + STOP_TIMEOUT_MS;
+    while (isAlive(record.pid) && Date.now() < killUntil) await sleep(25);
+    if (isAlive(record.pid)) {
+      throw new FakeError(`fake claude: session ${record.id} (pid ${record.pid}) did not end.`);
+    }
   }
 }
 
@@ -302,6 +307,7 @@ async function rm(id) {
   await out(`removed · ${record.id}\n`);
 }
 
+/** Kills every live worker, then removes the fake's session and gate folders. */
 async function cleanup() {
   const home = fakeHome();
   for (const record of listSessions(home)) {
@@ -314,7 +320,15 @@ async function cleanup() {
     const until = Date.now() + STOP_TIMEOUT_MS;
     while (isAlive(record.pid) && Date.now() < until) await sleep(25);
   }
-  fs.rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  // Only the fake's own folders: $ORCH_FAKE_CLAUDE_HOME may point anywhere.
+  for (const dir of [sessionsDir(home), path.join(home, 'gates')]) {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+  try {
+    fs.rmdirSync(home);
+  } catch {
+    // Missing, or holds other files: leave it.
+  }
 }
 
 /** Plain `claude` in a folder: the trust dialog, then a prompt box until `/exit`. */

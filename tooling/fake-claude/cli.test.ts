@@ -465,4 +465,126 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     expect(ran.map((r) => r.tool_input.command)).toEqual(['git push -u origin HEAD']);
     expect(ran[0]?.tool_name).toBe('PowerShell');
   });
+
+  it('waits for sync hooks but not for async hooks', async () => {
+    const dir = await makeRepo('acme-app');
+    const timeline = join(root, 'timeline.jsonl');
+    const stamp = async (name: string, delayMs: number): Promise<string> => {
+      const file = join(root, `${name}.mjs`);
+      await fs.writeFile(
+        file,
+        [
+          "import { appendFileSync } from 'node:fs';",
+          "process.stdin.on('data', () => {});",
+          "process.stdin.on('end', () => setTimeout(() => {",
+          `  appendFileSync(${JSON.stringify(timeline)}, JSON.stringify({ name: ${JSON.stringify(name)}, t: Date.now() }) + '\\n');`,
+          `}, ${String(delayMs)}));`,
+        ].join('\n'),
+      );
+      return file;
+    };
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [
+                { type: 'command', command: NODE, args: [await stamp('sync', 600)] },
+                {
+                  type: 'command',
+                  command: NODE,
+                  args: [await stamp('async', 2_500)],
+                  async: true,
+                },
+              ],
+            },
+          ],
+          UserPromptSubmit: [
+            { hooks: [{ type: 'command', command: NODE, args: [await stamp('prompt', 0)] }] },
+          ],
+        },
+      }),
+    );
+    await startBg(dir, ['--settings', settings, 'Export the report.']);
+    const rows = await waitFor(async () => {
+      try {
+        const text = await fs.readFile(timeline, 'utf8');
+        const parsed = text
+          .split('\n')
+          .filter((l) => l !== '')
+          .map((l) => JSON.parse(l) as { name: string; t: number });
+        return parsed.length === 3 ? parsed : undefined;
+      } catch {
+        return undefined;
+      }
+    });
+    expect(rows.map((r) => r.name)).toEqual(['sync', 'prompt', 'async']);
+  });
+
+  it('runs a group with a matcher on events without a match field', async () => {
+    const dir = await makeRepo('acme-app');
+    const record = await hookScript('record', false);
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [
+            { matcher: 'Bash', hooks: [{ type: 'command', command: NODE, args: [record] }] },
+          ],
+          Stop: [{ matcher: 'Bash', hooks: [{ type: 'command', command: NODE, args: [record] }] }],
+        },
+      }),
+    );
+    await startBg(dir, ['--settings', settings, 'Export the report.']);
+    const rows = await waitFor(async () => {
+      const r = await readJsonl('record');
+      return r.length === 2 ? r : undefined;
+    });
+    expect(rows.map((r) => r.hook_event_name)).toEqual(['UserPromptSubmit', 'Stop']);
+  });
+
+  it('an empty typed line does not start a turn', async () => {
+    const dir = await makeRepo('acme-app');
+    const record = await hookScript('record', false);
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          UserPromptSubmit: [{ hooks: [{ type: 'command', command: NODE, args: [record] }] }],
+        },
+      }),
+    );
+    const id = await startBg(dir, ['--settings', settings]);
+    const view = interactive(['attach', id]);
+    await waitFor(() => view.output().includes('╭─ fake prompt ─╮') || undefined);
+    view.child.stdin.write('\n   \n');
+    view.child.stdin.write('hello there\n');
+    await waitFor(() => view.output().includes('fake reply: hello there') || undefined);
+    expect(view.output()).not.toContain('fake reply: \r\n');
+    expect((await readJsonl('record')).map((r) => r.prompt)).toEqual(['hello there']);
+    view.child.kill();
+  });
+
+  it('--fake-cleanup removes only the fake state, not other files in the home', async () => {
+    const home = join(root, 'acme-home');
+    await fs.mkdir(home, { recursive: true });
+    await fs.writeFile(join(home, 'keep.txt'), 'keep');
+    const dir = await makeRepo('acme-app');
+    const opts = { cwd: dir, env: { ORCH_FAKE_CLAUDE_HOME: home } };
+    expect((await run(['--bg', 'Export the report.'], opts)).code).toBe(0);
+    expect((await run(['--fake-cleanup'], opts)).code).toBe(0);
+    expect(await fs.readFile(join(home, 'keep.txt'), 'utf8')).toBe('keep');
+    await expect(fs.stat(join(home, 'sessions'))).rejects.toThrow();
+  });
+
+  it('--fake-cleanup removes the default home when only fake state is in it', async () => {
+    const dir = await makeRepo('acme-app');
+    expect((await run(['--bg', 'Export the report.'], { cwd: dir })).code).toBe(0);
+    expect((await run(['--fake-cleanup'])).code).toBe(0);
+    await expect(fs.stat(join(cfg, 'fake'))).rejects.toThrow();
+  });
 });
