@@ -3,11 +3,9 @@
 import { mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { SETUP_ITEM_IDS } from '../src/main/projects/setup-check';
 import { createTempRepo, type TempRepo } from '../src/main/test-helpers/temp-repo';
 import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
-
-/** SETUP_ITEM_IDS in src/main/projects/setup-check.ts. */
-const SETUP_ITEM_COUNT = 12;
 
 let app: ElectronApplication | undefined;
 let page: Page;
@@ -108,7 +106,7 @@ test('shows every setup item with a word', async () => {
   await folder.fill(repo.root);
   await addDialog().getByRole('button', { name: 'Check' }).click();
   const items = addDialog().getByRole('list', { name: 'Setup check' }).getByRole('listitem');
-  await expect(items).toHaveCount(SETUP_ITEM_COUNT);
+  await expect(items).toHaveCount(SETUP_ITEM_IDS.length);
   for (const item of await items.all()) {
     await expect(item.locator('[data-status-word]')).toHaveText(/^(ok|hint|problem|info)$/);
   }
