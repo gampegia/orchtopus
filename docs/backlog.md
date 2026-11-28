@@ -152,18 +152,26 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M2 (dangerous 
 
 ## User mods in Orchtopus sessions
 
-Added 2026-11-28. Status: needs a check in M2, before the dangerous-command hold ships.
+Added 2026-11-28. Status: tested in the spike `docs/spikes/2026-11-28-mods-vs-hooks.md` (2026-11-28, Claude Code 2.1.332). The M2 spec decides. See [EV-I3].
 
-**Finding:** mods load by default from Claude Code v2.1.287, and only `--safe-mode`, `--bare` or `disableAllHooks` turn them off. Orchtopus passes none of these, so a user's installed mods probably load in our sessions. This is an inference and is not tested. See [EV-I3].
+**Finding (observed, without the built-in guard `cc-plugin-sec-default`):**
 
-**Risks:**
+- A user's mods load in our sessions (user-scope mods: inferred; seen for user-scope classic plugins). A mod in a repository's `.claude/skills/<name>/` loads too, with no install step.
+- A mod that registers `tool.call` or `tool.check` gets past our PR block and our deny rules. A `tool.call` that answers the call itself skips all our hooks; a mod's `$.process.run` runs commands no hook sees.
+- A classic plugin hook (`hooks.json`) that answers `allow` does not beat our deny.
+- A holding mod such as Blast Radius holds before our hooks run. Orchtopus sees nothing during that hold. After the user presses Proceed in the mod, our hook holds again.
+- The guard is loaded only with managed settings, a `managed-mcp.json`, or a Team or Enterprise login. The docs say deny rules and `PreToolUse` blocks then hold against users' mods; not observed.
 
-- A mod can approve tool calls that `PreToolUse` hooks would stop (the built-in guard prevents this by default).
-- Double holds: a mod such as Blast Radius and our hook both hold the same command.
-- Our PR block or dangerous-command hold being bypassed.
-- `disableAllHooks` is no fix: it also stops our own hooks.
+**Switches:** `enabledPlugins: { "<id>": false }` in our `--settings` file switches a plugin off for one session and keeps our hooks (observed for a `--plugin-dir` mod, a skills-directory mod and user-scope classic plugins; user-scope mods: inferred). `--safe-mode` and `disableAllHooks` also stop our own hooks. `--bare` ends with "Not logged in" on a subscription login. None of the three fits.
 
-**The M2 spec must test this and decide.** Test with Blast Radius installed, and with a mod that approves a command that our hook holds. Possible outcomes: an information line in the setup check that lists mods with hooks, or `--safe-mode` for sessions that need a hard guarantee. Reading the plugin list stays read-only.
+**Recommendation for M2:**
+
+- Before every start and resume, read-only: `claude plugin list --json` in the session folder, then `claude plugin validate <installPath>` per enabled plugin. A plugin whose hooks module registers `tool.call`, `tool.check` or `tool.run` counts as deciding.
+- Switch deciding plugins off for the session through `enabledPlugins`, and tell the user in plain words.
+- A project setting turns them back on. Turning it on lets a mod approve dangerous commands without the hold button, so the spec must put this trade-off to the user (proposal: turning it on itself needs the hold button).
+- If the check fails, do not start the session, and tell the user why.
+
+**M2 test cases:** user-scope mods, `tool.run`, managed force-enabled mods, the guard on a Team or Enterprise login, a repository that ships a mod in `.claude/skills/`.
 
 ## Checks out of the change's reach
 

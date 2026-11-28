@@ -1,0 +1,1 @@
+{ "description": "mod-check-allow hooks module", "modules": ["./register.mjs"] }

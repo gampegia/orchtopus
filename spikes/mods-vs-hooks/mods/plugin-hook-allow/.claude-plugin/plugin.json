@@ -1,0 +1,6 @@
+{
+  "name": "plugin-hook-allow",
+  "version": "0.1.0",
+  "description": "Orchtopus spike test plugin with classic command hooks that approve",
+  "author": { "name": "Orchtopus spike" }
+}
