@@ -39,6 +39,21 @@ export function logFile(home, id) {
   return path.join(sessionsDir(home), `${id}.log`);
 }
 
+/** JSON lines of the tool calls a session ran (a call denied by a PreToolUse hook is not run). */
+export function ranFile(home, id) {
+  return path.join(sessionsDir(home), `${id}.ran.jsonl`);
+}
+
+/** The file that releases a `gate` step of the session with this name (`--fake-release`). */
+export function gateFile(home, name, gate) {
+  for (const part of [name, gate]) {
+    if (typeof part !== 'string' || !/^[A-Za-z0-9._-]+$/.test(part) || part.includes('..')) {
+      throw new FakeError(`fake claude: bad gate name '${String(part)}'`, 2);
+    }
+  }
+  return path.join(home, 'gates', `${name}.${gate}`);
+}
+
 export function pipeName(home, id) {
   return process.platform === 'win32'
     ? `\\\\.\\pipe\\orch-fake-${id}`

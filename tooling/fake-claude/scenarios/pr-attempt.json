@@ -1,15 +1,20 @@
 {
-  "description": "The session tries to open a pull request; the PR block hook should deny it.",
+  "description": "The session tries to open a pull request (the PR block hook should deny it), then pushes its branch, which runs.",
   "steps": [
     { "at": 0, "state": "working", "status": "busy", "output": "● Opening a pull request\r\n" },
     {
       "at": 150,
-      "hook": {
-        "event": "PreToolUse",
-        "payload": {
-          "tool_name": "Bash",
-          "tool_input": { "command": "gh pr create --draft --fill" }
-        }
+      "toolCall": {
+        "tool_name": "Bash",
+        "tool_input": { "command": "gh pr create --draft --fill" }
+      }
+    },
+    {
+      "at": 300,
+      "toolCall": {
+        "tool_name": "PowerShell",
+        "tool_input": { "command": "git push -u origin HEAD" },
+        "tool_response": { "stdout": "" }
       }
     },
     {

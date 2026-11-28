@@ -3,10 +3,12 @@
 // the commands Orchtopus uses with scripted background sessions:
 //   --version | --bg [flags] [prompt] | --bg --resume <uuid> | agents --json
 //   [--all] [--cwd p] | attach <id> | stop <id> | rm <id> | (no args: trust
-//   prompt) | --fake-cleanup
+//   prompt) | --fake-cleanup | --fake-release <name> <gate>
 // Run it as `node tooling/fake-claude/cli.mjs <args>`. State lives in
 // $ORCH_FAKE_CLAUDE_HOME (default $CLAUDE_CONFIG_DIR/fake); the scenario
-// comes from $ORCH_FAKE_SCENARIO (default basic).
+// comes from $ORCH_FAKE_SCENARIOS (a JSON object from session name to
+// scenario), else $ORCH_FAKE_SCENARIO, else basic. A scenario step
+// {"gate":"<gate>"} waits until `--fake-release <name> <gate>` is run.
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -21,12 +23,14 @@ import {
   configDir,
   fakeHome,
   findSession,
+  gateFile,
   isAlive,
   isTrusted,
   listSessions,
   logFile,
   normalizeDir,
   pipeName,
+  ranFile,
   readLines,
   sessionFile,
   writeSession,
@@ -75,8 +79,23 @@ function parseBgArgs(args) {
   return { flags, prompt: prompt.join(' ') };
 }
 
-function loadScenario() {
-  const name = process.env.ORCH_FAKE_SCENARIO?.trim() || 'basic';
+function scenarioName(sessionName) {
+  const map = process.env.ORCH_FAKE_SCENARIOS?.trim();
+  if (map) {
+    let parsed;
+    try {
+      parsed = JSON.parse(map);
+    } catch {
+      throw new FakeError('fake claude: ORCH_FAKE_SCENARIOS is not JSON', 2);
+    }
+    const byName = parsed?.[sessionName];
+    if (typeof byName === 'string') return byName;
+  }
+  return process.env.ORCH_FAKE_SCENARIO?.trim() || 'basic';
+}
+
+function loadScenario(sessionName) {
+  const name = scenarioName(sessionName);
   if (!/^[a-z0-9-]+$/.test(name)) throw new FakeError(`fake claude: bad scenario '${name}'`, 2);
   try {
     return JSON.parse(fs.readFileSync(path.join(HERE, 'scenarios', `${name}.json`), 'utf8'));
@@ -135,15 +154,16 @@ async function bg(args) {
   } else {
     const sessionId = randomUUID();
     const cwd = process.cwd();
+    const name = flags.name ?? path.basename(cwd);
     init = {
       id: sessionId.slice(0, 8),
       sessionId,
       cwd,
-      name: flags.name ?? path.basename(cwd),
+      name,
       options: flags,
       prompt,
       source: 'startup',
-      scenario: loadScenario(),
+      scenario: loadScenario(name),
       scenarioPlayed: false,
     };
   }
@@ -278,6 +298,7 @@ async function rm(id) {
   await endWorker(home, record);
   fs.rmSync(sessionFile(home, record.id), { force: true });
   fs.rmSync(logFile(home, record.id), { force: true });
+  fs.rmSync(ranFile(home, record.id), { force: true });
   await out(`removed · ${record.id}\n`);
 }
 
@@ -301,7 +322,7 @@ function interactive() {
   const cfg = configDir();
   const cwd = process.cwd();
   let trusted = isTrusted(cfg, cwd);
-  const select = loadScenario().trustDialog === 'select';
+  const select = loadScenario(path.basename(cwd)).trustDialog === 'select';
   if (trusted) {
     process.stdout.write(`${PROMPT_BOX}\r\n`);
   } else {
@@ -334,12 +355,20 @@ function interactive() {
   });
 }
 
+function release(name, gate) {
+  const file = gateFile(fakeHome(), name, gate);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, '');
+}
+
 async function main(args) {
-  const [first, second] = args;
+  const [first, second, third] = args;
   if (args.includes('--version') || args.includes('-v')) {
     await out(`${FAKE_VERSION} (Claude Code)\n`);
   } else if (first === '--fake-cleanup') {
     await cleanup();
+  } else if (first === '--fake-release') {
+    release(second, third);
   } else if (first === 'agents') {
     await agents(args.slice(1));
   } else if (first === 'attach') {

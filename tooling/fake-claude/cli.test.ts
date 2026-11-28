@@ -32,13 +32,17 @@ let root = '';
 let cfg = '';
 let env: NodeJS.ProcessEnv = {};
 
-function run(args: string[], opts: { cwd?: string; scenario?: string } = {}): Promise<RunResult> {
+function run(
+  args: string[],
+  opts: { cwd?: string; scenario?: string; env?: NodeJS.ProcessEnv } = {},
+): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(NODE, [CLI, ...args], {
       cwd: opts.cwd ?? root,
       env: {
         ...env,
         ...(opts.scenario === undefined ? {} : { ORCH_FAKE_SCENARIO: opts.scenario }),
+        ...opts.env,
       },
       windowsHide: true,
     });
@@ -407,5 +411,58 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     session.child.stdin.write('2\n');
     expect(await session.exited).not.toBe(0);
     expect((await run(['--bg', 'hello'], { cwd: dir })).code).toBe(1);
+  });
+  it('ORCH_FAKE_SCENARIOS picks the scenario by session name', async () => {
+    const dir = await makeRepo('acme-app');
+    const scenarios = { 'upload-fix': 'needs-you' };
+    const opts = { cwd: dir, env: { ORCH_FAKE_SCENARIOS: JSON.stringify(scenarios) } };
+    expect((await run(['--bg', '--name', 'upload-fix', 'Install.'], opts)).code).toBe(0);
+    expect((await run(['--bg', '--name', 'report-export', 'Export.'], opts)).code).toBe(0);
+    const byName = async (name: string) => (await agents()).find((a) => a.name === name)?.state;
+    await waitFor(async () => ((await byName('upload-fix')) === 'blocked' ? true : undefined));
+    await waitFor(async () => ((await byName('report-export')) === 'done' ? true : undefined));
+  });
+
+  it('mid-turn: the turn waits for --fake-release, then finishes', async () => {
+    const dir = await makeRepo('acme-app');
+    const id = await startBg(dir, ['--name', 'upload-fix', 'Fix the upload.'], 'mid-turn');
+    await waitFor(async () => ((await agents())[0]?.state === 'working' ? true : undefined));
+    await new Promise((r) => setTimeout(r, 600));
+    expect((await agents())[0]?.state).toBe('working');
+    const res = await run(['--fake-release', 'upload-fix', 'finish']);
+    expect(res.code).toBe(0);
+    const done = await waitFor(async () => {
+      const [e] = await agents();
+      return e?.state === 'done' ? e : undefined;
+    });
+    expect(done.status).toBe('idle');
+    const view = interactive(['attach', id]);
+    await waitFor(() => view.output().includes('● Done.') || undefined);
+    view.child.kill();
+  });
+
+  it('a tool call runs only when no PreToolUse hook denies it', async () => {
+    const dir = await makeRepo('acme-app');
+    const deny = await hookScript('deny', true);
+    const settings = join(root, 'settings.json');
+    await fs.writeFile(
+      settings,
+      JSON.stringify({
+        hooks: {
+          PreToolUse: [
+            { matcher: 'Bash', hooks: [{ type: 'command', command: NODE, args: [deny] }] },
+          ],
+        },
+      }),
+    );
+    // pr-attempt calls `gh pr create` (denied here) and then `git push` through PowerShell.
+    const id = await startBg(dir, ['--settings', settings, 'Open a pull request.'], 'pr-attempt');
+    await waitFor(async () => ((await agents())[0]?.state === 'done' ? true : undefined));
+    const ran = (await fs.readFile(join(cfg, 'fake', 'sessions', `${id}.ran.jsonl`), 'utf8'))
+      .split('\n')
+      .filter((l) => l !== '')
+      .map((l) => JSON.parse(l) as { tool_name: string; tool_input: { command: string } });
+    expect(ran.map((r) => r.tool_input.command)).toEqual(['git push -u origin HEAD']);
+    expect(ran[0]?.tool_name).toBe('PowerShell');
   });
 });

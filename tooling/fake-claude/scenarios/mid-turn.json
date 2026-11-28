@@ -1,0 +1,37 @@
+{
+  "description": "A turn that stays working until `--fake-release <name> finish`, then runs the tests, updates the status line and finishes.",
+  "steps": [
+    { "at": 0, "state": "working", "status": "busy", "output": "● Working on the fix…\r\n" },
+    {
+      "at": 100,
+      "hook": {
+        "event": "PreToolUse",
+        "payload": { "tool_name": "Bash", "tool_input": { "command": "npm test" } }
+      }
+    },
+    { "at": 200, "gate": "finish" },
+    {
+      "at": 200,
+      "output": "  ⎿  Tests passed\r\n",
+      "hook": {
+        "event": "PostToolUse",
+        "payload": {
+          "tool_name": "Bash",
+          "tool_input": { "command": "npm test" },
+          "tool_response": { "stdout": "Tests passed" }
+        }
+      }
+    },
+    { "at": 200, "statusline": { "contextPct": 30 } },
+    {
+      "at": 200,
+      "state": "done",
+      "status": "idle",
+      "output": "● Done.\r\n",
+      "hook": {
+        "event": "Stop",
+        "payload": { "stop_hook_active": false, "last_assistant_message": "Done." }
+      }
+    }
+  ]
+}

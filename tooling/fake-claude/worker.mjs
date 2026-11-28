@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { logFile, pipeName, writeSession } from './store.mjs';
+import { gateFile, logFile, pipeName, ranFile, writeSession } from './store.mjs';
 
 const [home, encoded] = process.argv.slice(2);
 const init = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
@@ -129,6 +129,7 @@ function runCommand(hook, input) {
   });
 }
 
+/** Shows a hook's deny or block in the output; true when it stops the tool call. */
 function report(event, hook, result) {
   let decision;
   try {
@@ -138,14 +139,23 @@ function report(event, hook, result) {
   }
   if (decision?.permissionDecision === 'deny') {
     emit(`  ⎿  ${event} hook denied this tool: ${decision.permissionDecisionReason ?? ''}\r\n`);
-  } else if (result.code === 2) {
-    emit(`  ⎿  ${event} hook blocked: ${result.stderr.trim()}\r\n`);
-  } else if (result.code !== 0 && hook.onFailure === 'block') {
-    emit(`  ⎿  ${event} hook failed and blocked the tool\r\n`);
+    return true;
   }
+  if (result.code === 2) {
+    emit(`  ⎿  ${event} hook blocked: ${result.stderr.trim()}\r\n`);
+    return true;
+  }
+  if (result.code !== 0 && hook.onFailure === 'block') {
+    emit(`  ⎿  ${event} hook failed and blocked the tool\r\n`);
+    return true;
+  }
+  return false;
 }
 
-/** Runs every matching command hook; waits for sync hooks, not for async ones. */
+/**
+ * Runs every matching command hook; waits for sync hooks, not for async ones. True when a sync
+ * hook denied or blocked.
+ */
 async function runHooks(event, payload = {}) {
   const groups = readSettings().hooks?.[event];
   if (!Array.isArray(groups)) return;
@@ -166,7 +176,7 @@ async function runHooks(event, payload = {}) {
       if (hook.async !== true) waits.push(run.then((result) => report(event, hook, result)));
     }
   }
-  await Promise.all(waits);
+  return (await Promise.all(waits)).some(Boolean);
 }
 
 async function runStatusLine(contextPct) {
@@ -187,15 +197,30 @@ async function runStatusLine(contextPct) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** A tool call: PreToolUse hooks decide; an allowed call is recorded as run, then PostToolUse. */
+async function toolCall({ tool_name, tool_input, tool_response }) {
+  if (await runHooks('PreToolUse', { tool_name, tool_input })) return;
+  fs.appendFileSync(ranFile(home, record.id), `${JSON.stringify({ tool_name, tool_input })}\n`);
+  await runHooks('PostToolUse', { tool_name, tool_input, tool_response: tool_response ?? {} });
+}
+
+/** Waits until `cli.mjs --fake-release <name> <gate>` creates the gate file. */
+async function waitForGate(gate) {
+  const file = gateFile(home, record.name, gate);
+  while (!fs.existsSync(file)) await sleep(50);
+}
+
 async function playScenario() {
   scenarioPlayed = true;
   const start = Date.now();
   const steps = [...(init.scenario.steps ?? [])].sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
   for (const step of steps) {
     await sleep(Math.max(0, start + (step.at ?? 0) - Date.now()));
+    if (step.gate !== undefined) await waitForGate(step.gate);
     if (step.state !== undefined) setState(step.state, step.status, step.waitingFor ?? null);
     if (step.output !== undefined) emit(step.output);
     if (step.hook !== undefined) await runHooks(step.hook.event, step.hook.payload ?? {});
+    if (step.toolCall !== undefined) await toolCall(step.toolCall);
     if (step.statusline !== undefined) await runStatusLine(step.statusline.contextPct);
   }
 }
