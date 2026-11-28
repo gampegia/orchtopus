@@ -371,6 +371,32 @@ describe('session service', { timeout: 60_000 }, () => {
     expect(registry.get(terminalId)).toBeDefined();
   });
 
+  it('open waits for a start that is still running, then attaches', async () => {
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const gated: AgentAdapter = {
+      ...adapter,
+      start: async (startInput) => {
+        await gate;
+        return adapter.start(startInput);
+      },
+    };
+    const s = service({ adapter: gated });
+    const started = s.start(input());
+    await waitFor(() => Promise.resolve(listSessions(store.db).length === 1));
+    const [row] = listSessions(store.db);
+    if (row === undefined) throw new Error('no session row');
+    // The renderer opens a session as soon as it is selected, while its start still runs.
+    const opened = s.open(row.id, SIZE);
+    release();
+    const view = await started;
+    const { terminalId } = await opened;
+    expect(view.id).toBe(row.id);
+    expect(registry.get(terminalId)).toBeDefined();
+  });
+
   it('a session that never started answers open with 409', async () => {
     trust(join(repo.root, '..', 'elsewhere'));
     const s = service();

@@ -538,8 +538,13 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
 
   const open = (sessionId: string, size: TerminalSize) =>
     serialize(`session:${sessionId}`, async () => {
-      let row = findSession(sessionId);
+      findSession(sessionId);
+      // A start that runs in this process: wait for it, so a session selected right after its
+      // row appears opens without a 409. A pending start that is not running still answers 409.
+      const pending = pendingFor(sessionId);
+      if (pending?.kind === 'session.start') await chains.get(`action:${pending.id}`);
       if (pendingFor(sessionId)) throw new HttpError(409, STILL_STARTING);
+      let row = findSession(sessionId);
       refOf(row);
       const word = getSessionState(db, sessionId)?.word;
       if (word === 'stopped' || word === 'failed') {
