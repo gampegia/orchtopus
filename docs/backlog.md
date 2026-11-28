@@ -115,6 +115,10 @@ Added 2026-11-27. Status: idea, to be evaluated. Updated 2026-11-28: user decisi
 - Proposed by the lead: Orchtopus shows the page in the plan view, with Spec OK and Plan Go on it, and a raw-text fallback.
 - Proposed by the lead: Orchtopus checks that the HTML and the Markdown belong to the same revision. The session regenerates the HTML on every change.
 - Source: Thariq Shihipar's essay on HTML as the plan format, 2026-05-20 (https://claude.dev/blog/using-claude-code-the-unreasonable-effectiveness-of-html/). He does not read Markdown plans over about 100 lines. See `docs/research/2026-11-28-playground-and-staff-setups.md`, section 2.4.
+- Design chosen 2026-11-28 (user): direction D, "Map with parts", with "Needs you" in the document's signal colour. Follow-up after the template spec is approved: a DESIGN.md section for the review page and the label rule. Explorations: `docs/design/explorations/2026-11-28-plan-review/`. Template, markup contract and the revision check: `docs/specs/2026-11-28-review-page-template-design.md`. Open points for the build (the design stays as it is):
+  - Spike: does fragment navigation work on an opaque-origin `srcdoc` frame? The parts strip needs it to jump to a part.
+  - Mock of the decisions panel (host panel built from the page's `data-need` items).
+  - Map node labels are truncated when the "needs you" lamp is shown.
 - New project setting **"Keep specs and plans in the repository"**. Default yes, as superpowers does. When off, they live in the Orchtopus data folder and stay out of the PR.
 
 **Where it applies:**
@@ -203,7 +207,7 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M4 (review cou
 
 ## Cross-session messaging
 
-Added 2026-11-28. Status: spike of about 0.5 day. Suggested place: M5 (board, overlap warnings, usage).
+Added 2026-11-28. Status: spiked 2026-11-28, see [the spike](spikes/2026-11-28-cross-session-messaging.md): works on native Windows; the `crossSessionInbound` value is open until a bypass receiver is tested. Suggested place: M5 (board, overlap warnings, usage).
 
 **What it is:** documented same-machine messaging between sessions. On native Windows it needs v2.1.234 and uses a named pipe. The pipe path is `CLAUDE_CODE_MESSAGING_SOCKET`. A first line with `CLAUDE_CODE_MESSAGING_TOKEN` is required. See [EV-I4] and [EV-I5].
 
@@ -213,7 +217,7 @@ Added 2026-11-28. Status: spike of about 0.5 day. Suggested place: M5 (board, ov
 - Overlap warnings: tell the affected sessions when one lands a change (F14).
 - Course corrections to a running session.
 
-**Rule:** Orchtopus must set `crossSessionInbound` (`accept`, `hold` or `refuse`) explicitly in its `--settings`. When unset, the behaviour depends on the permission modes.
+**Rule:** open decision. When unset, the behaviour depends on the permission modes; manual and auto sessions deliver Orchtopus messages (spike, Q2). Whether to leave it unset or set `accept` for bypass sessions waits for one bypass receiver test (spike, "Setting").
 
 **Spike questions:** can our hook helper post to its own session's pipe on Windows; does a background session bind a pipe; what does `hold` look like. Messages count toward usage and loops are only throttled, so Orchtopus sends and sessions do not chat freely.
 
