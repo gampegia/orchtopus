@@ -11,13 +11,10 @@ export interface ClaudeConfigPaths {
 }
 
 export function claudeConfigPaths(env: NodeJS.ProcessEnv, home: string): ClaudeConfigPaths {
-  const override = env.CLAUDE_CONFIG_DIR?.trim();
-  const dir = override === undefined || override === '' ? join(home, '.claude') : override;
+  const custom = env.CLAUDE_CONFIG_DIR?.trim() || undefined;
+  const dir = custom ?? join(home, '.claude');
   return {
-    globalConfig:
-      override === undefined || override === ''
-        ? join(home, '.claude.json')
-        : join(dir, '.claude.json'),
+    globalConfig: custom === undefined ? join(home, '.claude.json') : join(dir, '.claude.json'),
     userSettings: join(dir, 'settings.json'),
     userClaudeMd: join(dir, 'CLAUDE.md'),
     userSkills: join(dir, 'skills'),
