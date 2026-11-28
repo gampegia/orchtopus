@@ -522,7 +522,9 @@
   height: 100%;
 }
 
-.terminal-host .xterm-viewport {
+/* xterm.css paints the viewport black; the rows left over below the last full line show it. */
+.terminal-host .xterm .xterm-viewport {
+  background-color: var(--surface-terminal);
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
