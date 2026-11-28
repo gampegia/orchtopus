@@ -23,9 +23,13 @@ export function SessionList(): React.JSX.Element {
   const listRef = useRef<HTMLDivElement>(null);
 
   // Arrow keys move the selection through all rows, across projects; focus follows it.
+  // Only keys on a row count: the project menu and the add buttons keep their own keys.
   const onKeyDown = (event: React.KeyboardEvent): void => {
     const move = MOVES[event.key];
     if (move === undefined) return;
+    if (!(event.target instanceof HTMLElement) || event.target.getAttribute('role') !== 'option') {
+      return;
+    }
     const ordered = sessionsInListOrder(useAppStore.getState().state);
     if (ordered.length === 0) return;
     event.preventDefault();
