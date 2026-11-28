@@ -114,6 +114,33 @@ describe('attach terminal (scripted PTY)', () => {
     expect(replay.endsWith('tail')).toBe(true);
   });
 
+  it('keeps a real U+FFFD at the start of the trimmed replay', () => {
+    const { pty, handle } = scripted();
+    pty.emit(`ab�${'x'.repeat(REPLAY_BYTES - 3)}`);
+    const replay = handle.replay();
+    expect(Buffer.byteLength(replay)).toBe(REPLAY_BYTES);
+    expect(replay.startsWith('�x')).toBe(true);
+  });
+
+  it('trims the replay on a character boundary', () => {
+    const { pty, handle } = scripted();
+    pty.emit('a');
+    // Three bytes each, so the cut lands inside a character.
+    pty.emit('€'.repeat(Math.ceil(REPLAY_BYTES / 3) + 1));
+    const replay = handle.replay();
+    expect(Buffer.byteLength(replay)).toBeLessThanOrEqual(REPLAY_BYTES);
+    expect(replay).toMatch(/^€+$/);
+  });
+
+  it('keeps the newest output across many small chunks', () => {
+    const { pty, handle } = scripted();
+    const chunk = 'y'.repeat(1023);
+    for (let i = 0; i < 1_000; i += 1) pty.emit(`${chunk}${String(i % 10)}`);
+    const replay = handle.replay();
+    expect(Buffer.byteLength(replay)).toBe(REPLAY_BYTES);
+    expect(replay.endsWith(`${chunk}9`)).toBe(true);
+  });
+
   it('reports elsewhere when the tail has the takeover text, even with escape codes', () => {
     const { pty, handle } = scripted();
     const exits: TerminalExit[] = [];

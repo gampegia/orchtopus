@@ -85,7 +85,7 @@ export function createBackgroundAdapter(deps: {
 
   const list = (): Promise<AgentEntry[]> => listAgents(cmd);
 
-  /** The session's folder: given by the caller, else from agents --json, else the home folder. */
+  /** The session's folder: given by the caller, else from agents --json; never a guess. */
   const cwdOf = async (ref: SessionRef): Promise<string> => {
     if (ref.cwd !== undefined && ref.cwd !== '') return ref.cwd;
     try {
@@ -94,9 +94,9 @@ export function createBackgroundAdapter(deps: {
       );
       if (entry !== undefined) return entry.cwd;
     } catch {
-      // Fall back below; attach and resume find the session by id.
+      // Refused below: resume or attach in a wrong folder would run Claude Code there.
     }
-    return homedir();
+    throw new AdapterError('Session folder unknown.');
   };
 
   const findStarted = async (
@@ -118,9 +118,12 @@ export function createBackgroundAdapter(deps: {
       } catch {
         // A failed poll is retried until the deadline.
       }
+      // A printed short id must match, so another session in the same folder (the user's own)
+      // is never adopted; the newest entry counts only when nothing was printed.
       const match =
-        entries.find((e) => e.id === shortId) ??
-        [...entries].sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0))[0];
+        shortId !== null
+          ? entries.find((e) => e.id === shortId)
+          : [...entries].sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0))[0];
       if (match?.sessionId != null) return { sessionId: match.sessionId, shortId: match.id };
       if (now() >= deadline) return null;
       await sleep(ID_POLL_MS);

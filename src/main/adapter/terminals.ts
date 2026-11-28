@@ -1,7 +1,8 @@
 // The app's terminals: one attach PTY per session (never reopened by itself, spec section 4 and
 // Review Focus 3) and trust-step terminals. The stream handler serves /v1/terminals/<id>:
 // replay as one binary frame, then live output as binary frames; client frames are validated
-// JSON text, and anything else closes the socket with 1008.
+// JSON text, and anything else closes the socket with 1008. A client that falls more than
+// MAX_BUFFERED_BYTES behind is closed with 1013.
 import type { RawData, WebSocket } from 'ws';
 import type { TerminalStreamHandler } from '../api/streams';
 import { terminalClientMessageSchema } from '../api/schemas';
@@ -9,7 +10,10 @@ import type { TerminalState } from '../app-context';
 import type { AgentAdapter, SessionRef, TerminalHandle, TerminalSize } from './agent-adapter';
 
 export const MAX_INPUT_BYTES = 64 * 1024;
+/** A client this far behind is closed; it reconnects and gets the replay instead. */
+export const MAX_BUFFERED_BYTES = 8 * 1024 * 1024;
 const POLICY_VIOLATION = 1008;
+const TRY_AGAIN_LATER = 1013;
 const NORMAL_CLOSE = 1000;
 
 export interface TerminalRegistry {
@@ -163,8 +167,12 @@ export function createTerminalStreamHandler(registry: TerminalRegistry): Termina
       return;
     }
     const send = (chunk: string): void => {
-      if (socket.readyState === socket.OPEN)
-        socket.send(Buffer.from(chunk, 'utf8'), { binary: true });
+      if (socket.readyState !== socket.OPEN) return;
+      if (socket.bufferedAmount > MAX_BUFFERED_BYTES) {
+        socket.close(TRY_AGAIN_LATER, 'client too slow');
+        return;
+      }
+      socket.send(Buffer.from(chunk, 'utf8'), { binary: true });
     };
     // Replay and subscription happen in one tick, so no chunk is lost or sent twice.
     send(handle.replay());

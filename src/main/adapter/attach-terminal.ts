@@ -66,6 +66,8 @@ export function openPtyTerminal(opts: {
   const dataListeners = new Set<(chunk: string) => void>();
   const exitListeners = new Set<(info: TerminalExit) => void>();
   let chunks: string[] = [];
+  let sizes: number[] = [];
+  let head = 0;
   let bytes = 0;
   let tail = '';
   let isReady = false;
@@ -89,27 +91,33 @@ export function openPtyTerminal(opts: {
   };
   const maxTimer = setTimeout(markReady, READY_MAX_MS);
 
+  // Whole chunks only; the oldest are dropped while the rest still fill REPLAY_BYTES, so the
+  // kept bytes exceed the limit by less than one chunk. replay() trims the excess once.
   const keep = (chunk: string): void => {
     chunks.push(chunk);
-    bytes += Buffer.byteLength(chunk);
-    while (bytes > REPLAY_BYTES && chunks.length > 0) {
-      const first = chunks[0] ?? '';
-      const over = bytes - REPLAY_BYTES;
-      const size = Buffer.byteLength(first);
-      if (size <= over) {
-        chunks.shift();
-        bytes -= size;
-      } else {
-        // Cut the oldest chunk on a character boundary.
-        const cut = Buffer.from(first).subarray(over).toString('utf8').replace(/^�+/, '');
-        chunks[0] = cut;
-        bytes -= size - Buffer.byteLength(cut);
-      }
+    sizes.push(Buffer.byteLength(chunk));
+    bytes += sizes[sizes.length - 1] ?? 0;
+    while (head < chunks.length - 1 && bytes - (sizes[head] ?? 0) >= REPLAY_BYTES) {
+      bytes -= sizes[head] ?? 0;
+      head += 1;
     }
-    if (chunks.length > 256) {
-      chunks = [chunks.join('')];
+    // Compact now and then, so the dropped chunks are freed without a shift per chunk.
+    if (head > 1_024 && head * 2 > chunks.length) {
+      chunks = chunks.slice(head);
+      sizes = sizes.slice(head);
+      head = 0;
     }
     tail = (tail + chunk).slice(-TAIL_CHARS);
+  };
+
+  const replay = (): string => {
+    const text = (head === 0 ? chunks : chunks.slice(head)).join('');
+    if (bytes <= REPLAY_BYTES) return text;
+    const buffer = Buffer.from(text, 'utf8');
+    let start = buffer.length - REPLAY_BYTES;
+    // Skip UTF-8 continuation bytes, so the cut never splits a character.
+    while (start < buffer.length && ((buffer[start] ?? 0) & 0xc0) === 0x80) start += 1;
+    return buffer.subarray(start).toString('utf8');
   };
 
   const dataSub = pty.onData((chunk) => {
@@ -160,7 +168,7 @@ export function openPtyTerminal(opts: {
       exitListeners.add(cb);
       return () => exitListeners.delete(cb);
     },
-    replay: () => chunks.join(''),
+    replay,
     dispose: () => {
       if (ended) return;
       ended = true;

@@ -1,8 +1,10 @@
 // The background adapter against the fake claude CLI (temp config dir, trusted temp folders).
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { listAgents } from '../claude/agents';
-import { StartError, type StartInput } from './agent-adapter';
+import { AdapterError, StartError, type StartInput } from './agent-adapter';
 import { buildStartArgs, createBackgroundAdapter } from './background-adapter';
 import { setupFakeClaude, sleep, waitFor, type FakeClaude } from './testing';
 
@@ -172,6 +174,48 @@ describe('background adapter', { timeout: 30_000 }, () => {
     const error = await a.start(input(fake.folder('acme-app'))).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(StartError);
     expect((error as Error).message).toBe('session id not found');
+  });
+
+  it('never adopts another session in the folder when a different short id was printed', async () => {
+    const dir = fake.folder('acme-app');
+    // `--bg` really starts a session (like a user's own one), but prints another short id.
+    const wrapper = join(fake.root, 'other-id.mjs');
+    writeFileSync(
+      wrapper,
+      [
+        "import { spawnSync } from 'node:child_process';",
+        'const args = process.argv.slice(2);',
+        "if (args.includes('--bg')) {",
+        `  spawnSync(process.execPath, [${JSON.stringify(fake.cmd.prefixArgs[0])}, ...args], { stdio: 'ignore' });`,
+        "  process.stdout.write('backgrounded · 0badc0de · upload-fix\\n');",
+        '} else {',
+        `  await import(${JSON.stringify(pathToFileURL(fake.cmd.prefixArgs[0] ?? '').href)});`,
+        '}',
+      ].join('\n'),
+    );
+    let offset = 0;
+    const a = createBackgroundAdapter({
+      cmd: { command: fake.cmd.command, prefixArgs: [wrapper] },
+      now: () => Date.now() + offset,
+      sleep: () => {
+        offset += 5_000;
+        return Promise.resolve();
+      },
+    });
+    const error = await a.start(input(dir)).catch((e: unknown) => e);
+    expect((await listAgents(fake.cmd)).map((e) => e.id)).not.toContain('0badc0de');
+    expect(await listAgents(fake.cmd)).toHaveLength(1);
+    expect(error).toBeInstanceOf(StartError);
+    expect((error as Error).message).toBe('session id not found');
+  });
+
+  it('resume and attach refuse a session whose folder is unknown', async () => {
+    const a = adapter();
+    const ref = { sessionId: '00000000-0000-4000-8000-000000000000', shortId: '00000000' };
+    await expect(a.resume(ref)).rejects.toThrow(AdapterError);
+    await expect(a.resume(ref)).rejects.toThrow('Session folder unknown.');
+    await expect(a.attach(ref, { cols: 80, rows: 24 })).rejects.toThrow('Session folder unknown.');
+    expect(fake.argv().filter((argv) => argv.includes('--resume'))).toEqual([]);
   });
 
   it('resume passes no flag besides --bg --resume', async () => {
