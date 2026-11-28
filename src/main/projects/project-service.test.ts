@@ -299,6 +299,95 @@ describe('project service', () => {
     await expect(svc.setupCheck('acme-web')).rejects.toMatchObject({ status: 404 });
   });
 
+  it('add answers 409 for a requestId that belongs to another action kind', async () => {
+    const actions = createActionRunner(store, stepClock());
+    actions.begin('project.remove', { projectId: 'acme-web' }, 'req-0020');
+    const svc = service({ actions });
+    await expect(svc.add(addInput(), 'req-0020')).rejects.toMatchObject({ status: 409 });
+    expect(listProjects(store.db)).toEqual([]);
+  });
+
+  it('add continues a pending action with its logged params, not the new request', async () => {
+    const actions = createActionRunner(store, stepClock());
+    // A crash right after begin: the logged decision is the first request.
+    actions.begin('project.add', addInput({ copyList: ['.env'] }), 'req-0021');
+    const view = await service({ actions }).add(addInput({ copyList: [] }), 'req-0021');
+    expect(view.copyList).toEqual(['.env']);
+    const config = await readProjectConfig(projectFile(paths, view.id));
+    expect(config.copyList).toEqual(['.env']);
+  });
+
+  it('resumePending fails an action with a permanent 4xx error, so it is not retried', async () => {
+    const plain = mkdtempSync(join(tmpdir(), 'orchtopus-plain-'));
+    rmSync(plain, { recursive: true, force: true });
+    const actions = createActionRunner(store, stepClock());
+    actions.begin('project.add', addInput({ path: plain }), 'req-0022');
+    const logs: string[] = [];
+    const svc = service({ actions, log: (m) => logs.push(m) });
+    await svc.resumePending();
+    expect(actions.get('req-0022')?.status).toBe('failed');
+    expect(actions.pending()).toEqual([]);
+    await svc.resumePending();
+    expect(logs).toHaveLength(1);
+  });
+
+  it('resumePending keeps an action pending after a transient error', async () => {
+    const actions = createActionRunner(store, stepClock());
+    actions.begin('project.add', addInput(), 'req-0023');
+    const svc = service({
+      actions,
+      writeConfig: () => Promise.reject(new Error('EBUSY')),
+    });
+    await svc.resumePending();
+    expect(actions.get('req-0023')?.status).toBe('pending');
+  });
+
+  it('add publishes the project as soon as it is logged, even when the write fails', async () => {
+    const svc = service({ writeConfig: () => Promise.reject(new Error('EBUSY')) });
+    await expect(svc.add(addInput(), 'req-0024')).rejects.toThrow('EBUSY');
+    expect(listProjects(store.db).map((p) => p.id)).toEqual(['acme-app']);
+    expect(published).toMatchObject([{ v: 1, kind: 'project', project: { id: 'acme-app' } }]);
+  });
+
+  it('remove publishes as soon as it is logged and a repeat continues the pending remove', async () => {
+    let fail = true;
+    const svc = service({
+      removeConfig: async (file) => {
+        if (fail) throw new Error('EBUSY');
+        const { rm } = await import('node:fs/promises');
+        await rm(file, { force: true });
+      },
+    });
+    const view = await svc.add(addInput(), 'req-0025');
+    published = [];
+    await expect(svc.remove(view.id)).rejects.toThrow('EBUSY');
+    expect(published).toEqual([{ v: 1, kind: 'project-removed', projectId: view.id }]);
+    expect(existsSync(projectFile(paths, view.id))).toBe(true);
+    fail = false;
+    await svc.remove(view.id);
+    expect(existsSync(projectFile(paths, view.id))).toBe(false);
+    expect(readEvents(store.db).filter((e) => e.type === 'project.removed')).toHaveLength(1);
+    await expect(svc.remove(view.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('keeps a token in the remote URL out of project.json and the event log', async () => {
+    git(repo.root, [
+      'remote',
+      'add',
+      'origin',
+      'https://acme-bot:ghp_secrettoken123@github.com/acme/acme-app.git',
+    ]);
+    const view = await service().add(addInput(), 'req-0026');
+    const { readFileSync } = await import('node:fs');
+    const file = readFileSync(projectFile(paths, view.id), 'utf8');
+    expect(file).toContain('github.com/acme/acme-app.git');
+    expect(file).not.toContain('ghp_secrettoken123');
+    expect(file).not.toContain('acme-bot');
+    const events = JSON.stringify(readEvents(store.db));
+    expect(events).not.toContain('ghp_secrettoken123');
+    expect(events).not.toContain('acme-bot');
+  });
+
   it('rememberStart stores the last start values in project.json', async () => {
     const svc = service();
     const view = await svc.add(addInput(), 'req-0011');

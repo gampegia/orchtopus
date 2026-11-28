@@ -2,7 +2,7 @@
 // manifests and the git-ignored `.env*` files to copy into new worktrees (D11). Read only.
 import { access, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runGit } from '../git/git';
+import { runGit, type GitResult } from '../git/git';
 import type { ProjectConfig } from './project-config';
 
 type CheckCommands = ProjectConfig['checkCommands'];
@@ -77,8 +77,28 @@ export async function detectCheckCommands(root: string): Promise<CheckCommands> 
   return { ...NO_COMMANDS };
 }
 
-/** Top-level `.env*` files that git reports as ignored (tracked files never are). */
-export async function suggestCopyList(root: string): Promise<string[]> {
+type RunGit = (args: readonly string[], opts: { cwd: string }) => Promise<GitResult>;
+
+/** check-ignore exit codes: 0 ignored, 1 not ignored, anything else is a git error or timeout. */
+async function isIgnored(root: string, name: string, run: RunGit): Promise<boolean | null> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await run(['check-ignore', '--quiet', '--', name], { cwd: root });
+      if (res.code === 0) return true;
+      if (res.code === 1) return false;
+    } catch {
+      // A git that cannot start counts like a failed run: retry once.
+    }
+  }
+  return null;
+}
+
+/**
+ * Top-level `.env*` files that git reports as ignored (tracked files never are). When git cannot
+ * answer for a name, even after one retry, every name comes back unfiltered: the dialog shows the
+ * list for review, and a silently dropped file is worse than one extra suggestion.
+ */
+export async function suggestCopyList(root: string, run: RunGit = runGit): Promise<string[]> {
   let names: string[];
   try {
     const entries = await readdir(root, { withFileTypes: true });
@@ -86,16 +106,13 @@ export async function suggestCopyList(root: string): Promise<string[]> {
   } catch {
     return [];
   }
-  if (names.length === 0) return [];
-  try {
-    // One quiet check per name: plain output may quote unusual names, and -z needs --stdin.
-    const ignored: string[] = [];
-    for (const name of names) {
-      const res = await runGit(['check-ignore', '--quiet', '--', name], { cwd: root });
-      if (res.code === 0) ignored.push(name);
-    }
-    return ignored.sort();
-  } catch {
-    return [];
+  names.sort();
+  // One quiet check per name: plain output may quote unusual names, and -z needs --stdin.
+  const ignored: string[] = [];
+  for (const name of names) {
+    const answer = await isIgnored(root, name, run);
+    if (answer === null) return names;
+    if (answer) ignored.push(name);
   }
+  return ignored;
 }

@@ -31,8 +31,6 @@ import {
 } from './project-config';
 import { runSetupCheck } from './setup-check';
 
-export type { InspectResult } from '../../shared/api-types';
-
 export interface AddProjectInput {
   path: string;
   checkCommands: ProjectConfig['checkCommands'];
@@ -167,10 +165,6 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
       projectId: config.id,
       payload: { name: config.name, path: config.path, config },
     });
-    await actions.step(actionId, 'write-config', async () => {
-      await writeConfig(projectFile(paths, config.id), config);
-      return true;
-    });
     const view = toProjectView({
       id: config.id,
       name: config.name,
@@ -178,8 +172,13 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
       config,
       addedAt: '',
     });
-    actions.finish(actionId, view);
+    // The row exists from the append on, so open clients see it even if the write below fails.
     publish({ v: 1, kind: 'project', project: view });
+    await actions.step(actionId, 'write-config', async () => {
+      await writeConfig(projectFile(paths, config.id), config);
+      return true;
+    });
+    actions.finish(actionId, view);
     return view;
   };
 
@@ -191,6 +190,8 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
       projectId,
       payload: {},
     });
+    // The row is gone from the append on, so open clients drop it even if the delete fails.
+    publish({ v: 1, kind: 'project-removed', projectId });
     await actions.step(actionId, 'delete-config', async () => {
       const file = projectFile(paths, projectId);
       await removeConfig(file);
@@ -199,7 +200,6 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
       return true;
     });
     actions.finish(actionId, null);
-    publish({ v: 1, kind: 'project-removed', projectId });
   };
 
   const resume = async (record: ActionRecord): Promise<void> => {
@@ -241,6 +241,9 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
     add(input, actionId = randomUUID()) {
       return serialize(async () => {
         const existing = actions.get(actionId);
+        if (existing !== undefined && existing.kind !== 'project.add') {
+          throw new HttpError(409, 'This request id belongs to another action.');
+        }
         if (existing?.status === 'done') return existing.result as ProjectView;
         if (existing?.status === 'failed') {
           throw new HttpError(409, existing.error ?? 'This request failed before.');
@@ -255,12 +258,25 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
           }
           actions.begin('project.add', input, actionId);
         }
-        return runAdd(actionId, input, checked);
+        // A pending action continues with the params it logged, not with this request's.
+        return runAdd(actionId, existing ? (existing.params as AddProjectInput) : input, checked);
       });
     },
 
     remove(projectId) {
       return serialize(async () => {
+        // A remove that failed after its log entry continues, so a repeated DELETE stays
+        // idempotent instead of answering 404 for the row that is already gone.
+        const pendingRemove = actions
+          .pending()
+          .find(
+            (p) =>
+              p.kind === 'project.remove' && (p.params as RemoveParams).projectId === projectId,
+          );
+        if (pendingRemove) {
+          await runRemove(pendingRemove.id, projectId);
+          return;
+        }
         findProject(projectId);
         if (listSessions(store.db).some((s) => s.projectId === projectId)) {
           throw new HttpError(409, 'Remove the sessions of this project first.');
@@ -317,6 +333,11 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             deps.log?.(`Could not continue ${record.kind} ${record.id}: ${message}`);
+            // A 4xx (for example a deleted repository folder) never heals: stop retrying it on
+            // every start. Anything else (EBUSY, a crash) stays pending for the next start.
+            if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
+              actions.fail(record.id, message);
+            }
           }
         }
       });
