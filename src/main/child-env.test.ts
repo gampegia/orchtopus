@@ -23,4 +23,25 @@ describe('cleanEnv', () => {
       GIT_TERMINAL_PROMPT: '0',
     });
   });
+
+  it('drops variables that point git at another repository', () => {
+    const env = cleanEnv(
+      {},
+      {
+        PATH: 'C:\\bin',
+        GIT_DIR: 'C:\\other\\.git',
+        GIT_WORK_TREE: 'C:\\other',
+        GIT_INDEX_FILE: 'C:\\other\\.git\\index',
+        GIT_COMMON_DIR: 'C:\\other\\.git',
+        GIT_TERMINAL_PROMPT: '0',
+      },
+    );
+    expect(env).toEqual({ PATH: 'C:\\bin', GIT_TERMINAL_PROMPT: '0' });
+  });
+
+  it('matches the variable names case-insensitively, as Windows does', () => {
+    expect(
+      cleanEnv({}, { ClaudeCode: '1', claude_code_x: '1', Git_Dir: 'C:\\x', Path: 'C:\\bin' }),
+    ).toEqual({ Path: 'C:\\bin' });
+  });
 });

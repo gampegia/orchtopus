@@ -1,9 +1,10 @@
 // Test helper: a throwaway Git repository with one commit, an ignored `.env`
 // and a tracked `.env.example`, optionally with a bare `origin` remote.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 export interface TempRepo {
   root: string;
@@ -34,10 +35,31 @@ export function isolatedGitEnv(): Record<string, string> {
   return { GIT_CONFIG_GLOBAL: file, GIT_CONFIG_NOSYSTEM: '1' };
 }
 
+/**
+ * rmSync with a longer window: on Windows a git child that has just exited can hold a
+ * folder for a moment (EPERM or EBUSY), most often under parallel test load. Retries for
+ * up to `ms`, then throws the last error.
+ */
+export async function removeDir(dir: string, ms = 15_000): Promise<void> {
+  const until = Date.now() + ms;
+  for (;;) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if ((code !== 'EPERM' && code !== 'EBUSY') || Date.now() > until) throw error;
+      await sleep(200);
+    }
+  }
+}
+
 export function createTempRepo(
   opts: { withRemote?: boolean; dirName?: string } = {},
 ): Promise<TempRepo> {
-  const base = mkdtempSync(join(tmpdir(), 'orchtopus-git-'));
+  // The long path: an 8.3 short temp path (RUNNER~1 on CI) would not match the paths
+  // git prints, so path comparisons in the tests would fail.
+  const base = realpathSync.native(mkdtempSync(join(tmpdir(), 'orchtopus-git-')));
   const root = join(base, opts.dirName ?? 'acme-app');
   mkdirSync(root);
   git(root, ['init', '--quiet', '--initial-branch=main']);
@@ -62,9 +84,6 @@ export function createTempRepo(
   return Promise.resolve({
     root,
     remote,
-    cleanup: () => {
-      rmSync(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
-      return Promise.resolve();
-    },
+    cleanup: () => removeDir(base),
   });
 }

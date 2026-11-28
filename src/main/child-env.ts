@@ -1,10 +1,14 @@
 // The environment every child process (git, claude) gets: the app's own
 // environment without variables that would make a child think it runs inside
-// Claude Code or Electron's Node mode, or that redirect the API.
+// Claude Code or Electron's Node mode, that redirect the API, or that point
+// git at another repository.
+
+const GIT_REPO_VARS = new Set(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR']);
 
 function isDropped(key: string): boolean {
   const k = key.toUpperCase();
   return (
+    GIT_REPO_VARS.has(k) ||
     k === 'CLAUDECODE' ||
     k === 'CLAUDE_PID' ||
     k === 'ELECTRON_RUN_AS_NODE' ||

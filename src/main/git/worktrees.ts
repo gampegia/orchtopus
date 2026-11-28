@@ -64,13 +64,21 @@ export async function ensureWorktreesExcluded(
   }
   const ignored = await runGit(['check-ignore', '-q', `${WORKTREES_DIR}/probe`], { cwd: root });
   if (ignored.code === 0) return 'already-ignored';
+  if (ignored.code !== 1) return { refused: 'Git could not check the ignore rules.' };
 
   const rel = await gitOut(['rev-parse', '--git-path', 'info/exclude'], root);
   if (rel === null || rel === '') return { refused: 'Git could not locate .git/info/exclude.' };
   const file = resolve(root, rel);
   await mkdir(dirname(file), { recursive: true });
   const current = existsSync(file) ? await readFile(file, 'utf8') : '';
-  if (current.split(/\r?\n/).includes(EXCLUDE_LINE)) return 'already-ignored';
+  if (current.split(/\r?\n/).includes(EXCLUDE_LINE)) {
+    // The line is there, yet Git does not ignore the folder: a later rule starting with !
+    // (in info/exclude or a .gitignore) un-ignores it. A second line would not help.
+    return {
+      refused:
+        'A rule starting with ! un-ignores .claude/worktrees. Remove that rule from .gitignore or .git/info/exclude.',
+    };
+  }
   const prefix = current === '' || current.endsWith('\n') ? '' : '\n';
   await appendFile(file, `${prefix}${EXCLUDE_LINE}\n`, 'utf8');
   return 'added';
@@ -139,7 +147,11 @@ async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
   return entries;
 }
 
-/** Creates the worktree on a new branch without upstream; idempotent. */
+/**
+ * Creates the worktree on a new branch without upstream. Idempotent across a crash at any
+ * step: `checkNewWorktree` refuses an existing branch before the action starts, so a branch
+ * found here was made by an earlier run of this action and is checked out as it is.
+ */
 export async function createWorktree(input: {
   root: string;
   task: string;
@@ -151,24 +163,27 @@ export async function createWorktree(input: {
   const path = worktreePath(input.root, input.task);
 
   const existing = (await listWorktrees(input.root)).find((w) => samePath(w.path, path));
-  let reattach = false;
+  let args: string[];
   if (existing !== undefined) {
     if (existing.branch !== `refs/heads/${input.branch}`) {
       throw new Error(`The worktree ${input.task} exists on another branch.`);
     }
     if (existsSync(path)) return { path };
-    // Registered but the folder is gone (crash, or deleted by hand): drop only this
-    // entry's metadata (never `git worktree prune`) and check the branch out again.
-    const removed = await runGit(['worktree', 'remove', path], { cwd: input.root });
-    if (removed.code !== 0) {
-      throw new Error(`git worktree remove failed: ${redactUrls(removed.stderr.trim())}`);
-    }
-    reattach = true;
+    // Registered but the folder is gone (crash, or deleted by hand): one `add --force`
+    // reuses this entry and checks the branch out again. Never `git worktree prune`.
+    args = ['worktree', 'add', '--quiet', '--force', path, input.branch];
+  } else {
+    const branchExists = await runGit(
+      ['show-ref', '--verify', '--quiet', `refs/heads/${input.branch}`],
+      { cwd: input.root },
+    );
+    // `worktree add -b` writes the branch before the checkout, so after a crash only the
+    // branch may exist.
+    args =
+      branchExists.code === 0
+        ? ['worktree', 'add', '--quiet', path, input.branch]
+        : ['worktree', 'add', '--quiet', '--no-track', '-b', input.branch, path, input.base];
   }
-
-  const args = reattach
-    ? ['worktree', 'add', '--quiet', path, input.branch]
-    : ['worktree', 'add', '--quiet', '--no-track', '-b', input.branch, path, input.base];
   const res = await runGit(args, { cwd: input.root });
   if (res.code !== 0) {
     throw new Error(`git worktree add failed: ${redactUrls(res.stderr.trim())}`);
@@ -181,10 +196,26 @@ function isInside(parent: string, child: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
 }
 
-function unsafeEntry(entry: string): boolean {
-  if (entry.trim() === '') return true;
-  if (isAbsolute(entry) || win32.isAbsolute(entry) || /^[a-z]:/i.test(entry)) return true;
-  return entry.split(/[\\/]/).some((segment) => segment === '..');
+/**
+ * True for a copy-list entry that may be copied from the main folder into a worktree: a
+ * relative path without `..`, without `:` (a drive or an NTFS stream), not `.git` (it would
+ * overwrite the worktree's `.git` link file) and not `.claude` or anything under
+ * `.claude/worktrees` (a worktree inside a worktree).
+ */
+export function isSafeCopyEntry(entry: string): boolean {
+  if (entry.trim() === '' || entry.includes(':')) return false;
+  if (/^[\\/]/.test(entry) || isAbsolute(entry) || win32.isAbsolute(entry)) return false;
+  const names: string[] = [];
+  for (const segment of entry.split(/[\\/]/)) {
+    if (segment === '' || segment === '.') continue;
+    // Windows drops trailing dots and spaces, so `.git.` names `.git` and `.. ` names `..`.
+    const name = segment.replace(/[. ]+$/, '').toLowerCase();
+    if (name === '') return false;
+    names.push(name);
+  }
+  if (names.length === 0 || names[0] === '.git') return false;
+  if (names[0] === '.claude' && (names.length === 1 || names[1] === 'worktrees')) return false;
+  return true;
 }
 
 /** Copies the project's list of ignored files from the main folder into a worktree. */
@@ -199,7 +230,7 @@ export async function copyIntoWorktree(
   const realRoot = realpathSync.native(root);
   for (const entry of list) {
     const source = resolve(root, entry);
-    if (unsafeEntry(entry) || !isInside(resolve(root), source)) {
+    if (!isSafeCopyEntry(entry) || !isInside(resolve(root), source)) {
       refused.push(entry);
       continue;
     }
@@ -234,6 +265,9 @@ export async function removeWorktree(
   root: string,
   path: string,
 ): Promise<'removed' | { refused: string }> {
+  if (!isInside(resolve(root, WORKTREES_DIR), resolve(path))) {
+    return { refused: 'Orchtopus only removes worktrees under .claude/worktrees.' };
+  }
   const registered = (await listWorktrees(root)).some((w) => samePath(w.path, path));
   if (!registered) {
     if (!existsSync(path)) return 'removed';

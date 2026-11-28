@@ -15,7 +15,7 @@ describe('stripCredentials', () => {
     ['ssh://git:pw@host/acme.git', 'ssh://git@host/acme.git'],
     ['ssh://git@host/acme.git', 'ssh://git@host/acme.git'],
     ['git@github.com:acme/acme-app.git', 'git@github.com:acme/acme-app.git'],
-    ['C:\repos\remote.git', 'C:\repos\remote.git'],
+    ['C:\\repos\\remote.git', 'C:\\repos\\remote.git'],
     ['https://github.com/acme/acme-app.git', 'https://github.com/acme/acme-app.git'],
   ])('%s -> %s', (input, expected) => {
     expect(stripCredentials(input)).toBe(expected);

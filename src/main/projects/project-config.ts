@@ -4,18 +4,13 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { z } from 'zod';
+import { isSafeCopyEntry } from '../git/worktrees';
 import { renameWithRetry } from '../hooks/install';
 
 export const PROJECT_SCHEMA_VERSION = 1;
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const MAX_PREFIX_LENGTH = 64;
-
-/** A relative path inside the repository: no drive, no leading slash, no `..` segment. */
-function isRelativeInside(path: string): boolean {
-  if (/^[\\/]/.test(path) || /^[A-Za-z]:/.test(path)) return false;
-  return !path.split(/[\\/]/).some((segment) => segment === '..');
-}
 
 /**
  * Returns an error text for a branch prefix git could not put in front of a task name, or
@@ -48,11 +43,9 @@ export const checkCommandsSchema = z.object({
   typecheck: z.string().nullable(),
 });
 
-export const copyListEntrySchema = z
-  .string()
-  .min(1)
-  .max(260)
-  .refine(isRelativeInside, { error: 'Use a path inside the repository, without ..' });
+export const copyListEntrySchema = z.string().min(1).max(260).refine(isSafeCopyEntry, {
+  error: 'Use a path inside the repository, without .., and outside .git and .claude/worktrees.',
+});
 
 export const branchPrefixSchema = z.string().superRefine((value, ctx) => {
   const error = validateBranchPrefix(value);
