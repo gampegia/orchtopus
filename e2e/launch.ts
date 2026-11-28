@@ -1,5 +1,6 @@
 // Launches the built app for e2e tests with its own temp data folder and Claude home, so a test
 // never touches the real %APPDATA%\Orchtopus or ~/.claude.
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -20,6 +21,7 @@ export interface LaunchedApp {
   app: ElectronApplication;
   page: Page;
   dataDir: string;
+  claudeHome: string;
 }
 
 const BLOCKED = new Set(['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL']);
@@ -56,7 +58,15 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
       : { args: ['.'], env, colorScheme: null, timeout: 60_000 },
   );
   const page = await app.firstWindow();
-  return { app, page, dataDir };
+  return { app, page, dataDir, claudeHome };
+}
+
+/** Ends every fake background worker of this Claude home and removes the fake's state. */
+export function cleanupFakeClaude(claudeHome: string): void {
+  execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-cleanup'], {
+    env: { ...baseEnv(), CLAUDE_CONFIG_DIR: claudeHome },
+    stdio: 'ignore',
+  });
 }
 
 /**
