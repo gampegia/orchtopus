@@ -47,7 +47,10 @@ export const STATUSLINE_FIELDS = [
 
 const KEPT_FIELDS: ReadonlySet<string> = new Set<string>([...HOOK_FIELDS, ...STATUSLINE_FIELDS]);
 
-/** Caps that keep one spool line well under 4 KiB, so an append is one small write. */
+/**
+ * Caps that keep one spool line and one API body small. They count characters, not bytes: a
+ * long non-ASCII cwd can make a line a few KiB, which is fine (see spool-append.ts).
+ */
 export const MAX_ID_LENGTH = 64;
 export const MAX_HOOK_LENGTH = 64;
 export const MAX_SESSION_ID_LENGTH = 128;
