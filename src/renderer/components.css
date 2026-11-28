@@ -1,0 +1,550 @@
+/* Shell components, Lagoon plain variant (DESIGN.md sections 5 and 6). Tokens only. */
+
+/* ------------------------------------------------------------------ shell grid */
+.shell {
+  display: grid;
+  grid-template-rows: var(--size-titlebar) minmax(0, 1fr) var(--size-statusbar);
+  row-gap: 0;
+  height: 100%;
+  padding-bottom: var(--layout-gap-inner);
+}
+
+.shell-body {
+  min-height: 0;
+  padding: 0 var(--layout-edge) var(--layout-gap-inner);
+}
+
+.shell-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.shell-separator {
+  flex: none;
+  width: var(--layout-gap);
+  display: flex;
+  justify-content: center;
+  outline: none;
+}
+
+.shell-separator::after {
+  content: '';
+  width: var(--border-width-strong);
+  height: 100%;
+  border-radius: var(--radius-round);
+  background: transparent;
+  transition: background-color var(--motion-fast) var(--motion-ease-hover);
+}
+
+.shell-separator:hover::after,
+.shell-separator[data-separator='active']::after {
+  background: var(--border-strong);
+}
+
+.shell-separator:focus-visible::after {
+  background: var(--focus-ring);
+}
+
+.panel {
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------ icons */
+.icon {
+  width: var(--size-icon);
+  height: var(--size-icon);
+  flex: none;
+}
+
+.icon-small {
+  width: var(--size-icon-small);
+  height: var(--size-icon-small);
+  flex: none;
+}
+
+.icon-tiny {
+  width: var(--size-icon-tiny);
+  height: var(--size-icon-tiny);
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ title bar */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  /* Room for the native window controls of the title bar overlay. */
+  padding: 0 calc(var(--size-window-button) * 3 + var(--space-3)) 0 var(--space-5);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  white-space: nowrap;
+  -webkit-app-region: drag;
+}
+
+.brand {
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-strong);
+  color: var(--text-primary);
+}
+
+.titlebar-crumb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.titlebar-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control-small);
+  margin-left: auto;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+/* ------------------------------------------------------------------ lamps and state words */
+[data-signal='running'] {
+  color: var(--signal-running);
+}
+
+[data-signal='permission'] {
+  color: var(--signal-permission);
+}
+
+[data-signal='idle'] {
+  color: var(--signal-idle);
+}
+
+[data-signal='danger'] {
+  color: var(--signal-danger);
+}
+
+.lamp {
+  display: inline-block;
+  flex: none;
+  width: var(--size-lamp);
+  height: var(--size-lamp);
+  border-radius: var(--radius-round);
+  background: currentColor;
+  border: var(--border-width-strong) solid currentColor;
+  transition:
+    background-color var(--motion-medium) var(--motion-ease-hover),
+    border-color var(--motion-medium) var(--motion-ease-hover);
+}
+
+.lamp.ring {
+  background: transparent;
+  border-width: var(--border-width);
+}
+
+.state-word {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  transition: color var(--motion-medium) var(--motion-ease-hover);
+}
+
+/* ------------------------------------------------------------------ buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-highlight);
+  color: var(--text-primary);
+  font-size: var(--type-body);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-hover),
+    border-color var(--motion-fast) var(--motion-ease-hover),
+    transform var(--motion-fast) var(--motion-ease-out);
+}
+
+.btn:hover {
+  border-color: var(--border-strong);
+}
+
+.btn.primary {
+  border-color: transparent;
+  background: var(--action-primary);
+  color: var(--action-on-primary);
+}
+
+.btn.primary:hover {
+  background: var(--action-primary-hover);
+}
+
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+.btn.ghost:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.btn.small {
+  height: var(--size-control-small);
+  padding: 0 var(--space-3);
+  gap: var(--space-1-5);
+  font-size: var(--type-small);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--size-control-tiny);
+  height: var(--size-control-tiny);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-hover),
+    color var(--motion-fast) var(--motion-ease-hover),
+    transform var(--motion-fast) var(--motion-ease-out);
+}
+
+.icon-btn:hover,
+.icon-btn[data-popup-open] {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.btn:active,
+.icon-btn:active {
+  transform: scale(var(--motion-press-scale));
+}
+
+/* ------------------------------------------------------------------ session list */
+.session-list {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.session-list-head {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: var(--size-header);
+  padding: 0 var(--space-3) 0 var(--space-5);
+}
+
+.session-list-title {
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+}
+
+.session-list-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow: auto;
+  padding: 0 var(--space-2) var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.session-list-note {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.session-list-foot {
+  flex: none;
+  padding: var(--space-2);
+  border-top: var(--border-width) solid var(--border-subtle);
+}
+
+.project-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.project-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  height: var(--size-list-row);
+  padding: 0 0 0 var(--space-3);
+}
+
+.project-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-medium);
+}
+
+.project-error {
+  padding: 0 var(--space-3);
+  color: var(--signal-danger);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+}
+
+.session-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.session-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-0-5);
+  height: var(--size-row);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease-hover);
+}
+
+.session-row:hover {
+  background: var(--surface-hover);
+}
+
+.session-row.selected {
+  background: var(--surface-selected);
+  box-shadow: var(--shadow-row);
+}
+
+.session-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.add-session {
+  align-self: flex-start;
+}
+
+/* ------------------------------------------------------------------ project menu */
+.menu-positioner {
+  z-index: var(--z-popover);
+  outline: none;
+}
+
+.menu {
+  min-width: calc(var(--size-sidebar) - var(--space-12));
+  padding: var(--space-1);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+  outline: none;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  height: var(--size-control-small);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-small);
+  color: var(--text-primary);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.menu-item[data-highlighted] {
+  background: var(--surface-hover);
+}
+
+/* ------------------------------------------------------------------ main column */
+.main-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-8);
+}
+
+.empty-title {
+  font-size: var(--type-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-medium);
+}
+
+.empty-text {
+  margin-bottom: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.session-pane {
+  flex: 1;
+  min-height: 0;
+}
+
+.session-pane-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-header);
+  padding: 0 var(--space-5);
+  border-bottom: var(--border-width) solid var(--border-subtle);
+}
+
+.session-pane-title {
+  font-size: var(--type-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-medium);
+}
+
+/* ------------------------------------------------------------------ status bar */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  margin: 0 var(--layout-edge);
+  padding: 0 var(--space-4);
+  overflow: hidden;
+  border-radius: var(--radius-bar);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-secondary);
+  font-size: var(--type-meta);
+  line-height: var(--leading-meta);
+  white-space: nowrap;
+}
+
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.status-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  animation: count-rise var(--motion-medium) var(--motion-ease-out);
+}
+
+.status-count .num {
+  font-variant-numeric: tabular-nums;
+}
+
+.status-count[data-word='idle'],
+.status-count[data-word='stopped'] {
+  font-weight: var(--weight-regular);
+}
+
+.status-count .lamp {
+  width: var(--size-lamp-small);
+  height: var(--size-lamp-small);
+}
+
+.status-sep {
+  flex: none;
+  width: var(--border-width);
+  height: var(--space-4);
+  background: var(--border-strong);
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.status-item.problem {
+  color: var(--text-primary);
+}
+
+.status-item.problem .icon-tiny {
+  color: var(--signal-danger);
+}
+
+/* A changed count rises a little and fades in, once (DESIGN.md section 9). */
+@keyframes count-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-rise-small));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-count {
+    animation-name: count-fade;
+  }
+
+  .btn:active,
+  .icon-btn:active {
+    transform: none;
+  }
+}
+
+@keyframes count-fade {
+  from {
+    opacity: 0;
+  }
+}

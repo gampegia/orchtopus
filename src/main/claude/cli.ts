@@ -3,7 +3,10 @@
 // missing CLI only blocks session starts with a message.
 import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
+import { MIN_CLAUDE_VERSION } from '../../shared/claude-version';
 import { cleanEnv } from '../child-env';
+
+export { MIN_CLAUDE_VERSION };
 
 export interface ClaudeCommand {
   command: string;
@@ -17,7 +20,6 @@ export interface ClaudeResult {
   stderr: string;
 }
 
-export const MIN_CLAUDE_VERSION = '2.1.302';
 export const CLAUDE_COMMAND_ENV = 'ORCHTOPUS_CLAUDE_COMMAND';
 const VERSION_TIMEOUT_MS = 10_000;
 

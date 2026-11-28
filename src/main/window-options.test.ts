@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import lagoon from '../../themes/lagoon/tokens.json';
-import { createMainWindowOptions, pageBackgroundColor, parseWindowSize } from './window-options';
+import {
+  createMainWindowOptions,
+  pageBackgroundColor,
+  parseWindowSize,
+  titleBarOverlay,
+} from './window-options';
+
+const preloadPath = 'out/preload/index.js';
+const base = { preloadPath, devTools: true };
 
 describe('createMainWindowOptions', () => {
-  const preloadPath = 'out/preload/index.js';
-  const base = { preloadPath, devTools: true };
-
   it('hardens the renderer', () => {
     expect(createMainWindowOptions({ ...base, dark: false }).webPreferences).toEqual({
       preload: preloadPath,
@@ -49,6 +54,28 @@ describe('createMainWindowOptions', () => {
     const options = createMainWindowOptions({ ...base, dark: false });
     expect(options.width).toBe(Number.parseInt(lagoon.light['size.window-width'], 10));
     expect(options.height).toBe(Number.parseInt(lagoon.light['size.window-height'], 10));
+  });
+});
+
+describe('title bar', () => {
+  it('hides the native title bar and paints the overlay from tokens per mode', () => {
+    for (const dark of [false, true]) {
+      const mode = dark ? lagoon.dark : lagoon.light;
+      const options = createMainWindowOptions({ ...base, dark });
+      expect(options.titleBarStyle).toBe('hidden');
+      expect(options.titleBarOverlay).toEqual({
+        color: mode['surface.page'],
+        symbolColor: mode['text.primary'],
+        height: Number.parseInt(mode['size.titlebar'], 10),
+      });
+      expect(titleBarOverlay(dark)).toEqual(options.titleBarOverlay);
+    }
+  });
+
+  it('keeps the window at least 1100 x 700', () => {
+    const options = createMainWindowOptions({ ...base, dark: false });
+    expect(options.minWidth).toBe(1100);
+    expect(options.minHeight).toBe(700);
   });
 });
 

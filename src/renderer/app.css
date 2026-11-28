@@ -1,3 +1,10 @@
+/* Page base. Component styles live in components.css, both linked from index.html. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {
@@ -6,20 +13,38 @@ body,
 
 body {
   margin: 0;
+  overflow: hidden;
   background: var(--surface-page);
   color: var(--text-primary);
   font-family: var(--font-ui);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
 }
 
-.page {
-  display: grid;
-  place-items: center;
-  height: 100%;
-}
-
-.product-name {
+h1,
+h2,
+h3,
+p,
+ul {
   margin: 0;
-  font-size: var(--type-heading);
-  line-height: var(--leading-heading);
-  font-weight: var(--weight-strong);
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: var(--focus-width) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }

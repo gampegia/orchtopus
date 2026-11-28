@@ -58,3 +58,22 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
   const page = await app.firstWindow();
   return { app, page, dataDir };
 }
+
+/**
+ * Quits the app and waits for its process to exit. `app.close()` alone can wait forever once a
+ * session was started: on Windows the detached background worker inherits the app's stdio
+ * pipes, so Playwright never sees them close although Electron has exited.
+ */
+export async function closeApp(app: ElectronApplication): Promise<void> {
+  const child = app.process();
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise<void>((resolve) => {
+    child.once('exit', () => {
+      resolve();
+    });
+  });
+  app.close().catch(() => {
+    // The process exit below is what counts.
+  });
+  await exited;
+}

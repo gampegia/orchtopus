@@ -1,9 +1,5 @@
-import { PRODUCT_NAME } from '../shared/product';
+import { AppLayout } from './components/AppLayout';
 
 export function App(): React.JSX.Element {
-  return (
-    <main className="page">
-      <h1 className="product-name">{PRODUCT_NAME}</h1>
-    </main>
-  );
+  return <AppLayout />;
 }

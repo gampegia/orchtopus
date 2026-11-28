@@ -23,7 +23,7 @@ import { loadRenderer, resolveRendererTarget } from './load-renderer';
 import { denyAllPermissions, hardenWebContents } from './security';
 import { showMainWindow } from './show-window';
 import { runStartup, type RunningApp } from './startup';
-import { createMainWindowOptions, pageBackgroundColor } from './window-options';
+import { createMainWindowOptions, pageBackgroundColor, titleBarOverlay } from './window-options';
 
 const warn = (message: string): void => {
   console.warn(message);
@@ -67,9 +67,12 @@ function createMainWindow(): void {
     showMainWindow(window, process.env);
   });
 
-  // Keep the native background (seen while resizing or reloading) in step with the OS mode.
+  // Keep the native background (seen while resizing or reloading) and the window controls in
+  // step with the OS mode.
   const updateBackground = (): void => {
-    window.setBackgroundColor(pageBackgroundColor(nativeTheme.shouldUseDarkColors));
+    const dark = nativeTheme.shouldUseDarkColors;
+    window.setBackgroundColor(pageBackgroundColor(dark));
+    window.setTitleBarOverlay(titleBarOverlay(dark));
   };
   nativeTheme.on('updated', updateBackground);
   window.on('closed', () => {

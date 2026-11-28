@@ -29,6 +29,26 @@ export function pageBackgroundColor(dark: boolean): string {
   return tokenValue(theme, dark ? 'dark' : 'light', 'surface.page');
 }
 
+/** Smallest window the layout is designed for (DESIGN.md section 5). */
+const MIN_WIDTH = 1100;
+const MIN_HEIGHT = 700;
+
+export interface TitleBarOverlay {
+  color: string;
+  symbolColor: string;
+  height: number;
+}
+
+/** The native window controls over the hidden title bar, painted from tokens of a mode. */
+export function titleBarOverlay(dark: boolean): TitleBarOverlay {
+  const mode = dark ? 'dark' : 'light';
+  return {
+    color: tokenValue(theme, mode, 'surface.page'),
+    symbolColor: tokenValue(theme, mode, 'text.primary'),
+    height: parseWindowSize(tokenValue(theme, mode, 'size.titlebar'), 'size.titlebar'),
+  };
+}
+
 /** Options for the main window: hidden until ready, sized and painted from theme tokens. */
 export function createMainWindowOptions(input: MainWindowInput): BrowserWindowConstructorOptions {
   const mode = input.dark ? 'dark' : 'light';
@@ -36,6 +56,10 @@ export function createMainWindowOptions(input: MainWindowInput): BrowserWindowCo
     title: PRODUCT_NAME,
     width: parseWindowSize(tokenValue(theme, mode, 'size.window-width'), 'size.window-width'),
     height: parseWindowSize(tokenValue(theme, mode, 'size.window-height'), 'size.window-height'),
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: titleBarOverlay(input.dark),
     show: false,
     backgroundColor: pageBackgroundColor(input.dark),
     webPreferences: {
