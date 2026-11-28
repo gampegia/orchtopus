@@ -55,12 +55,9 @@ let repoBefore: RepoSnapshot;
 // ---- helpers ------------------------------------------------------------------------------
 
 async function launch(): Promise<void> {
-  // Always the unpacked app: a packaged build ignores ORCHTOPUS_CLAUDE_COMMAND and would reach
-  // the real claude CLI.
   const launched = await launchApp({
     dataDir: dataDir(),
     claudeHome: claudeHome(),
-    unpacked: true,
     env: { ORCH_FAKE_SCENARIOS: JSON.stringify(SCENARIOS) },
   });
   app = launched.app;

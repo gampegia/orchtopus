@@ -50,8 +50,7 @@ test.beforeAll(async () => {
   server = started;
   devUrl = `http://127.0.0.1:${String((started.address() as AddressInfo).port)}/`;
 
-  // The packaged app ignores ELECTRON_RENDERER_URL, so this suite always runs the unpacked one.
-  const launched = await launchApp({ env: { ELECTRON_RENDERER_URL: devUrl }, unpacked: true });
+  const launched = await launchApp({ env: { ELECTRON_RENDERER_URL: devUrl } });
   cleanupLaunch = launched.cleanup;
   app = launched.app;
   await launched.page.waitForLoadState('load');

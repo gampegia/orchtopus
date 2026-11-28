@@ -13,8 +13,12 @@ export interface LaunchOptions {
   claudeHome?: string;
   /** Extra variables, applied last (for example ELECTRON_RENDERER_URL for the dev server test). */
   env?: Record<string, string>;
-  /** Run the unpacked app (`electron .`) even when E2E_EXECUTABLE names a packaged build. */
-  unpacked?: boolean;
+  /**
+   * A packaged build to launch instead of the unpacked app (`electron .`). Only the app smoke
+   * suite passes it: a packaged build ignores ORCHTOPUS_CLAUDE_COMMAND and would reach the real
+   * claude CLI.
+   */
+  executablePath?: string | undefined;
 }
 
 export interface LaunchedApp {
@@ -67,7 +71,7 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
     ORCHTOPUS_CLAUDE_COMMAND: JSON.stringify([process.execPath, FAKE_CLAUDE]),
     ...options.env,
   };
-  const executablePath = options.unpacked ? undefined : process.env['E2E_EXECUTABLE'];
+  const { executablePath } = options;
   // Playwright emulates prefers-color-scheme: light by default; null lets nativeTheme decide.
   const app = await electron.launch(
     executablePath

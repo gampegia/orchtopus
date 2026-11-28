@@ -24,6 +24,8 @@ let app: ElectronApplication | undefined;
 let page: Page;
 let dataDir = '';
 let cleanupLaunch: (() => void) | undefined;
+// The documented packaged run sets E2E_EXECUTABLE; only this smoke suite runs that build.
+const packagedExecutable = process.env['E2E_EXECUTABLE'];
 
 function electronApp(): ElectronApplication {
   if (app === undefined) throw new Error('Electron did not launch');
@@ -34,7 +36,7 @@ const consoleErrors: string[] = [];
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
-  const launched = await launchApp();
+  const launched = await launchApp({ executablePath: packagedExecutable });
   cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
@@ -191,6 +193,10 @@ test('the renderer reaches the local API and the event stream with the token', a
 });
 
 test('the restart sequence ends with a ready snapshot and the fake CLI found', async () => {
+  test.skip(
+    packagedExecutable !== undefined,
+    'A packaged build ignores ORCHTOPUS_CLAUDE_COMMAND, so it never finds the fake CLI.',
+  );
   const state = (): Promise<{ ready: boolean; status: { cli: { found: boolean } } }> =>
     page.evaluate(async () => {
       const bridge = (window as unknown as { orchtopus: PreloadApi }).orchtopus;
