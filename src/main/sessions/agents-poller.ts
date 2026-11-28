@@ -1,5 +1,5 @@
 // Polls `claude agents --json --all` and hands each result to the state tracker. At most one
-// poll runs at a time: a tick that finds one in flight is skipped, and pollNow joins it.
+// poll runs at a time: a tick or pollNow that finds one in flight joins it.
 import type { AgentEntry } from '../claude/agents';
 import type { PollResult, StateTracker } from './state-tracker';
 
@@ -42,7 +42,6 @@ export function createAgentsPoller(deps: {
     start: () => {
       if (timer !== null) return;
       timer = setInterval(() => {
-        if (inFlight !== null) return;
         // A tracker error must not become an unhandled rejection; the next tick tries again.
         pollNow().catch(() => undefined);
       }, deps.intervalMs);
