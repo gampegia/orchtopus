@@ -160,6 +160,33 @@ describe('createWorktree', () => {
     expect(git(path, ['symbolic-ref', '--short', 'HEAD'])).toBe('orch/upload-fix');
   });
 
+  it('finishes a create that stopped after git made the branch', async () => {
+    const r = await repo();
+    await ensureWorktreesExcluded(r.root);
+    // `worktree add -b` writes the branch before the checkout; a crash leaves only the branch.
+    git(r.root, ['branch', '--no-track', 'orch/upload-fix', 'main']);
+    const input = { root: r.root, task: 'upload-fix', branch: 'orch/upload-fix', base: 'main' };
+    const { path } = await createWorktree(input);
+    expect(git(path, ['symbolic-ref', '--short', 'HEAD'])).toBe('orch/upload-fix');
+    expect(gitExitCode(r.root, ['config', 'branch.orch/upload-fix.merge'])).toBe(1);
+  });
+
+  it('finishes a re-create that stopped after the worktree entry was removed', async () => {
+    const r = await repo();
+    await ensureWorktreesExcluded(r.root);
+    const input = { root: r.root, task: 'upload-fix', branch: 'orch/upload-fix', base: 'main' };
+    const { path } = await createWorktree(input);
+    writeFileSync(join(path, 'note.txt'), 'work\n');
+    git(path, ['add', 'note.txt']);
+    git(path, ['commit', '--quiet', '-m', 'work on the task']);
+    git(r.root, ['worktree', 'remove', path]);
+
+    const again = await createWorktree(input);
+    expect(again.path).toBe(path);
+    expect(existsSync(join(path, 'note.txt'))).toBe(true);
+    expect(git(path, ['symbolic-ref', '--short', 'HEAD'])).toBe('orch/upload-fix');
+  });
+
   it('refuses an invalid task name', async () => {
     const r = await repo();
     await expect(

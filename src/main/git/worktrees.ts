@@ -139,7 +139,11 @@ async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
   return entries;
 }
 
-/** Creates the worktree on a new branch without upstream; idempotent. */
+/**
+ * Creates the worktree on a new branch without upstream. Idempotent across a crash at any
+ * step: `checkNewWorktree` refuses an existing branch before the action starts, so a branch
+ * found here was made by an earlier run of this action and is checked out as it is.
+ */
 export async function createWorktree(input: {
   root: string;
   task: string;
@@ -151,24 +155,27 @@ export async function createWorktree(input: {
   const path = worktreePath(input.root, input.task);
 
   const existing = (await listWorktrees(input.root)).find((w) => samePath(w.path, path));
-  let reattach = false;
+  let args: string[];
   if (existing !== undefined) {
     if (existing.branch !== `refs/heads/${input.branch}`) {
       throw new Error(`The worktree ${input.task} exists on another branch.`);
     }
     if (existsSync(path)) return { path };
-    // Registered but the folder is gone (crash, or deleted by hand): drop only this
-    // entry's metadata (never `git worktree prune`) and check the branch out again.
-    const removed = await runGit(['worktree', 'remove', path], { cwd: input.root });
-    if (removed.code !== 0) {
-      throw new Error(`git worktree remove failed: ${redactUrls(removed.stderr.trim())}`);
-    }
-    reattach = true;
+    // Registered but the folder is gone (crash, or deleted by hand): one `add --force`
+    // reuses this entry and checks the branch out again. Never `git worktree prune`.
+    args = ['worktree', 'add', '--quiet', '--force', path, input.branch];
+  } else {
+    const branchExists = await runGit(
+      ['show-ref', '--verify', '--quiet', `refs/heads/${input.branch}`],
+      { cwd: input.root },
+    );
+    // `worktree add -b` writes the branch before the checkout, so after a crash only the
+    // branch may exist.
+    args =
+      branchExists.code === 0
+        ? ['worktree', 'add', '--quiet', path, input.branch]
+        : ['worktree', 'add', '--quiet', '--no-track', '-b', input.branch, path, input.base];
   }
-
-  const args = reattach
-    ? ['worktree', 'add', '--quiet', path, input.branch]
-    : ['worktree', 'add', '--quiet', '--no-track', '-b', input.branch, path, input.base];
   const res = await runGit(args, { cwd: input.root });
   if (res.code !== 0) {
     throw new Error(`git worktree add failed: ${redactUrls(res.stderr.trim())}`);
