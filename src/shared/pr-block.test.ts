@@ -42,6 +42,16 @@ describe('detectPrCommand', () => {
     ['pwsh -Command "gh pr merge 2"', 'gh-pr-merge'],
     ['cmd /c gh pr create', 'gh-pr-create'],
     ['git status\ngh pr create', 'gh-pr-create'],
+    ['glab mr accept 3', 'glab-mr-merge'],
+    ['if git push; then gh pr create; fi', 'gh-pr-create'],
+    ['if gh pr create; then echo ok; fi', 'gh-pr-create'],
+    ['for b in x; do gh pr merge; done', 'gh-pr-merge'],
+    ['while true; do gh pr merge 1; done', 'gh-pr-merge'],
+    ['until false; do glab mr merge 1; done', 'glab-mr-merge'],
+    ['! gh pr create', 'gh-pr-create'],
+    ['if false; then :; else gh pr create; fi', 'gh-pr-create'],
+    ['if false; then :; elif gh pr create; then :; fi', 'gh-pr-create'],
+    ['{ gh pr create; }', 'gh-pr-create'],
   ])('also matches %s', (command, kind) => {
     expect(detectPrCommand(command)).toEqual({ kind });
   });
@@ -50,6 +60,8 @@ describe('detectPrCommand', () => {
     'gh issue create --title "pr create"',
     'git push -u origin upload-fix',
     'echo "& gh pr create"',
+    'gh mr accept 3',
+    'echo if gh pr create',
     '',
   ])('also does not match %s', (command) => {
     expect(detectPrCommand(command)).toBeNull();

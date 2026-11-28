@@ -4,7 +4,8 @@
 // Bundled into the hook helper, so it imports nothing. It reads Bash and PowerShell command lines
 // well enough to find a program call at the start of every simple command (after `&&`, `;`, `|`,
 // `&`, a new line, `(`, `$(`, a backtick), with quotes removed, a path or `.exe` on the program,
-// leading variable assignments and wrappers like `env`, and inside `bash -c` / `cmd /c` /
+// leading variable assignments, shell keywords (`if`, `then`, `do`, `!`, …) and wrappers like
+// `env`, and inside `bash -c` / `cmd /c` /
 // `pwsh -Command` strings. Text inside quotes is never a command, except `$(…)` and backticks
 // inside double quotes, which a shell runs. It errs toward blocking. The full set of hard blocks
 // (API calls, force pushes, …) comes in M3.
@@ -103,6 +104,8 @@ function programName(word: string): string {
 const WRAPPERS = new Set(['env', 'command', 'exec', 'time', 'nohup', 'sudo', 'nice', 'start']);
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'cmd', 'pwsh', 'powershell']);
 const SHELL_COMMAND_FLAGS = new Set(['-c', '/c', '/k', '-command', '/command']);
+/** Shell keywords that can stand before a command; skipped like assignments. */
+const KEYWORDS = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{']);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 /** gh and glab options that take a separate value. */
 const VALUE_FLAGS = new Set(['-r', '--repo', '--hostname']);
@@ -132,7 +135,7 @@ function detectSegment(words: readonly string[], depth: number): PrCommandKind |
   let i = 0;
   for (; i < words.length; i++) {
     const word = words[i] ?? '';
-    if (ASSIGNMENT.test(word) || word === '.' || word === '') continue;
+    if (ASSIGNMENT.test(word) || KEYWORDS.has(word) || word === '.' || word === '') continue;
     if (WRAPPERS.has(programName(word))) {
       while ((words[i + 1] ?? '').startsWith('-')) i++;
       continue;
@@ -153,7 +156,8 @@ function detectSegment(words: readonly string[], depth: number): PrCommandKind |
   const [group, action] = positionals(args);
   if (group !== tool.group) return null;
   if (action === 'create' || action === 'new') return tool.create;
-  if (action === 'merge') return tool.merge;
+  // `glab mr accept` is an alias of `glab mr merge`.
+  if (action === 'merge' || (program === 'glab' && action === 'accept')) return tool.merge;
   return null;
 }
 
