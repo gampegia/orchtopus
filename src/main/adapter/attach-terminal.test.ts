@@ -199,7 +199,11 @@ describe('attach terminal (fake claude)', { timeout: 30_000 }, () => {
     const { attach } = await startSession('needs-you');
     const h = await attach();
     await h.ready;
-    await waitFor(() => h.replay().includes('This command requires approval'));
+    // The box can arrive after the approval text, so wait for both.
+    await waitFor(
+      () =>
+        h.replay().includes('This command requires approval') && h.replay().includes(PROMPT_BOX),
+    );
     expect(h.replay()).toContain(PROMPT_BOX);
     const late: string[] = [];
     h.onData((d) => late.push(d));
