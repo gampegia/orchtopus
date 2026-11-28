@@ -271,6 +271,18 @@ describe('state tracker', () => {
     expect(word()).toBe('idle');
   });
 
+  it('clearStarting drops a start that will not be resumed and lets the rules decide', () => {
+    tracker.onStartBegun('s1');
+    tracker.clearStarting('s1');
+    expect(getSessionState(store.db, 's1')).toMatchObject({ starting: false });
+    clock += 1000;
+    tracker.onPoll({ ok: true, entries: [] });
+    expect(word()).toBe('stopped');
+    const before = stateEvents().length;
+    tracker.clearStarting('s1');
+    expect(stateEvents()).toHaveLength(before);
+  });
+
   it('missing from a good poll is stopped', () => {
     tracker.onPoll({ ok: true, entries: [entry()] });
     clock += 1000;

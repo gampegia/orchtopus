@@ -264,6 +264,26 @@ describe('terminal registry', () => {
     expect(await registry.closeTrust(id)).toBe(false);
     expect(attached[0]?.written).toEqual([]);
   });
+
+  it('closeSession disposes the session terminal and reports none', async () => {
+    const { adapter, attach, attached } = stubAdapter();
+    const statuses: [string, TerminalState][] = [];
+    const registry = createTerminalRegistry(adapter, {
+      onStatus: (sessionId, state) => statuses.push([sessionId, state]),
+    });
+    const id = await registry.openForSession('upload-fix', REF, SIZE);
+    let ended = false;
+    registry.onEnd(id, () => (ended = true));
+    await registry.closeSession('upload-fix');
+    expect(attached[0]?.disposed).toBe(true);
+    expect(ended).toBe(true);
+    expect(registry.get(id)).toBeUndefined();
+    expect(statuses.at(-1)).toEqual(['upload-fix', { id: null, status: 'none' }]);
+    // A later open is a new attach; closing a session without a terminal does nothing.
+    await registry.openForSession('upload-fix', REF, SIZE);
+    expect(attach).toHaveBeenCalledTimes(2);
+    await registry.closeSession('report-export');
+  });
 });
 
 describe('terminal stream', () => {

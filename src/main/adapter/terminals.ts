@@ -21,6 +21,8 @@ export interface TerminalRegistry {
   get(id: string): TerminalHandle | undefined;
   /** Calls `cb` once when the terminal exits or is disposed; returns the unsubscribe. */
   onEnd(id: string, cb: () => void): () => void;
+  /** Ends the session's attach PTY (before its worktree is removed); the session keeps running. */
+  closeSession(sessionId: string): Promise<void>;
   closeAll(): void;
 }
 
@@ -123,6 +125,21 @@ export function createTerminalRegistry(
       }
       entry.ended.add(cb);
       return () => entry.ended.delete(cb);
+    },
+
+    closeSession: async (sessionId) => {
+      const pending = sessions.get(sessionId);
+      if (!pending) return;
+      let id: string;
+      try {
+        id = await pending;
+      } catch {
+        return;
+      }
+      // A newer open may have replaced the entry while this one was attaching.
+      if (sessions.get(sessionId) === pending) sessions.delete(sessionId);
+      dispose(id);
+      report(sessionId, { id: null, status: 'none' });
     },
 
     closeAll: () => {

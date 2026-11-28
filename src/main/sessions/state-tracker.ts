@@ -31,6 +31,11 @@ export interface StateTracker {
   onProcessStarted: (sessionId: string) => void;
   /** The start or resume failed: failed with the reason, until a later start clears it. */
   onStartFailed: (sessionId: string, reason: string) => void;
+  /**
+   * Drops `starting` for a start or resume that will not go on (the restart sequence found no
+   * pending action for it); the rules then decide the word. Does nothing when not starting.
+   */
+  clearStarting: (sessionId: string) => void;
   /** Applies the rules again without new input (time windows). */
   tick: () => void;
   /** False before the first good poll and after a failed one. */
@@ -248,6 +253,17 @@ export function createStateTracker(deps: StateTrackerDeps): StateTracker {
       if (!getSession(db, sessionId)) return;
       append('session.state', sessionId, { word: 'failed', reason, startFailed: reason });
       publishSession(sessionId);
+    },
+    clearStarting: (sessionId) => {
+      const state = getSessionState(db, sessionId);
+      if (!state?.starting) return;
+      append('session.state', sessionId, {
+        word: state.word ?? 'idle',
+        // "Starting" no longer holds; the next good poll decides the word.
+        reason: state.reason === 'Starting' ? null : state.reason,
+        starting: false,
+      });
+      run(sessionId, true);
     },
     tick: () => {
       run();

@@ -19,6 +19,7 @@ function fakeTracker(): StateTracker & { results: PollResult[] } {
     onStartBegun: () => undefined,
     onProcessStarted: () => undefined,
     onStartFailed: () => undefined,
+    clearStarting: () => undefined,
     tick: () => undefined,
     agentsReachable: () => true,
   };
