@@ -3,10 +3,10 @@
 // missing CLI only blocks session starts with a message.
 import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
-import { MIN_CLAUDE_VERSION } from '../../shared/claude-version';
+import { compareVersions, MIN_CLAUDE_VERSION } from '../../shared/claude-version';
 import { cleanEnv } from '../child-env';
 
-export { MIN_CLAUDE_VERSION };
+export { compareVersions, MIN_CLAUDE_VERSION };
 
 export interface ClaudeCommand {
   command: string;
@@ -113,16 +113,6 @@ export function runClaude(
 /** The leading `x.y.z` of `claude --version` output, or null. */
 export function parseClaudeVersion(stdout: string): string | null {
   return /^(\d+\.\d+\.\d+)/.exec(stdout.trim())?.[1] ?? null;
-}
-
-export function compareVersions(a: string, b: string): number {
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (diff !== 0) return Math.sign(diff);
-  }
-  return 0;
 }
 
 export async function readClaudeVersion(

@@ -105,13 +105,23 @@ describe('runSetupCheck', () => {
     it('ok when supported', async () => {
       expect((await item('claude-version')).status).toBe('ok');
     });
+    it('hint, not a refusal, below the tested version', async () => {
+      const i = await item('claude-version', {
+        cli: { found: true, version: '2.1.310', supported: true },
+      });
+      expect(i).toMatchObject({
+        status: 'hint',
+        detail:
+          'Claude Code 2.1.310 is older than the tested version 2.1.332. It should work, but it has not been tested.',
+      });
+    });
     it('problem with claude update when too old', async () => {
       const i = await item('claude-version', {
         cli: { found: true, version: '2.1.200', supported: false },
       });
       expect(i).toMatchObject({ status: 'problem', fix: 'claude update' });
       expect(i.detail).toContain('2.1.200');
-      expect(i.detail).toContain('2.1.302');
+      expect(i.detail).toContain('2.1.295');
     });
     it('problem when the CLI is missing', async () => {
       const i = await item('claude-version', {

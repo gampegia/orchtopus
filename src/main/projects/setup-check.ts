@@ -4,7 +4,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AppStatus, SetupItem, SetupItemId } from '../../shared/api-types';
-import { MIN_CLAUDE_VERSION } from '../claude/cli';
+import { MIN_CLAUDE_VERSION, untestedVersionHint } from '../../shared/claude-version';
 import type { ClaudeConfigPaths } from '../claude/claude-home';
 import { readTrust } from '../claude/trust';
 import { runGit } from '../git/git';
@@ -117,6 +117,8 @@ interface Inputs {
 function versionItem({ cli }: SetupCheckInput): SetupItem {
   const title = 'Claude Code version';
   if (cli.found && cli.supported) {
+    const hint = untestedVersionHint(cli.version);
+    if (hint !== null) return item('claude-version', 'hint', title, hint);
     return item('claude-version', 'ok', title, `Claude Code ${cli.version ?? ''} is installed.`);
   }
   const detail = !cli.found

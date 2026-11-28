@@ -73,7 +73,7 @@ describe('resolveClaudeCommand', () => {
 
 describe('version check', () => {
   it('pins the minimum supported version', () => {
-    expect(MIN_CLAUDE_VERSION).toBe('2.1.302');
+    expect(MIN_CLAUDE_VERSION).toBe('2.1.295');
   });
 
   it('parses the leading version', () => {
@@ -97,10 +97,10 @@ describe('version check', () => {
     ).resolves.toEqual({ version: '2.1.332', supported: true });
   });
 
-  it('2.1.301 is not supported', async () => {
+  it('2.1.294 is not supported', async () => {
     await expect(
-      readClaudeVersion(nodeScript('console.log("2.1.301 (Claude Code)")')),
-    ).resolves.toEqual({ version: '2.1.301', supported: false });
+      readClaudeVersion(nodeScript('console.log("2.1.294 (Claude Code)")')),
+    ).resolves.toEqual({ version: '2.1.294', supported: false });
   });
 
   it('garbage gives no version', async () => {

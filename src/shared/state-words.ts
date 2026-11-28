@@ -1,6 +1,6 @@
 // Words, signals and short texts the shell shows for session states and app status. Pure.
 import type { AppStatus, SessionStateWord, SessionView } from './api-types';
-import { MIN_CLAUDE_VERSION } from './claude-version';
+import { isUntestedVersion, MIN_CLAUDE_VERSION, TESTED_CLAUDE_VERSION } from './claude-version';
 
 /** The signal colour of a state word (DESIGN.md section 3). */
 export type StateSignal = 'running' | 'permission' | 'idle' | 'danger';
@@ -84,6 +84,11 @@ export function statusNotices(input: {
     });
   } else if (!agentsReachable) {
     notices.push({ text: 'Claude Code not reachable', problem: true });
+  } else if (isUntestedVersion(cli.version)) {
+    notices.push({
+      text: `Claude Code ${cli.version} has not been tested (tested: ${TESTED_CLAUDE_VERSION})`,
+      problem: false,
+    });
   }
   if (spoolDamaged > 0) {
     notices.push({

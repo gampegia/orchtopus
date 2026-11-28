@@ -17,6 +17,7 @@ import {
   type SessionView,
   type StreamMessage,
 } from '../../shared/api-types';
+import { MIN_CLAUDE_VERSION } from '../../shared/claude-version';
 import { validateTaskName } from '../../shared/task-name';
 import type { AgentAdapter, SessionRef, TerminalSize } from '../adapter/agent-adapter';
 import type { TerminalRegistry } from '../adapter/terminals';
@@ -262,7 +263,7 @@ export function createSessionService(deps: SessionServiceDeps): SessionService {
       throw new HttpError(
         409,
         cli.found
-          ? 'Claude Code 2.1.302 or newer is needed. Update it with: claude update'
+          ? `Claude Code ${MIN_CLAUDE_VERSION} or newer is needed. Update it with: claude update`
           : 'Claude Code was not found. Install it, then restart Orchtopus.',
       );
     }
