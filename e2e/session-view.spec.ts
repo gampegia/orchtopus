@@ -260,7 +260,12 @@ test('remove asks for confirmation and removes the row', async () => {
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('untracked files', {
     timeout: 15_000,
   });
-  await expect(row('report-export')).toBeVisible();
+  // The open modal hides the list from the accessibility tree, so look past it.
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Sessions', includeHidden: true })
+      .getByRole('option', { name: /report-export/, includeHidden: true }),
+  ).toBeVisible();
 
   rmSync(stray);
   await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click();
