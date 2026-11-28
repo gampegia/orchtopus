@@ -2,15 +2,7 @@
 // entry, the hook and status line times and the app's own start actions. Pure: the tracker
 // collects the input, this file decides.
 import type { SessionStateWord } from '../../shared/api-types';
-
-/** How often `claude agents --json --all` is polled. */
-export const POLL_INTERVAL_MS = 1000;
-/** A hook event this recent after the last Stop makes a `done` / `idle` session running. */
-export const ACTIVITY_WINDOW_MS = 3000;
-/** Quiet time after a Stop before a `working` / `idle` session counts as idle (stale case). */
-export const STALE_AFTER_STOP_MS = 3000;
-/** `working` / `idle` this soon after a process start is still running. */
-export const START_GRACE_MS = 10000;
+import { ACTIVITY_WINDOW_MS, STALE_AFTER_STOP_MS } from './timings';
 
 export interface ObservedTriple {
   state: string | null;

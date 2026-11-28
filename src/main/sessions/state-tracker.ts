@@ -17,7 +17,8 @@ import {
   type SessionRow,
   type SessionStateRow,
 } from '../store/projections';
-import { START_GRACE_MS, deriveState, type ObservedTriple } from './state-rules';
+import { deriveState, type ObservedTriple } from './state-rules';
+import { START_GRACE_MS } from './timings';
 
 export type PollResult = { ok: true; entries: AgentEntry[] } | { ok: false; error: string };
 
