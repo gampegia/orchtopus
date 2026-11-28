@@ -373,6 +373,11 @@ describe('trust terminal routes', () => {
     ['a missing path', {}],
     ['a relative path', { path: 'acme-app' }],
     ['a folder that does not exist', { path: join(tmpdir(), 'orch-no-such-folder-acme') }],
+    ['a UNC path with forward slashes', { path: '//acme-host/share' }],
+    ['a UNC path with backslashes', { path: String.raw`\\acme-host\share` }],
+    ['a long-form UNC path', { path: String.raw`\\?\UNC\acme-host\s` }],
+    ['a device path', { path: '//./C:/' }],
+    ['a drive-less rooted path', { path: '/acme-app' }],
   ])('POST /v1/terminals/trust answers 422 for %s', async (_label, body) => {
     const { openPlain, test } = await withStream();
     const res = await post(test, body);
