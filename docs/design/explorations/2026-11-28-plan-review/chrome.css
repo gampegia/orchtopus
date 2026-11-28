@@ -52,10 +52,11 @@ svg.i.t { width: var(--size-icon-tiny); height: var(--size-icon-tiny); }
 .srow .p { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); text-align: right; }
 .srow .w { grid-column: 1 / -1; font-size: var(--type-meta); line-height: var(--leading-meta); display: flex; align-items: center; gap: var(--space-1-5); }
 
-/* review labels: "Needs you" and "Info". Default as asked (red, green);
-   data-labels="signal" keeps the signal meanings (document colour, neutral). */
-:root { --needs: var(--signal-danger); --info: var(--signal-done); }
-html[data-labels="signal"] { --needs: var(--signal-plan); --info: var(--text-secondary); }
+/* review labels: "Needs you" and "Info". Default (user, 2026-11-28): the
+   document's signal colour and neutral. data-labels="asked" shows the first
+   ask, red and green. */
+:root { --needs: var(--signal-plan); --info: var(--text-secondary); }
+html[data-labels="asked"] { --needs: var(--signal-danger); --info: var(--signal-done); }
 .needs { color: var(--needs); }
 .info { color: var(--info); }
 

@@ -115,7 +115,7 @@ Added 2026-11-27. Status: idea, to be evaluated. Updated 2026-11-28: user decisi
 - Proposed by the lead: Orchtopus shows the page in the plan view, with Spec OK and Plan Go on it, and a raw-text fallback.
 - Proposed by the lead: Orchtopus checks that the HTML and the Markdown belong to the same revision. The session regenerates the HTML on every change.
 - Source: Thariq Shihipar's essay on HTML as the plan format, 2026-05-20 (https://claude.dev/blog/using-claude-code-the-unreasonable-effectiveness-of-html/). He does not read Markdown plans over about 100 lines. See `docs/research/2026-11-28-playground-and-staff-setups.md`, section 2.4.
-- Design chosen 2026-11-28 (user): direction D, "Map with parts", with "Needs you" in the document's signal colour. Explorations: `docs/design/explorations/2026-11-28-plan-review/`. Template, markup contract and the revision check: `docs/specs/2026-11-28-review-page-template-design.md`.
+- Design chosen 2026-11-28 (user): direction D, "Map with parts", with "Needs you" in the document's signal colour. Follow-up after the template spec is approved: a DESIGN.md section for the review page and the label rule. Explorations: `docs/design/explorations/2026-11-28-plan-review/`. Template, markup contract and the revision check: `docs/specs/2026-11-28-review-page-template-design.md`.
 - New project setting **"Keep specs and plans in the repository"**. Default yes, as superpowers does. When off, they live in the Orchtopus data folder and stay out of the PR.
 
 **Where it applies:**

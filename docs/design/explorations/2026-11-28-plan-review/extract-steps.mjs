@@ -1,10 +1,9 @@
 // Extracts the full text of every step from the M1 plan into steps.js, so
 // direction D can show the real steps on demand. In the product the session
-// copies each step's Markdown verbatim into the page and Orchtopus checks it
-// with a per-step hash (see the template spec).
+// copies each step's Markdown verbatim into <pre data-step-source>; Orchtopus
+// hashes it against the Markdown and renders it itself (see the template spec).
 // Run from the repository root: node docs/design/explorations/2026-11-28-plan-review/extract-steps.mjs
 import { readFileSync, writeFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 
 const src = 'docs/plans/2026-11-27-m1-walking-skeleton.md';
 const out = 'docs/design/explorations/2026-11-28-plan-review/steps.js';
@@ -30,7 +29,6 @@ for (const line of lines) {
 for (const list of Object.values(tasks)) {
   for (const s of list) {
     s.body = s.body.join('\n').trim();
-    s.sha256 = createHash('sha256').update(s.body).digest('hex').slice(0, 12);
   }
 }
 
