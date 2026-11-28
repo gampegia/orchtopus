@@ -55,6 +55,8 @@ export interface ProjectServiceDeps {
   publish?: (message: StreamMessage) => void;
   /** Writes project.json; replaceable in tests. */
   writeConfig?: (file: string, config: ProjectConfig) => Promise<void>;
+  /** Deletes project.json; replaceable in tests. */
+  removeConfig?: (file: string) => Promise<void>;
   log?: (message: string) => void;
 }
 
@@ -88,6 +90,11 @@ function slug(name: string): string {
 export function createProjectService(deps: ProjectServiceDeps): ProjectService {
   const { paths, store, actions, clock } = deps;
   const writeConfig = deps.writeConfig ?? writeProjectConfig;
+  const removeConfig =
+    deps.removeConfig ??
+    (async (file: string): Promise<void> => {
+      await rm(file, { force: true });
+    });
   const publish = (message: StreamMessage): void => deps.publish?.(message);
 
   // Every change runs one after another, so ids, duplicate checks and action steps never race.
@@ -121,6 +128,11 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
     input: AddProjectInput,
   ): ProjectConfig => {
     const taken = new Set(listProjects(store.db).map((p) => p.id));
+    // A pending remove still owns its id: a resume deletes that project.json, so a re-add must
+    // not write its config there.
+    for (const pending of actions.pending()) {
+      if (pending.kind === 'project.remove') taken.add((pending.params as RemoveParams).projectId);
+    }
     const base = slug(basename(repo.root));
     let id = base;
     for (let n = 2; taken.has(id); n += 1) id = `${base}-${String(n)}`;
@@ -181,7 +193,7 @@ export function createProjectService(deps: ProjectServiceDeps): ProjectService {
     });
     await actions.step(actionId, 'delete-config', async () => {
       const file = projectFile(paths, projectId);
-      await rm(file, { force: true });
+      await removeConfig(file);
       // The project folder goes too when nothing else is in it.
       await rmdir(dirname(file)).catch(() => undefined);
       return true;

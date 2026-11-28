@@ -206,6 +206,28 @@ describe('project service', () => {
     await expect(svc.add(addInput(), 'req-0006')).rejects.toMatchObject({ status: 409 });
   });
 
+  it('a pending remove keeps its id taken, so a resume never deletes the config of a re-add', async () => {
+    let fail = false;
+    const svc = service({
+      removeConfig: async (file) => {
+        if (fail) throw new Error('EBUSY');
+        const { rm } = await import('node:fs/promises');
+        await rm(file, { force: true });
+      },
+    });
+    await svc.add(addInput(), 'req-0010');
+    fail = true;
+    await expect(svc.remove('acme-app')).rejects.toThrow('EBUSY');
+    expect(listProjects(store.db)).toEqual([]);
+    const again = await svc.add(addInput(), 'req-0011');
+    expect(again.id).toBe('acme-app-2');
+    fail = false;
+    await svc.resumePending();
+    expect(existsSync(projectFile(paths, 'acme-app'))).toBe(false);
+    expect(existsSync(projectFile(paths, 'acme-app-2'))).toBe(true);
+    expect(listProjects(store.db).map((p) => p.id)).toEqual(['acme-app-2']);
+  });
+
   it('add refuses a folder that is not the top of a repository, logging nothing', async () => {
     const sub = join(repo.root, 'docs');
     const { mkdirSync } = await import('node:fs');
