@@ -1,27 +1,28 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, protocol, session } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  protocol,
+  session,
+  shell,
+} from 'electron';
 import { APP_ORIGIN, APP_SCHEME } from '../shared/app-origin';
-import { createCoreRoutes } from './api/routes/core';
-import { createProjectRoutes } from './api/routes/projects';
-import { createHookRoutes, setEnvelopeListener } from './api/routes/hooks';
-import { DEFAULT_API_PORT, startApiServer, type ApiServer } from './api/server';
-import { createAppContext } from './app-context';
+import { DEFAULT_API_PORT, type ApiServer } from './api/server';
+import { buildingBlocksDir } from './base-setup/building-blocks';
 import { claudeConfigPaths } from './claude/claude-home';
+import { resolveClaudeCommand, whereClaude, type ClaudeCommand } from './claude/cli';
 import { APP_SCHEME_PRIVILEGES, createAppProtocolHandler } from './app-protocol';
 import { resolveDataPaths } from './data-folder';
-import { installHookFiles } from './hooks/install';
 import { registerIpc } from './ipc';
 import { loadRenderer, resolveRendererTarget } from './load-renderer';
-import { createProjectService } from './projects/project-service';
 import { denyAllPermissions, hardenWebContents } from './security';
-import { createStateTracker } from './sessions/state-tracker';
 import { showMainWindow } from './show-window';
-import { tryStartupStep } from './startup-step';
-import { importSpool } from './spool/import';
-import { createActionRunner } from './store/actions';
-import { openStore, type Store } from './store/event-log';
+import { runStartup, type RunningApp } from './startup';
 import { createMainWindowOptions, pageBackgroundColor } from './window-options';
 
 const warn = (message: string): void => {
@@ -52,8 +53,7 @@ app.on('web-contents-created', (_event, contents) => {
   );
 });
 
-let store: Store | null = null;
-let api: ApiServer | null = null;
+let running: RunningApp | null = null;
 
 function createMainWindow(): void {
   const window = new BrowserWindow(
@@ -82,62 +82,7 @@ function createMainWindow(): void {
   });
 }
 
-async function startServices(): Promise<void> {
-  const opened = openStore(paths.stateDb);
-  store = opened;
-  const ctx = createAppContext({ paths, store: opened });
-  const clock = (): string => new Date().toISOString();
-  const projects = createProjectService({
-    paths,
-    store: opened,
-    actions: createActionRunner(opened, clock),
-    clock,
-    // Filled by the restart sequence (Task 12) from `claude --version`.
-    cliStatus: () => ctx.snapshot().status.cli,
-    claudePaths: claudeConfigPaths(process.env, homedir()),
-    env: process.env,
-    publish: ctx.publish,
-    log: warn,
-  });
-  // Hook envelopes update the session state at once; the agents poller comes with Task 12.
-  const tracker = createStateTracker({
-    store: opened,
-    publish: ctx.publish,
-    now: Date.now,
-    setStatus: ctx.setStatus,
-    sessionView: ctx.sessionView,
-  });
-  setEnvelopeListener(tracker.onEnvelope);
-  // Hooks of running sessions call the launcher in bin\; refresh it before anything else.
-  // A failure keeps the old launcher and must not stop the app from starting.
-  await tryStartupStep(
-    'Hook file install',
-    () =>
-      installHookFiles(paths, {
-        exePath: process.execPath,
-        helperBundle: join(__dirname, 'hook-helper.js'),
-      }),
-    warn,
-  );
-  const server = await startApiServer({
-    paths,
-    preferredPort: DEFAULT_API_PORT,
-    allowedOrigins,
-    routes: {
-      ...createCoreRoutes({ appVersion: app.getVersion(), snapshot: ctx.snapshot }),
-      ...createHookRoutes({ store: opened, log: warn }),
-      ...createProjectRoutes({ service: projects }),
-    },
-    snapshot: ctx.snapshot,
-    log: warn,
-  });
-  api = server;
-  ctx.attachPublisher(server.publish);
-  // Envelopes spooled while the app was closed. Task 12 moves this into the restart sequence.
-  // A spool that cannot be imported now (locked file, unwritable folder) waits for the next import.
-  const spooled = await tryStartupStep('Spool import', () => importSpool(opened, paths), warn);
-  if (spooled !== null && spooled.damaged > 0)
-    warn(`Spool import kept ${String(spooled.damaged)} damaged lines`);
+function registerConnectionIpc(server: ApiServer): void {
   registerIpc({
     ipcMain,
     pickFolder: async (event) => {
@@ -157,6 +102,45 @@ async function startServices(): Promise<void> {
   });
 }
 
+/** The claude command, or null when none is found (session starts are then blocked). */
+async function findClaude(): Promise<ClaudeCommand | null> {
+  try {
+    return await resolveClaudeCommand({
+      env: process.env,
+      packaged: app.isPackaged,
+      where: whereClaude,
+    });
+  } catch (error: unknown) {
+    warn(`Claude Code command: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+}
+
+async function startServices(): Promise<void> {
+  running = await runStartup({
+    paths,
+    hookSource: { exePath: process.execPath, helperBundle: join(__dirname, 'hook-helper.js') },
+    claude: await findClaude(),
+    buildingBlocksDir: buildingBlocksDir(app.isPackaged, process.resourcesPath, app.getAppPath()),
+    claudePaths: claudeConfigPaths(process.env, homedir()),
+    env: process.env,
+    appVersion: app.getVersion(),
+    allowedOrigins,
+    preferredPort: DEFAULT_API_PORT,
+    shell: {
+      openPath: (path) => shell.openPath(path),
+      openExternal: (url) => shell.openExternal(url),
+    },
+    log: warn,
+    // The API is up before the window loads, so the renderer can connect at once; it shows no
+    // sessions until the snapshot says ready.
+    onApiReady: (server) => {
+      registerConnectionIpc(server);
+      createMainWindow();
+    },
+  });
+}
+
 app
   .whenReady()
   .then(async () => {
@@ -165,9 +149,7 @@ app
       APP_SCHEME,
       createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path), warn),
     );
-    // The API is up before the window loads, so the renderer can connect at once.
     await startServices();
-    createMainWindow();
   })
   .catch((error: unknown) => {
     console.error(error);
@@ -178,21 +160,20 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-// Close the API (which deletes api.json) and the store before the process ends.
+// Stop polling, end the app's attach PTYs (the sessions keep running under Claude Code's
+// supervisor), close the API (which deletes api.json) and the store before the process ends.
 let shutDown = false;
 app.on('before-quit', (event) => {
   if (shutDown) return;
   event.preventDefault();
   shutDown = true;
-  const server = api;
-  api = null;
-  (server?.close() ?? Promise.resolve())
+  const current = running;
+  running = null;
+  (current?.close() ?? Promise.resolve())
     .catch((error: unknown) => {
-      console.error('Failed to close the local API:', error);
+      console.error('Failed to shut down cleanly:', error);
     })
     .finally(() => {
-      store?.close();
-      store = null;
       app.quit();
     });
 });

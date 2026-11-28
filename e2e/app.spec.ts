@@ -175,7 +175,26 @@ test('the renderer reaches the local API and the event stream with the token', a
   expect(result.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
   expect(result.health).toMatchObject({ apiVersion: 1 });
   expect(result.withoutToken).toBe(401);
-  expect(result.first).toMatchObject({ v: 1, kind: 'snapshot', snapshot: { ready: false } });
+  // The first snapshot may come before or after the restart sequence has finished.
+  expect(result.first).toMatchObject({
+    v: 1,
+    kind: 'snapshot',
+    snapshot: { ready: expect.any(Boolean) as unknown },
+  });
+});
+
+test('the restart sequence ends with a ready snapshot and the fake CLI found', async () => {
+  const state = (): Promise<{ ready: boolean; status: { cli: { found: boolean } } }> =>
+    page.evaluate(async () => {
+      const bridge = (window as unknown as { orchtopus: PreloadApi }).orchtopus;
+      const { baseUrl, token } = await bridge.connection();
+      const res = await fetch(`${baseUrl}/v1/state`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return (await res.json()) as { ready: boolean; status: { cli: { found: boolean } } };
+    });
+  await expect.poll(async () => (await state()).ready, { timeout: 15_000 }).toBe(true);
+  expect((await state()).status.cli).toMatchObject({ found: true, supported: true });
 });
 
 test('keeps its files in the data folder and writes api.json', () => {

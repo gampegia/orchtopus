@@ -2,6 +2,7 @@
 // routes here. Handlers validate with parseBody, which answers invalid input with 422.
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
+import { validateTaskName } from '../../shared/task-name';
 import { branchPrefixSchema, copyListEntrySchema } from '../projects/project-config';
 import { HttpError } from './router';
 
@@ -63,3 +64,40 @@ export type TerminalClientMessage = z.output<typeof terminalClientMessageSchema>
 
 /** POST /v1/terminals/trust */
 export const trustTerminalBodySchema = z.strictObject({ path: z.string().min(1).max(4096) });
+
+// Session routes (Task 12).
+
+const taskNameSchema = z.string().superRefine((value, ctx) => {
+  const error = validateTaskName(value);
+  if (error !== null) ctx.addIssue({ code: 'custom', message: error });
+});
+
+/** POST /v1/sessions. The first prompt is optional (check T3). */
+export const startSessionSchema = z.object({
+  projectId: z.string().min(1).max(128),
+  task: taskNameSchema,
+  branch: z.string().min(1).max(255),
+  base: z.enum(['remote', 'local']),
+  prompt: z.string().max(100_000).nullable(),
+  model: z
+    .string()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9._:[\]-]{0,127}$/, { error: 'Use a model name such as opus' })
+    .nullable(),
+  effort: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).nullable(),
+  mode: z.enum(['auto', 'manual']),
+  requestId: requestIdSchema,
+});
+
+/** POST /v1/sessions/:id/open */
+export const openSessionSchema = z.object({
+  cols: z.int().min(1).max(500),
+  rows: z.int().min(1).max(300),
+});
+
+/** DELETE /v1/sessions/:id */
+export const removeSessionSchema = z.object({
+  confirm: z.literal(true, { error: 'Confirm the removal' }),
+});
+
+/** POST /v1/sessions/:id/reveal */
+export const revealSessionSchema = z.object({ target: z.enum(['explorer', 'vscode']) });

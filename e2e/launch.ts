@@ -2,7 +2,7 @@
 // never touches the real %APPDATA%\Orchtopus or ~/.claude.
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 
 export interface LaunchOptions {
@@ -24,6 +24,8 @@ export interface LaunchedApp {
 
 const BLOCKED = new Set(['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL']);
 
+const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
+
 function baseEnv(): Record<string, string> {
   return Object.fromEntries(
     Object.entries(process.env).filter(
@@ -41,6 +43,9 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
     CLAUDE_CONFIG_DIR: claudeHome,
     // BACKGROUND_WINDOW_ENV in src/main/show-window.ts: show the window without taking focus.
     ORCHTOPUS_BACKGROUND_WINDOW: '1',
+    // CLAUDE_COMMAND_ENV in src/main/claude/cli.ts: the restart sequence polls the fake CLI,
+    // never the real one. A real Node command, because the clean env drops ELECTRON_RUN_AS_NODE.
+    ORCHTOPUS_CLAUDE_COMMAND: JSON.stringify([process.execPath, FAKE_CLAUDE]),
     ...options.env,
   };
   const executablePath = options.unpacked ? undefined : process.env['E2E_EXECUTABLE'];
