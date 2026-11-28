@@ -37,6 +37,11 @@ protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
 const paths = resolveDataPaths({ env: process.env, appData: app.getPath('appData') });
 app.setPath('userData', paths.electronUserData);
 
+// One instance per data folder (the lock lives in userData, so it is taken after setPath). A
+// second instance would open the same state.db, attach the same PTYs and overwrite api.json.
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.exit(0);
+
 const renderer = resolveRendererTarget({
   packaged: app.isPackaged,
   rendererUrl: process.env['ELECTRON_RENDERER_URL'],
@@ -54,6 +59,16 @@ app.on('web-contents-created', (_event, contents) => {
 });
 
 let running: RunningApp | null = null;
+let mainWindow: BrowserWindow | null = null;
+
+// A second start brings the running window to the front instead.
+app.on('second-instance', () => {
+  const window = mainWindow;
+  if (window === null || window.isDestroyed()) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+});
 
 function createMainWindow(): void {
   const window = new BrowserWindow(
@@ -63,6 +78,7 @@ function createMainWindow(): void {
       devTools: !app.isPackaged,
     }),
   );
+  mainWindow = window;
   window.once('ready-to-show', () => {
     showMainWindow(window, process.env);
   });
@@ -77,6 +93,7 @@ function createMainWindow(): void {
   nativeTheme.on('updated', updateBackground);
   window.on('closed', () => {
     nativeTheme.off('updated', updateBackground);
+    if (mainWindow === window) mainWindow = null;
   });
 
   loadRenderer(window, renderer.url, warn).catch((error: unknown) => {
@@ -144,20 +161,23 @@ async function startServices(): Promise<void> {
   });
 }
 
-app
-  .whenReady()
-  .then(async () => {
-    denyAllPermissions(session.defaultSession);
-    protocol.handle(
-      APP_SCHEME,
-      createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path), warn),
-    );
-    await startServices();
-  })
-  .catch((error: unknown) => {
-    console.error(error);
-    app.exit(1);
-  });
+// app.exit does not stop this module from running, so a second instance never starts services.
+if (primaryInstance) {
+  app
+    .whenReady()
+    .then(async () => {
+      denyAllPermissions(session.defaultSession);
+      protocol.handle(
+        APP_SCHEME,
+        createAppProtocolHandler(join(__dirname, '../renderer'), (path) => readFile(path), warn),
+      );
+      await startServices();
+    })
+    .catch((error: unknown) => {
+      console.error(error);
+      app.exit(1);
+    });
+}
 
 app.on('window-all-closed', () => {
   app.quit();
