@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review page A · Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="chrome.css">
+<style>
+/* Direction A, Brief: one reading column like a memo, the decision in a
+   rail on the right that never scrolls away. */
+.view { display: grid; grid-template-rows: var(--size-header) 1fr; overflow: hidden; }
+.split { display: grid; grid-template-columns: 1fr var(--size-rail); min-height: 0; }
+.doc { overflow-y: auto; padding: var(--space-6) var(--space-10) var(--space-12); scrollbar-width: thin; }
+.doc-in { max-width: 760px; }
+.rail { border-left: var(--border-width) solid var(--border-subtle); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-6); overflow-y: auto; }
+
+h2 { font-size: var(--type-title); line-height: var(--leading-title); font-weight: var(--weight-medium); margin: 0 0 var(--space-3); }
+section { margin-bottom: var(--space-6); }
+section + section { padding-top: var(--space-2); }
+section > p, .lead { color: var(--text-secondary); margin: 0 0 var(--space-3); }
+.kicker { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); color: var(--text-muted); font-size: var(--type-meta); }
+.big { font-size: var(--type-heading); line-height: var(--leading-heading); font-weight: var(--weight-medium); margin: 0 0 var(--space-3); max-width: 620px; }
+ul.builds { margin: 0 0 var(--space-3); padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+ul.builds li { display: grid; grid-template-columns: var(--size-icon) 1fr; gap: var(--layout-icon-gap); color: var(--text-primary); }
+ul.builds li svg { margin-top: var(--space-0-5); color: var(--text-muted); }
+.counts { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* needs you */
+.needs-box { border-radius: var(--radius-bar); background: color-mix(in srgb, var(--needs) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent); padding: var(--space-4) var(--space-5); margin-bottom: var(--space-5); }
+.needs-box .head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.dec { display: grid; grid-template-columns: 1fr 232px; gap: var(--space-0-5) var(--space-4); padding: var(--space-3) 0; border-top: var(--border-width) solid var(--border-subtle); }
+.dec:first-of-type { border-top: 0; padding-top: 0; }
+.dec .t { font-weight: var(--weight-medium); }
+.dec .y { color: var(--text-secondary); font-size: var(--type-small); grid-column: 1; }
+.dec .o { grid-column: 2; grid-row: 1 / 3; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1); font-size: var(--type-meta); color: var(--text-secondary); }
+.dec .o span { padding: var(--space-0-5) var(--space-2); border-radius: var(--radius-small); background: var(--surface-inset); }
+.dec .o span.def { color: var(--text-primary); box-shadow: inset 0 0 0 var(--border-width) var(--border-strong); background: var(--surface-panel); }
+.dec .ref { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.dec.done .o span.def::before { content: ""; }
+
+/* risks */
+.risks { display: grid; gap: 0; }
+.risk { display: grid; grid-template-columns: var(--size-icon) 1fr 1fr 48px; gap: var(--space-1) var(--layout-icon-gap); padding: var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); font-size: var(--type-small); line-height: var(--leading-small); }
+.risk:first-child { border-top: 0; }
+.risk svg { color: var(--text-muted); margin-top: var(--space-0-5); }
+.risk .e { color: var(--text-secondary); }
+.risk .tk { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); text-align: right; }
+.stop { display: flex; gap: var(--layout-icon-gap); margin-top: var(--space-3); font-size: var(--type-small); color: var(--text-secondary); }
+
+/* flow: waves top to bottom */
+.waves { position: relative; display: grid; gap: var(--space-2); }
+.wave { display: grid; grid-template-columns: 72px 1fr; gap: var(--space-3); align-items: start; position: relative; }
+.wave .wn { font-size: var(--type-meta); color: var(--text-muted); padding-top: var(--space-1-5); display: flex; align-items: center; gap: var(--space-2); }
+.wave .wn::before { content: ""; width: var(--size-lamp-small); height: var(--size-lamp-small); border-radius: var(--radius-round); box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+.wave:not(:last-child)::after { content: ""; position: absolute; left: 2.5px; top: 22px; bottom: calc(-1 * var(--space-2)); border-left: var(--border-width) solid var(--border-strong); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--size-control-tiny); padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-control); background: var(--surface-inset); font-size: var(--type-small); white-space: nowrap; }
+.chip .no { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.chip .ln { font-size: var(--type-meta); color: var(--text-muted); }
+.chip.is-done { background: transparent; box-shadow: inset 0 0 0 var(--border-width) var(--border-subtle); color: var(--text-secondary); }
+.chip.is-run { box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--signal-running) var(--mix-decision-edge), transparent); }
+.par { font-size: var(--type-meta); color: var(--text-muted); margin-top: var(--space-3); }
+
+/* info */
+.infos { display: grid; gap: var(--space-2); }
+.inf { display: grid; grid-template-columns: var(--size-icon) 1fr; gap: 0 var(--layout-icon-gap); font-size: var(--type-small); }
+.inf svg { margin-top: var(--space-0-5); }
+.inf .y { grid-column: 2; color: var(--text-secondary); }
+
+/* tasks */
+.tasks { border-top: var(--border-width) solid var(--border-subtle); }
+details.task { border-bottom: var(--border-width) solid var(--border-subtle); }
+details.task > summary { list-style: none; display: grid; grid-template-columns: 28px 1fr 120px 96px var(--size-icon); align-items: center; gap: var(--space-3); min-height: 44px; cursor: pointer; padding: 0 var(--space-1); border-radius: var(--radius-small); }
+details.task > summary::-webkit-details-marker { display: none; }
+details.task > summary:hover { background: var(--surface-hover); }
+summary .no { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+summary .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+summary .ln { font-size: var(--type-meta); color: var(--text-muted); }
+summary .chev { color: var(--text-muted); transition: transform var(--motion-fast) var(--motion-ease-out); }
+details[open] > summary .chev { transform: rotate(90deg); }
+.prog { display: grid; gap: var(--space-1); font-size: var(--type-meta); color: var(--text-muted); font-family: var(--font-mono); }
+.bar { height: 4px; border-radius: var(--radius-round); background: var(--surface-inset); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--text-muted); border-radius: inherit; }
+.bar.run i { background: var(--signal-running); }
+.bar.done i { background: var(--signal-done); }
+.tbody { padding: var(--space-1) var(--space-1) var(--space-4) calc(28px + var(--space-3) + var(--space-1)); display: grid; gap: var(--space-2); font-size: var(--type-small); line-height: var(--leading-small); }
+.tbody .y { color: var(--text-secondary); }
+.tbody dl { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.tbody dt { color: var(--text-muted); }
+.tbody dd { margin: 0; }
+.steps { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.steps span { font-size: var(--type-meta); padding: 0 var(--space-2); border-radius: var(--radius-small); background: var(--surface-inset); color: var(--text-secondary); }
+.files { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-secondary); }
+
+/* rail */
+.card { border-radius: var(--radius-bar); padding: var(--space-4); background: color-mix(in srgb, var(--signal-plan) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--signal-plan) var(--mix-decision-edge), transparent); display: grid; gap: var(--space-3); }
+.card.run { background: var(--surface-inset); box-shadow: none; }
+.card h3 { margin: 0; font-size: var(--type-title); line-height: var(--leading-title); font-weight: var(--weight-medium); }
+.card p { margin: 0; color: var(--text-secondary); font-size: var(--type-small); line-height: var(--leading-small); }
+.card .acts { display: grid; gap: var(--space-2); }
+.card .acts .btn { justify-content: center; }
+.card .acts .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.toc h4, .rail h4 { margin: 0 0 var(--space-2); font-size: var(--type-meta); font-weight: var(--weight-medium); color: var(--text-muted); }
+.toc a { display: flex; align-items: center; justify-content: space-between; height: var(--size-nav-row); padding: 0 var(--space-2); border-radius: var(--radius-small); text-decoration: none; color: var(--text-secondary); font-size: var(--type-small); }
+.toc a:hover { background: var(--surface-hover); color: var(--text-primary); }
+.toc a .label { font-weight: var(--weight-medium); }
+.src { display: grid; gap: var(--space-2); font-size: var(--type-meta); color: var(--text-muted); }
+.src .mono { word-break: break-all; }
+.src a.btn { justify-self: start; }
+.okline { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--signal-done); font-weight: var(--weight-medium); }
+
+/* spec bits */
+ol.done { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-1-5); }
+ol.done li::marker { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.flow { display: grid; grid-template-columns: auto auto 1fr; gap: var(--space-2) var(--space-3); align-items: center; font-size: var(--type-small); }
+.node { padding: var(--space-1-5) var(--space-3); border-radius: var(--radius-control); background: var(--surface-inset); white-space: nowrap; }
+.node.key { box-shadow: inset 0 0 0 var(--border-width) var(--border-strong); background: var(--surface-panel); }
+.arrow { color: var(--text-muted); display: flex; align-items: center; gap: var(--space-1); font-size: var(--type-meta); white-space: nowrap; }
+table.t { width: 100%; border-collapse: collapse; font-size: var(--type-small); line-height: var(--leading-small); }
+table.t th { text-align: left; font-weight: var(--weight-medium); color: var(--text-muted); font-size: var(--type-meta); padding: 0 var(--space-3) var(--space-1) 0; }
+table.t td { padding: var(--space-2) var(--space-3) var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); vertical-align: top; color: var(--text-secondary); }
+table.t td:first-child { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--type-meta); white-space: nowrap; }
+table.t tr.chosen td { color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="stage"><div id="app"></div></div>
+<script src="data.js"></script>
+<script src="explore.js"></script>
+<script>
+const R = window.REVIEW, I = X.icon;
+
+function decisions(list, resolved) {
+  return list.map((d) => `<div class="dec${resolved ? ' done' : ''}"><span class="t">${d.title}</span>
+    <span class="y">${d.why} <span class="ref">${d.task ? 'Task ' + d.task : d.id}</span></span>
+    <span class="o">${resolved ? `<span class="def">${I('check', 't')} ${d.options[0]}</span><span>decided at Plan Go</span>` : d.options.map((o, i) => `<span class="${i === 0 ? 'def' : ''}">${i === 0 ? 'Default: ' : 'Or: '}${o}</span>`).join('')}</span></div>`).join('');
+}
+
+function needsBox(doc, resolved) {
+  const head = resolved
+    ? `<span class="label" style="color:var(--text-secondary)">${I('check', 't')}Decided · ${doc.needs.length} of ${doc.needs.length}</span>`
+    : `<span class="label needs">${I('alert', 's')}Needs you · ${doc.needs.length} decisions</span><span class="counts">each has a default</span>`;
+  return `<div class="needs-box" id="needs"${resolved ? ' style="background:var(--surface-inset);box-shadow:none"' : ''}><div class="head">${head}</div>${decisions(doc.needs, resolved)}</div>`;
+}
+
+function infoList(items) {
+  return `<div class="infos">${items.map((i) => `<div class="inf info">${I('info', 's')}<span style="color:var(--text-primary)">${i.title}</span><span class="y">${i.why}</span></div>`).join('')}</div>`;
+}
+
+function taskState(t, screen) {
+  const p = screen === 2 ? (R.plan.progress[t.n] || 0) : 0;
+  const run = screen === 2 && R.plan.running.includes(t.n);
+  const done = p === t.steps;
+  return { p, run, done };
+}
+
+function plan(screen) {
+  const d = R.plan, lanes = Object.fromEntries(d.lanes.map((l) => [l.id, l.name]));
+  const byWave = {};
+  d.tasks.forEach((t) => (byWave[t.wave] = byWave[t.wave] || []).push(t));
+  const totalDone = Object.values(d.progress).reduce((a, b) => a + b, 0);
+
+  const waves = Object.keys(byWave).map((w) => `<div class="wave"><span class="wn">Wave ${w}</span><div class="chips">${byWave[w].map((t) => {
+    const s = taskState(t, screen);
+    return `<span class="chip${s.done ? ' is-done' : ''}${s.run ? ' is-run' : ''}">${s.done ? `<span class="sig-done" style="display:flex">${I('check', 't')}</span>` : s.run ? X.lamp('running').replace('lamp', 'lamp sig-running') : ''}<span class="no">${t.n}</span>${d.short[t.n]}<span class="ln">${lanes[t.lane]}</span></span>`;
+  }).join('')}</div></div>`).join('');
+
+  const tasks = d.tasks.map((t) => {
+    const s = taskState(t, screen);
+    const word = s.done ? 'done' : s.run ? `${s.p} of ${t.steps}` : `${s.p} of ${t.steps}`;
+    return `<details class="task"${t.n === 4 && screen === 1 ? ' open' : ''}${t.n === 7 && screen === 2 ? ' open' : ''}><summary><span class="no">${t.n}</span><span class="tt">${t.title}</span><span class="ln">${lanes[t.lane]} · wave ${t.wave}</span>
+      <span class="prog"><span class="${s.done ? 'sig-done' : s.run ? 'sig-running' : ''}">${s.run ? 'running · ' : ''}${word}</span><span class="bar${s.done ? ' done' : s.run ? ' run' : ''}"><i style="width:${(s.p / t.steps) * 100}%"></i></span></span>${I('chev', 's chev')}</summary>
+      <div class="tbody"><span class="y">${t.does}</span><dl>
+        <dt>After</dt><dd>${t.needs.length ? t.needs.map((n) => 'Task ' + n).join(', ') : 'nothing, can start in wave ' + t.wave}</dd>
+        <dt>Agent</dt><dd>${t.agent}</dd><dt>Reviews</dt><dd>${t.review}</dd>
+        <dt>Files</dt><dd class="files">${t.files.join('<br>')}</dd>
+        <dt>Steps</dt><dd class="steps">${(t.stepNames || ['Failing tests', 'Run', 'Implement', 'Run', ...(t.steps > 5 ? ['Check'] : []), 'Commit']).slice(0, t.steps).map((n) => `<span>${n}</span>`).join('')}</dd></dl></div></details>`;
+  }).join('');
+
+  const docHtml = `
+    <section id="summary">
+      <div class="kicker">${X.label('plan', 'Plan')}<span>${d.written} · ${d.session}</span></div>
+      <p class="big">The first Orchtopus that runs a real Claude Code session end to end and survives a restart</p>
+      <ul class="builds">${d.builds.map((b) => `<li>${I('check', 's')}<span>${b}</span></li>`).join('')}</ul>
+      <div class="counts">${d.counts.tasks} tasks · ${d.counts.steps} steps · ${d.counts.waves} waves · ${d.counts.lanes} lanes · ${d.reviews}</div>
+    </section>
+    ${needsBox(d, screen === 2)}
+    <section id="risks"><h2>Risks the tests pin</h2><div class="risk" style="color:var(--text-muted);font-size:var(--type-meta)"><span></span><span>If</span><span>Expected</span><span style="text-align:right">Task</span></div><div class="risks">${d.risks.map((r) => `<div class="risk">${I('alert', 's')}<span>${r.text}</span><span class="e">${r.expect}</span><span class="tk">${r.tasks.join(', ')}</span></div>`).join('')}</div>
+      <div class="stop">${I('clock', 's')}<span>${d.stopRule}</span></div></section>
+    <section id="flow"><h2>How the work flows</h2><div class="waves">${waves}</div><p class="par">Tasks in one wave can run at the same time, each in its own worktree. A task starts when the tasks in its Consumes line are done.</p></section>
+    <section id="info"><h2 class="label info" style="font-size:var(--type-title);line-height:var(--leading-title);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">For your information</span></h2>${infoList(d.info)}</section>
+    <section id="tasks"><h2>Tasks</h2><div class="tasks">${tasks}</div></section>`;
+
+  const card = screen === 2
+    ? `<div class="card run">${X.label('running', 'Running · tasks 7 and 11')}<h3>${totalDone} of ${d.counts.steps} steps</h3><div class="bar run"><i style="width:${(totalDone / d.counts.steps) * 100}%"></i></div><p>9 of 17 tasks done. Wave 5 runs. Approved by you on 2026-11-27 at sha256 ${d.sha256.slice(0, 8)}.</p></div>`
+    : `<div class="card">${X.label('plan', 'Plan · waits for you')}<h3>Approve the M1 plan</h3><p>${d.counts.tasks} tasks in ${d.counts.waves} waves. ${d.needs.length} decisions need you; Plan Go keeps their defaults.</p>
+      <div class="acts"><button class="btn primary">${I('check', 's')}Plan Go</button><div class="row"><button class="btn secondary small">Ask for changes</button><button class="btn ghost small">${I('chat', 's')}Advisor</button></div></div></div>`;
+
+  return { docHtml, card, toc: [['summary', 'What it builds'], ['needs', screen === 2 ? 'Decided' : 'Needs you', screen === 2 ? '' : `<span class="label needs">${X.lamp()}${d.needs.length}</span>`], ['risks', 'Risks', '<span class="counts">5</span>'], ['flow', 'Flow and lanes', '<span class="counts">9 waves</span>'], ['info', 'Info', `<span class="label info">${X.lamp()}${d.info.length}</span>`], ['tasks', 'Tasks', `<span class="counts">${screen === 2 ? '9 of 17' : '17'}</span>`]], doc: d };
+}
+
+function spec() {
+  const d = R.spec;
+  const docHtml = `
+    <section id="summary"><div class="kicker">${X.label('plan', 'Spec')}<span>${d.written} · lead · orchtopus</span></div>
+      <p class="big">${d.intent}</p>
+      <div class="counts">Not in M1: ${d.notInM1}</div></section>
+    ${needsBox({ needs: d.needs.map((n) => ({ ...n, task: null })) }, false).replace('decisions</span>', 'calls to confirm</span>')}
+    <section id="done"><h2>Done when</h2><ol class="done">${d.doneWhen.map((x) => `<li>${x}</li>`).join('')}</ol></section>
+    <section id="flow"><h2>Where a hook event goes</h2>
+      <div class="flow">
+        <span class="node key">Hook fires in a session</span><span class="arrow">${I('chev', 't')}</span><span class="node">Helper posts to the local API, 500 ms</span>
+        <span></span><span class="arrow">app open</span><span class="node">Event log in state.db, list updates within 2 s</span>
+        <span></span><span class="arrow">app closed</span><span class="node">Appended to spool\\events.jsonl</span>
+        <span></span><span class="arrow">on start</span><span class="node">Spool imported once, then live again</span>
+      </div><p class="par">Approach C, chosen by you: one process plus a spool, so no event is lost while the app is closed.</p></section>
+    <section id="approach"><h2>Approaches</h2><table class="t"><tr><th></th><th>Approach</th><th>Trade-off</th></tr>${d.approaches.map((a) => `<tr class="${a.chosen ? 'chosen' : ''}"><td>${a.id}</td><td>${a.name}${a.chosen ? ` <span class="label sig-done">${X.lamp()}chosen</span>` : ''}</td><td>${a.tradeoff}</td></tr>`).join('')}</table></section>
+    <section id="checks"><h2>Checks before code depends on them</h2><table class="t"><tr><th></th><th>Question</th><th>If it fails</th></tr>${d.checks.map((c) => `<tr><td>${c[0]}</td><td>${c[1]}</td><td>${c[2]}</td></tr>`).join('')}</table></section>
+    <section id="info"><h2 class="label info" style="font-size:var(--type-title);line-height:var(--leading-title);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">Lead’s calls, for your information</span></h2>${infoList(d.info)}</section>`;
+  const card = `<div class="card">${X.label('plan', 'Spec · waits for you')}<h3>Is the M1 spec OK?</h3><p>7 done-when items, 6 checks. ${d.needs.length} calls need you; Spec OK keeps them.</p>
+    <div class="acts"><button class="btn primary">${I('check', 's')}Spec OK</button><div class="row"><button class="btn secondary small">Ask for changes</button><button class="btn ghost small">${I('chat', 's')}Advisor</button></div></div></div>`;
+  return { docHtml, card, toc: [['summary', 'Intent'], ['needs', 'Needs you', `<span class="label needs">${X.lamp()}${d.needs.length}</span>`], ['done', 'Done when', '<span class="counts">7</span>'], ['flow', 'Event flow'], ['approach', 'Approaches', '<span class="counts">3</span>'], ['checks', 'Checks', '<span class="counts">6</span>'], ['info', 'Info', `<span class="label info">${X.lamp()}${d.info.length}</span>`]], doc: d };
+}
+
+X.start((st) => {
+  const v = st.screen === 3 ? spec() : plan(st.screen);
+  const kind = v.doc.kind;
+  const headState = st.screen === 2 ? X.label('running', 'Running') : X.label('plan', `${kind} waits for you`);
+  return `<div class="window">${X.titlebar(st.screen)}
+    <div class="body"><aside class="panel sessions">${X.sessionList(st.screen)}</aside>
+      <main class="panel view">
+        <div class="vhead"><button class="btn ghost small">${I('back', 's')}Back</button><h1>${kind} · ${v.doc.title}</h1>${headState}<span class="meta">${I('branch', 't')} ${R.plan.branch}</span>
+          <span class="links"><a class="btn ghost small" href="../../../${v.doc.source.replace('docs/', '')}">${I('file', 's')}Markdown</a><button class="btn ghost small">${I('history', 's')}Session history</button><button class="btn ghost small">${I('code', 's')}VS Code</button><button class="btn ghost small" aria-label="Close">${I('x', 's')}</button></span></div>
+        <div class="split"><div class="doc"><div class="doc-in">${v.docHtml}</div></div>
+          <aside class="rail">${v.card}
+            <nav class="toc"><h4>On this page</h4>${v.toc.map(([id, t, extra]) => `<a href="#${id}" onclick="event.preventDefault();document.getElementById('${id}').scrollIntoView()"><span>${t}</span>${extra || ''}</a>`).join('')}</nav>
+            <div class="src"><h4>Source</h4><span class="okline">${I('check', 't')}Matches the Markdown</span><span class="mono">${v.doc.source}</span><span class="mono">sha256 ${v.doc.sha256.slice(0, 16)}…</span><span>Template ${v.doc.template}</span>
+              <a class="btn secondary tiny" href="../../../${v.doc.source.replace('docs/', '')}">${I('file', 't')}Show raw Markdown</a></div>
+          </aside></div>
+      </main></div>
+    ${X.statusbar(st.screen, st.screen === 2 ? [['Esc', 'Back'], ['M', 'Markdown']] : [['Esc', 'Back'], ['M', 'Markdown'], ['A', 'Advisor']])}</div>`;
+});
+</script>
+</body>
+</html>
