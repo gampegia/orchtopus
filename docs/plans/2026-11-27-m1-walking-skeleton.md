@@ -342,8 +342,8 @@ Request rules (in `auth.ts`, all unit-tested):
 **Agent:** implementer Opus medium. Reviews: spec-reviewer Sonnet medium, code-reviewer Opus high.
 
 **Files:**
-- Create: `src/main/claude/cli.ts`, `src/main/claude/claude-home.ts`, `src/main/claude/trust.ts`, `src/main/claude/agents.ts`, `src/main/claude/clean-env.ts`
-- Test: `src/main/claude/cli.test.ts`, `claude-home.test.ts`, `trust.test.ts`, `agents.test.ts`, `clean-env.test.ts`
+- Create: `src/main/claude/cli.ts`, `src/main/claude/claude-home.ts`, `src/main/claude/trust.ts`, `src/main/claude/agents.ts`, `src/main/claude/child-env.ts`
+- Test: `src/main/claude/cli.test.ts`, `claude-home.test.ts`, `trust.test.ts`, `agents.test.ts`, `child-env.test.ts`
 
 **Interfaces:**
 - Produces:
@@ -357,7 +357,7 @@ Request rules (in `auth.ts`, all unit-tested):
 
 - [ ] **Step 1: Write the failing tests.**
   - `cli.test.ts`: `uses ORCHTOPUS_CLAUDE_COMMAND only when unpackaged`; `picks the first .exe from where`; `returns null when nothing is found`; version `2.1.332 (Claude Code)` → supported; `2.1.301` → not supported; garbage → `{ version: null, supported: false }`.
-  - `clean-env.test.ts`: drops `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `ELECTRON_RUN_AS_NODE`, keeps `PATH`, `CLAUDE_CONFIG_DIR`.
+  - `child-env.test.ts`: drops `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `ELECTRON_RUN_AS_NODE`, keeps `PATH`, `CLAUDE_CONFIG_DIR`.
   - `claude-home.test.ts`: default paths under home; `CLAUDE_CONFIG_DIR` paths.
   - `trust.test.ts`: `trusted for C:/Repos/acme-app with backslash input`; `not-trusted when false`; `unknown for a missing file, bad JSON, missing projects`; `never opens the file for writing` (spy on `fs.promises.open`/`writeFile`: no write call).
   - `agents.test.ts`: parses the spike's observed entry shape (fields from the spike doc Q1, with `kind: "interactive"` entries that have no `state`); `throws AgentsParseError for "Error: …"`; `filterByCwd matches the worktree and subfolders, not siblings` (`C:\r\.claude\worktrees\upload-fix` vs `…\upload-fix-2`).

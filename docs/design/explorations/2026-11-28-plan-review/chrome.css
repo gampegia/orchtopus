@@ -1,0 +1,110 @@
+/* Orchtopus app chrome shared by the three directions: window, title bar,
+   session list, view header, status bar, buttons, labels. Tokens only.
+   The review page itself (the part the session writes) is styled in each
+   direction's own file. Scenery is off (Lagoon plain) so the comparison
+   is about the page, not the backdrop. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+a { color: inherit; }
+:focus-visible { outline: var(--focus-width) solid var(--focus-ring); outline-offset: var(--focus-offset); border-radius: var(--radius-small); }
+svg.i { width: var(--size-icon); height: var(--size-icon); stroke: currentColor; stroke-width: var(--icon-stroke); fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+svg.i.s { width: var(--size-icon-small); height: var(--size-icon-small); }
+svg.i.t { width: var(--size-icon-tiny); height: var(--size-icon-tiny); }
+
+/* window */
+.stage { position: fixed; inset: 0; display: grid; place-items: start center; overflow: hidden; }
+.window {
+  width: var(--size-window-width); height: var(--size-window-height);
+  transform-origin: top center;
+  display: grid; grid-template-rows: var(--size-titlebar) 1fr;
+  background: var(--surface-page);
+  position: relative;
+}
+.titlebar { display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--layout-edge); color: var(--text-secondary); font-size: var(--type-small); }
+.brand { color: var(--text-primary); font-weight: var(--weight-medium); font-size: var(--type-body); }
+.crumbs { display: flex; gap: var(--space-2); align-items: center; color: var(--text-muted); }
+.crumbs b { color: var(--text-secondary); font-weight: var(--weight-regular); }
+.titlebar .note { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+.titlebar .tb-btn { display: flex; align-items: center; gap: var(--space-1-5); color: var(--text-secondary); }
+
+.body { display: grid; grid-template-columns: var(--size-sidebar) 1fr; gap: var(--layout-gap); padding: 0 var(--layout-edge) calc(var(--size-statusbar) + var(--space-3) + var(--layout-gap)); min-height: 0; }
+.panel { background: var(--surface-panel); border-radius: var(--radius-panel); box-shadow: var(--shadow-panel); min-height: 0; }
+
+/* session list */
+.sessions { padding: var(--space-3) var(--space-2); align-self: start; }
+.group-name { padding: var(--space-3) var(--space-3) var(--space-1); color: var(--text-muted); font-size: var(--type-meta); line-height: var(--leading-meta); }
+.srow { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); height: var(--size-row); align-content: center; }
+.srow:hover { background: var(--surface-hover); }
+.srow.sel { background: var(--surface-selected); box-shadow: var(--shadow-row); }
+.srow .n { font-weight: var(--weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow .p { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); text-align: right; }
+.srow .w { grid-column: 1 / -1; font-size: var(--type-meta); line-height: var(--leading-meta); display: flex; align-items: center; gap: var(--space-1-5); }
+
+/* review labels: "Needs you" and "Info". Default (user, 2026-11-28): the
+   document's signal colour and neutral. data-labels="asked" shows the first
+   ask, red and green. */
+:root { --needs: var(--signal-plan); --info: var(--text-secondary); }
+html[data-labels="asked"] { --needs: var(--signal-danger); --info: var(--signal-done); }
+.needs { color: var(--needs); }
+.info { color: var(--info); }
+
+/* lamps and signal labels */
+.lamp { width: var(--size-lamp); height: var(--size-lamp); border-radius: var(--radius-round); background: currentColor; flex: none; display: inline-block; }
+.lamp.ring { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+.sig-permission { color: var(--signal-permission); }
+.sig-plan { color: var(--signal-plan); }
+.sig-done { color: var(--signal-done); }
+.sig-danger { color: var(--signal-danger); }
+.sig-overlap { color: var(--signal-overlap); }
+.sig-running { color: var(--signal-running); }
+.sig-idle { color: var(--signal-idle); }
+.label { display: inline-flex; align-items: center; gap: var(--space-1-5); font-size: var(--type-meta); line-height: var(--leading-meta); font-weight: var(--weight-strong); white-space: nowrap; }
+
+/* view header (host chrome) */
+.vhead { height: var(--size-header); display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-5); border-bottom: var(--border-width) solid var(--border-subtle); }
+.vhead h1 { font-size: var(--type-title); line-height: var(--leading-title); font-weight: var(--weight-medium); margin: 0; }
+.vhead .meta { color: var(--text-muted); font-size: var(--type-meta); font-family: var(--font-mono); }
+.vhead .links { margin-left: auto; display: flex; gap: var(--space-1); align-items: center; }
+
+/* buttons */
+.btn { font: inherit; font-size: var(--type-small); height: var(--size-control); padding: 0 var(--space-4); border-radius: var(--radius-control); border: var(--border-width) solid transparent; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; white-space: nowrap; color: var(--text-primary); background: transparent; text-decoration: none; transition: background-color var(--motion-fast) var(--motion-ease-hover), transform var(--motion-fast) var(--motion-ease-out); }
+.btn:active { transform: scale(var(--motion-press-scale)); }
+.btn.primary { background: var(--action-primary); color: var(--action-on-primary); font-weight: var(--weight-medium); box-shadow: var(--shadow-highlight); }
+.btn.primary:hover { background: var(--action-primary-hover); }
+.btn.secondary { background: var(--surface-raised); border-color: var(--border-subtle); }
+.btn.ghost { color: var(--text-secondary); }
+.btn.ghost:hover, .btn.secondary:hover { background: var(--surface-hover); }
+.btn.small { height: var(--size-control-small); padding: 0 var(--space-3); }
+.btn.tiny { height: var(--size-control-tiny); padding: 0 var(--space-2); font-size: var(--type-meta); }
+.key { font-family: var(--font-mono); font-size: var(--type-micro); line-height: 1; height: var(--size-keycap); min-width: var(--size-keycap); padding: 0 var(--space-1); display: inline-flex; align-items: center; justify-content: center; border: var(--border-width) solid currentColor; border-bottom-width: var(--border-width-strong); border-radius: var(--radius-key); opacity: 0.65; }
+
+/* status bar */
+.status { position: absolute; left: var(--layout-edge); right: var(--layout-edge); bottom: var(--space-3); height: var(--size-statusbar); border-radius: var(--radius-bar); background: var(--surface-panel); box-shadow: var(--shadow-panel); display: flex; align-items: center; gap: var(--space-5); padding: 0 var(--space-4); font-size: var(--type-meta); color: var(--text-secondary); }
+.status .c { display: inline-flex; align-items: center; gap: var(--space-1-5); }
+.status .hints { margin-left: auto; display: flex; gap: var(--space-4); color: var(--text-muted); }
+.status .hints span { display: inline-flex; gap: var(--space-1-5); align-items: center; }
+
+/* source line under the page: which revision the page shows */
+.source { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-meta); color: var(--text-muted); }
+.source .ok { color: var(--signal-done); display: inline-flex; gap: var(--space-1); align-items: center; font-weight: var(--weight-medium); }
+
+/* exploration controls, outside the window */
+.xctl { position: fixed; right: var(--space-3); bottom: var(--space-3); z-index: var(--z-overlay); display: flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-bar); background: var(--surface-raised); box-shadow: var(--shadow-panel); font-size: var(--type-micro); opacity: 0.35; transition: opacity var(--motion-fast) var(--motion-ease-hover); }
+.xctl:hover, .xctl:focus-within { opacity: 1; }
+.xctl button { font: inherit; border: 0; background: transparent; color: var(--text-secondary); border-radius: var(--radius-small); padding: var(--space-1) var(--space-2); cursor: pointer; }
+.xctl button[aria-pressed="true"] { background: var(--surface-panel); color: var(--text-primary); }
+html.shot .xctl { display: none; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
