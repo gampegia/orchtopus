@@ -1,14 +1,13 @@
 // The session header and the live terminal against the fake CLI: replay, input, stop, resume
 // of stopped and failed sessions, remove with confirmation, and a takeover by another attach.
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { expect, test, type ElectronApplication, type Page, type Request } from '@playwright/test';
 import type { SessionView } from '../src/shared/api-types';
 import type { PreloadApi } from '../src/shared/preload-api';
 import { createTempRepo, type TempRepo } from '../src/main/test-helpers/temp-repo';
-import { closeApp, launchApp } from './launch';
+import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
 
 const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
 /** PROMPT_BOX in tooling/fake-claude/store.mjs. */
@@ -17,9 +16,12 @@ const PROMPT_BOX = 'fake prompt';
 let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo | undefined;
-const claudeHome = mkdtempSync(join(tmpdir(), 'orchtopus-e2e-claude-'));
+const claudeHome = makeTempDir('orchtopus-e2e-claude-');
+let cleanupLaunch: (() => void) | undefined;
 const fakeEnv = { ...process.env, CLAUDE_CONFIG_DIR: claudeHome };
 const extraAttaches: ChildProcess[] = [];
+/** Worktree folder by task, from the start responses. */
+const worktrees = new Map<string, string>();
 
 /** Calls the local API from the renderer with the connection the preload gives it. */
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -40,8 +42,8 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
   );
 }
 
-function startSession(task: string): Promise<SessionView> {
-  return api<SessionView>('POST', '/v1/sessions', {
+async function startSession(task: string): Promise<SessionView> {
+  const view = await api<SessionView>('POST', '/v1/sessions', {
     projectId: 'acme-app',
     task,
     branch: `orch/${task}`,
@@ -52,6 +54,8 @@ function startSession(task: string): Promise<SessionView> {
     mode: 'auto',
     requestId: `view-start-${task}`,
   });
+  worktrees.set(task, view.worktreePath);
+  return view;
 }
 
 interface FakeAgent {
@@ -120,6 +124,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
   const launched = await launchApp({ claudeHome });
+  cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
   await launched.app.context().addInitScript(() => {
@@ -155,13 +160,15 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   for (const child of extraAttaches) child.kill();
-  if (app !== undefined) await closeApp(app);
-  // Ends the fake background workers this test started.
-  execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-cleanup'], {
-    env: fakeEnv,
-    stdio: 'ignore',
-  });
-  await repo?.cleanup();
+  try {
+    if (app !== undefined) await closeApp(app);
+  } finally {
+    // Ends the fake background workers this test started, then removes the temp folders.
+    cleanupFakeClaude(claudeHome);
+    await repo?.cleanup();
+    removeTempDir(claudeHome);
+    cleanupLaunch?.();
+  }
 });
 
 test('opening a session shows the replayed output and the prompt box', async () => {
@@ -237,8 +244,25 @@ test('remove asks for confirmation and removes the row', async () => {
   await expect(dialog).toHaveCount(0);
   await expect(row('report-export')).toBeVisible();
 
+  // An untracked file in the worktree: the remove answers 409 and the dialog shows why.
+  const worktree = worktrees.get('report-export');
+  if (worktree === undefined) throw new Error('No worktree for report-export');
+  const stray = join(worktree, 'stray-notes.txt');
+  writeFileSync(stray, 'not committed');
   await header().getByRole('button', { name: 'More for report-export' }).click();
   await page.getByRole('menuitem', { name: 'Remove session' }).click();
+  const refused = page.waitForResponse(
+    (response) =>
+      response.url().includes('/v1/sessions/') && response.request().method() === 'DELETE',
+  );
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click();
+  expect((await refused).status()).toBe(409);
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('untracked files', {
+    timeout: 15_000,
+  });
+  await expect(row('report-export')).toBeVisible();
+
+  rmSync(stray);
   await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click();
   await expect(row('report-export')).toHaveCount(0, { timeout: 15_000 });
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -259,11 +283,21 @@ test('a takeover shows Opened in another window and Reattach', async () => {
   });
   const reattach = page.getByRole('button', { name: 'Reattach' });
   await expect(reattach).toBeVisible();
-  // The app never reattaches by itself.
+  // The app never reattaches by itself: no open request while the takeover shows.
+  const opens: string[] = [];
+  const onRequest = (request: Request): void => {
+    if (request.method() === 'POST' && /\/v1\/sessions\/[^/]+\/open$/.test(request.url())) {
+      opens.push(request.url());
+    }
+  };
+  page.on('request', onRequest);
   await page.waitForTimeout(1_500);
+  expect(opens).toEqual([]);
   await expect(page.getByText('Opened in another window', { exact: true })).toBeVisible();
   other.kill();
   await reattach.click();
+  await expect.poll(() => opens.length).toBeGreaterThan(0);
+  page.off('request', onRequest);
   await expect(page.getByText('Opened in another window', { exact: true })).toHaveCount(0, {
     timeout: 10_000,
   });

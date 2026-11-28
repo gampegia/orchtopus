@@ -1,12 +1,10 @@
 // The app shell against the fake CLI: title bar, session list, status bar and empty states.
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import type { PreloadApi } from '../src/shared/preload-api';
 import { createTempRepo, type TempRepo } from '../src/main/test-helpers/temp-repo';
-import { closeApp, launchApp } from './launch';
+import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
 
 type Mode = 'light' | 'dark';
 const tokens = JSON.parse(
@@ -20,12 +18,11 @@ function rgb(mode: Mode, token: string): string {
   return `rgb(${channels.join(', ')})`;
 }
 
-const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
-
 let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo | undefined;
-const claudeHome = mkdtempSync(join(tmpdir(), 'orchtopus-e2e-claude-'));
+const claudeHome = makeTempDir('orchtopus-e2e-claude-');
+let cleanupLaunch: (() => void) | undefined;
 const consoleErrors: string[] = [];
 
 function electronApp(): ElectronApplication {
@@ -56,6 +53,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
   const launched = await launchApp({ claudeHome });
+  cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
   page.on('console', (message) => {
@@ -74,13 +72,15 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  if (app !== undefined) await closeApp(app);
-  // Ends the fake background workers this test started.
-  execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-cleanup'], {
-    env: { ...process.env, CLAUDE_CONFIG_DIR: claudeHome },
-    stdio: 'ignore',
-  });
-  await repo?.cleanup();
+  try {
+    if (app !== undefined) await closeApp(app);
+  } finally {
+    // Ends the fake background workers this test started, then removes the temp folders.
+    cleanupFakeClaude(claudeHome);
+    await repo?.cleanup();
+    removeTempDir(claudeHome);
+    cleanupLaunch?.();
+  }
 });
 
 test('shows the no-project empty state with one action', async () => {
@@ -99,22 +99,31 @@ test('status bar says API connected', async () => {
   await expect(page.getByRole('contentinfo')).toContainText('API connected');
 });
 
+async function setThemeSource(source: 'light' | 'dark' | 'system'): Promise<void> {
+  await electronApp().evaluate(({ nativeTheme }, value) => {
+    nativeTheme.themeSource = value;
+  }, source);
+}
+
 for (const mode of ['light', 'dark'] as const) {
   test(`both colour modes paint panel and text tokens (${mode})`, async () => {
-    await electronApp().evaluate(({ nativeTheme }, source) => {
-      nativeTheme.themeSource = source;
-    }, mode);
-    const list = page.getByRole('navigation', { name: 'Sessions' });
-    await expect
-      .poll(() => list.evaluate((element) => getComputedStyle(element).backgroundColor))
-      .toBe(rgb(mode, 'surface.panel'));
-    await expect
-      .poll(() => list.evaluate((element) => getComputedStyle(element).color))
-      .toBe(rgb(mode, 'text.primary'));
-    const status = page.getByRole('contentinfo');
-    await expect
-      .poll(() => status.evaluate((element) => getComputedStyle(element).backgroundColor))
-      .toBe(rgb(mode, 'surface.panel'));
+    await setThemeSource(mode);
+    try {
+      const list = page.getByRole('navigation', { name: 'Sessions' });
+      await expect
+        .poll(() => list.evaluate((element) => getComputedStyle(element).backgroundColor))
+        .toBe(rgb(mode, 'surface.panel'));
+      await expect
+        .poll(() => list.evaluate((element) => getComputedStyle(element).color))
+        .toBe(rgb(mode, 'text.primary'));
+      const status = page.getByRole('contentinfo');
+      await expect
+        .poll(() => status.evaluate((element) => getComputedStyle(element).backgroundColor))
+        .toBe(rgb(mode, 'surface.panel'));
+    } finally {
+      // Later tests run with the system colour mode again.
+      await setThemeSource('system');
+    }
   });
 }
 

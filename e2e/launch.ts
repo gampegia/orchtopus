@@ -1,7 +1,7 @@
 // Launches the built app for e2e tests with its own temp data folder and Claude home, so a test
 // never touches the real %APPDATA%\Orchtopus or ~/.claude.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
@@ -22,11 +22,14 @@ export interface LaunchedApp {
   page: Page;
   dataDir: string;
   claudeHome: string;
+  /** Removes the temp folders launchApp made itself (not ones passed in). Call after closeApp. */
+  cleanup: () => void;
 }
 
 const BLOCKED = new Set(['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL']);
 
 const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
+const CLOSE_TIMEOUT_MS = 15_000;
 
 function baseEnv(): Record<string, string> {
   return Object.fromEntries(
@@ -36,9 +39,23 @@ function baseEnv(): Record<string, string> {
   );
 }
 
+/** A new folder under the OS temp folder; remove it with removeTempDir. */
+export function makeTempDir(prefix: string): string {
+  return mkdtempSync(join(tmpdir(), prefix));
+}
+
+/** Removes a temp folder, retrying while Windows still holds a file in it. */
+export function removeTempDir(dir: string): void {
+  rmSync(dir, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 });
+}
+
 export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedApp> {
-  const dataDir = options.dataDir ?? mkdtempSync(join(tmpdir(), 'orchtopus-e2e-data-'));
-  const claudeHome = options.claudeHome ?? mkdtempSync(join(tmpdir(), 'orchtopus-e2e-claude-'));
+  const dataDir = options.dataDir ?? makeTempDir('orchtopus-e2e-data-');
+  const claudeHome = options.claudeHome ?? makeTempDir('orchtopus-e2e-claude-');
+  const owned = [
+    ...(options.dataDir === undefined ? [dataDir] : []),
+    ...(options.claudeHome === undefined ? [claudeHome] : []),
+  ];
   const env = {
     ...baseEnv(),
     ORCHTOPUS_DATA_DIR: dataDir,
@@ -58,7 +75,10 @@ export async function launchApp(options: LaunchOptions = {}): Promise<LaunchedAp
       : { args: ['.'], env, colorScheme: null, timeout: 60_000 },
   );
   const page = await app.firstWindow();
-  return { app, page, dataDir, claudeHome };
+  const cleanup = (): void => {
+    for (const dir of owned) removeTempDir(dir);
+  };
+  return { app, page, dataDir, claudeHome, cleanup };
 }
 
 /** Ends every fake background worker of this Claude home and removes the fake's state. */
@@ -72,7 +92,8 @@ export function cleanupFakeClaude(claudeHome: string): void {
 /**
  * Quits the app and waits for its process to exit. `app.close()` alone can wait forever once a
  * session was started: on Windows the detached background worker inherits the app's stdio
- * pipes, so Playwright never sees them close although Electron has exited.
+ * pipes, so Playwright never sees them close although Electron has exited. Kills the app and
+ * throws when it has not exited after CLOSE_TIMEOUT_MS.
  */
 export async function closeApp(app: ElectronApplication): Promise<void> {
   const child = app.process();
@@ -85,5 +106,19 @@ export async function closeApp(app: ElectronApplication): Promise<void> {
   app.close().catch(() => {
     // The process exit below is what counts.
   });
-  await exited;
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => {
+      resolve('timeout');
+    }, CLOSE_TIMEOUT_MS);
+  });
+  const result = await Promise.race([exited, timedOut]);
+  clearTimeout(timer);
+  if (result === 'timeout') {
+    child.kill();
+    throw new Error(
+      `The app (pid ${String(child.pid)}) did not exit within ${String(CLOSE_TIMEOUT_MS / 1000)} s ` +
+        'after close; it was killed.',
+    );
+  }
 }

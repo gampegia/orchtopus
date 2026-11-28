@@ -1,14 +1,11 @@
 // The add-project dialog (refusals, setup checklist, trust step) and the new-session dialog
 // (derived branch, fetch failure, field errors, remembered start values) against the fake CLI.
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, renameSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { mkdirSync, renameSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { createTempRepo, type TempRepo } from '../src/main/test-helpers/temp-repo';
-import { closeApp, launchApp } from './launch';
+import { cleanupFakeClaude, closeApp, launchApp, makeTempDir, removeTempDir } from './launch';
 
-const FAKE_CLAUDE = resolve(__dirname, '..', 'tooling', 'fake-claude', 'cli.mjs');
 /** SETUP_ITEM_IDS in src/main/projects/setup-check.ts. */
 const SETUP_ITEM_COUNT = 12;
 
@@ -16,7 +13,8 @@ let app: ElectronApplication | undefined;
 let page: Page;
 let repo: TempRepo;
 // No .claude.json in this Claude home: the demo repo starts untrusted.
-const claudeHome = mkdtempSync(join(tmpdir(), 'orchtopus-e2e-claude-'));
+const claudeHome = makeTempDir('orchtopus-e2e-claude-');
+let cleanupLaunch: (() => void) | undefined;
 
 /** Makes the folder picker return this path, as if the user picked it. */
 async function pickFolderReturns(path: string): Promise<void> {
@@ -76,18 +74,22 @@ test.beforeAll(async () => {
   repo = await createTempRepo({ withRemote: true });
   mkdirSync(join(repo.root, 'src'));
   const launched = await launchApp({ claudeHome });
+  cleanupLaunch = launched.cleanup;
   app = launched.app;
   page = launched.page;
   await expect(page.getByRole('contentinfo')).toContainText('API connected', { timeout: 15_000 });
 });
 
 test.afterAll(async () => {
-  if (app !== undefined) await closeApp(app);
-  execFileSync(process.execPath, [FAKE_CLAUDE, '--fake-cleanup'], {
-    env: { ...process.env, CLAUDE_CONFIG_DIR: claudeHome },
-    stdio: 'ignore',
-  });
-  await repo.cleanup();
+  try {
+    if (app !== undefined) await closeApp(app);
+  } finally {
+    // Ends the fake background workers this test started, then removes the temp folders.
+    cleanupFakeClaude(claudeHome);
+    await repo.cleanup();
+    removeTempDir(claudeHome);
+    cleanupLaunch?.();
+  }
 });
 
 test('refuses a subfolder with a clear message', async () => {
