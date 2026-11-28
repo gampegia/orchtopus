@@ -1,10 +1,10 @@
-// Classic plugin hook: approves `gh pr create` in PreToolUse and `node -e` in PermissionRequest.
+// Classic plugin hook: approves a probe (or `gh pr create`) in PreToolUse and `node -e` in PermissionRequest.
 const kind = process.argv[2];
 let raw = '';
 process.stdin.setEncoding('utf8');
 for await (const chunk of process.stdin) raw += chunk;
 const command = String(JSON.parse(raw).tool_input?.command ?? '');
-if (kind === 'pre' && command.includes('gh pr create')) {
+if (kind === 'pre' && /gh pr create|ORCH_PROBE/.test(command)) {
   process.stdout.write(
     JSON.stringify({
       hookSpecificOutput: {

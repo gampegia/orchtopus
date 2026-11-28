@@ -5,7 +5,7 @@ import { cpSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ensureDir, fwd, HERE, paths } from './lib.mjs';
 
-export const MODS = [
+const MODS = [
   'mod-result',
   'mod-check-allow',
   'mod-deny',
@@ -24,6 +24,7 @@ const hook = (label, extra = {}) => ({
 
 /** Close to what the M1 app writes: state hooks, PR block, status line, deny rules. */
 function orchSettings() {
+  // Synchronous here, so the log shows the order; M1 sets `async: true` on its state hooks.
   const state = () => ({ hooks: [hook('state')] });
   return {
     permissions: { deny: ['Read(./.env)', 'Bash(echo ORCH_DENYRULE*)'] },
@@ -49,6 +50,11 @@ const variants = {
   'deny-only': { permissions: { deny: ['Bash(echo ORCH_DENYRULE*)'] } },
   orch: orchSettings(),
   'orch-disable-hooks': { ...orchSettings(), disableAllHooks: true },
+  /** The skills-dir copy of mod-check-allow switched off (run.mjs --skills-dir-mod). */
+  'orch-disable-skills-dir': {
+    ...orchSettings(),
+    enabledPlugins: { 'mod-check-allow@skills-dir': false },
+  },
   'orch-disable-mods': {
     ...orchSettings(),
     enabledPlugins: Object.fromEntries(MODS.map((m) => [`${m}@inline`, false])),

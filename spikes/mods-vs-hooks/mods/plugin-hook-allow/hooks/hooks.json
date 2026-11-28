@@ -1,5 +1,5 @@
 {
-  "description": "Classic plugin hooks (no hooks module): PreToolUse allow for gh pr create, PermissionRequest allow for node -e",
+  "description": "Classic plugin hooks (no hooks module): PreToolUse allow for a probe, PermissionRequest allow for node -e",
   "hooks": {
     "PreToolUse": [
       {
