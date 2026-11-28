@@ -21,7 +21,8 @@ export interface StateInput {
   /** A `session.start` or `session.open` action for this session is pending. */
   starting: boolean;
   startFailed: string | null;
-  previous: SessionStateWord;
+  /** The stored word; null when none was written yet. */
+  previous: SessionStateWord | null;
   /** Reason that goes with `previous`; kept when the word is kept. */
   previousReason?: string | null;
   /**
@@ -34,7 +35,8 @@ export interface StateInput {
 }
 
 export interface DerivedState {
-  word: SessionStateWord;
+  /** Null only when the rules keep a word that was never written: nothing to write. */
+  word: SessionStateWord | null;
   reason: string | null;
 }
 

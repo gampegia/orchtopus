@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { compareVersions, MIN_CLAUDE_VERSION } from '../../shared/claude-version';
 import {
   ClaudeSpawnError,
-  compareVersions,
-  MIN_CLAUDE_VERSION,
   parseClaudeVersion,
   readClaudeVersion,
   resolveClaudeCommand,

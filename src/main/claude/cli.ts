@@ -6,8 +6,6 @@ import { homedir } from 'node:os';
 import { compareVersions, MIN_CLAUDE_VERSION } from '../../shared/claude-version';
 import { cleanEnv } from '../child-env';
 
-export { compareVersions, MIN_CLAUDE_VERSION };
-
 export interface ClaudeCommand {
   command: string;
   prefixArgs: readonly string[];

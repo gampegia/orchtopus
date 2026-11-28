@@ -101,6 +101,16 @@ describe('deriveState: rules in order', () => {
     );
   });
 
+  it('keeps a word never written as null instead of making one up', () => {
+    expect(deriveState(input({ observed: 'unknown', previous: null }))).toEqual({
+      word: null,
+      reason: null,
+    });
+    expect(deriveState(input({ observed: obs('mystery', 'busy'), previous: null })).word).toBe(
+      null,
+    );
+  });
+
   it('missing from agents is stopped', () => {
     expect(deriveState(input({ observed: 'missing', previous: 'running' }))).toEqual({
       word: 'stopped',
