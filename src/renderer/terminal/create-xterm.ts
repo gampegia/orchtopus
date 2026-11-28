@@ -25,6 +25,8 @@ export function mountXterm(host: TerminalHost): MountedXterm {
     allowProposedApi: true,
     smoothScrollDuration: 0,
     cursorBlink: false,
+    // PTY output is untrusted: an OSC 8 link must not raise a native confirm() or open a URL.
+    linkHandler: { activate: () => undefined },
   });
   const fit = new FitAddon();
   term.loadAddon(fit);

@@ -166,6 +166,7 @@
   gap: var(--space-1-5);
   font-size: var(--type-small);
   line-height: var(--leading-small);
+  font-weight: var(--weight-strong);
   transition: color var(--motion-medium) var(--motion-ease-hover);
 }
 
@@ -191,7 +192,7 @@
     transform var(--motion-fast) var(--motion-ease-out);
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   border-color: var(--border-strong);
 }
 
@@ -284,7 +285,7 @@
   gap: var(--space-3);
   min-height: 0;
   overflow: auto;
-  padding: 0 var(--space-2) var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-2);
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
@@ -349,11 +350,13 @@
   padding: 0 var(--space-3);
   border-radius: var(--radius-control);
   cursor: pointer;
-  transition: background-color var(--motion-fast) var(--motion-ease-hover);
 }
 
+/* Only the pointer animates the row. Arrow keys move the selection without motion
+   (DESIGN.md section 9: keyboard actions get no animation). */
 .session-row:hover {
   background: var(--surface-hover);
+  transition: background-color var(--motion-fast) var(--motion-ease-hover);
 }
 
 .session-row.selected {
@@ -476,6 +479,9 @@
 }
 
 .session-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--type-title);
   line-height: var(--leading-title);
   font-weight: var(--weight-medium);
@@ -897,7 +903,7 @@ select.input {
 }
 
 .check-item[data-status='ok'] .check-icon {
-  color: var(--signal-done);
+  color: var(--text-secondary);
 }
 
 .check-item[data-status='problem'] .check-icon {
@@ -1000,8 +1006,8 @@ select.input {
 }
 
 .btn.primary:disabled {
-  background: var(--action-primary-hover);
-  color: var(--action-on-primary);
+  background: var(--surface-inset);
+  color: var(--text-muted);
 }
 
 /* ------------------------------------------------------------------ status bar */

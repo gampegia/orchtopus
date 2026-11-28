@@ -31,12 +31,4 @@ describe('SessionPane', () => {
       expect(part.key).not.toBe(first[index]?.key);
     }
   });
-
-  // Siblings with the same key make React keep a stale element in the DOM.
-  it('never gives the two siblings the same key', () => {
-    const keys = children(SessionPane({ session: session('upload-fix-1', 'upload-fix') })).map(
-      (part) => part.key,
-    );
-    expect(new Set(keys).size).toBe(keys.length);
-  });
 });

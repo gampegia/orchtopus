@@ -58,7 +58,7 @@ export function SessionHeader({ session }: { session: SessionView }): React.JSX.
           <StateWord word={session.state} />
           <span className="mono muted session-header-branch">{session.branch}</span>
         </div>
-        <div className="session-header-line meta">
+        <div className="session-header-line">
           <span className="mono muted">{contextText(session.contextPct)}</span>
           {reason !== null && (
             <span className="session-header-reason" role={error !== null ? 'alert' : undefined}>
