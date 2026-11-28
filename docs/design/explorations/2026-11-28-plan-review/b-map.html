@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review page B · Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="chrome.css">
+<style>
+/* Direction B, Map: the first screen is a three-part summary band and a
+   lane map of the whole plan. The decision lives in the view header,
+   like the session header's actions. Details sit below the map. */
+.view { display: grid; grid-template-rows: var(--size-header) 1fr; overflow: hidden; }
+.vhead .acts { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; padding-left: var(--space-4); border-left: var(--border-width) solid var(--border-subtle); }
+.vhead .links { margin-left: auto; }
+.vhead h1 { white-space: nowrap; }
+.scroll { overflow-y: auto; padding: var(--space-5) var(--space-5) var(--space-10); scrollbar-width: thin; }
+
+/* summary band */
+.band { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: var(--space-5); margin-bottom: var(--space-6); }
+.band > div { min-width: 0; }
+.band h2 { font-size: var(--type-small); line-height: var(--leading-small); font-weight: var(--weight-medium); color: var(--text-muted); margin: 0 0 var(--space-2); display: flex; align-items: center; gap: var(--space-2); }
+.band h2 .label { font-size: var(--type-small); line-height: var(--leading-small); }
+.what { font-size: var(--type-title); line-height: var(--leading-title); margin: 0 0 var(--space-3); font-weight: var(--weight-medium); }
+.blist { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); font-size: var(--type-small); line-height: var(--leading-small); color: var(--text-secondary); }
+.blist li { display: grid; grid-template-columns: var(--size-icon-small) 1fr; gap: var(--space-2); }
+.blist li svg { margin-top: var(--space-0-5); color: var(--text-muted); }
+.counts { margin-top: var(--space-3); font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+.needcol { border-radius: var(--radius-bar); padding: var(--space-3) var(--space-4); background: color-mix(in srgb, var(--needs) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent); }
+.needcol.resolved { background: var(--surface-inset); box-shadow: none; }
+.nd { padding: var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); display: grid; gap: var(--space-0-5); font-size: var(--type-small); line-height: var(--leading-small); }
+.nd:first-of-type { border-top: 0; padding-top: 0; }
+.nd b { font-weight: var(--weight-medium); }
+.nd .y { color: var(--text-secondary); font-size: var(--type-meta); line-height: var(--leading-meta); }
+.nd .o { font-size: var(--type-meta); color: var(--text-muted); }
+.nd .o em { font-style: normal; color: var(--text-primary); }
+
+.rk { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--space-3); padding: var(--space-1-5) 0; border-top: var(--border-width) solid var(--border-subtle); font-size: var(--type-small); line-height: var(--leading-small); }
+.rk:first-of-type { border-top: 0; padding-top: 0; }
+.rk .e { color: var(--text-muted); font-size: var(--type-meta); line-height: var(--leading-meta); }
+.rk .tk { grid-row: 1; grid-column: 2; font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* lane map */
+.maphead { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-2); }
+.maphead h2 { font-size: var(--type-title); line-height: var(--leading-title); margin: 0; font-weight: var(--weight-medium); }
+.maphead span { color: var(--text-muted); font-size: var(--type-meta); }
+.map { display: grid; grid-template-columns: 128px repeat(9, 1fr); border-radius: var(--radius-bar); background: var(--surface-inset); padding: var(--space-1) 0 var(--space-2); }
+.map .wh { font-size: var(--type-meta); color: var(--text-muted); padding: var(--space-1) var(--space-2) var(--space-1); text-align: left; }
+.map .lane { font-size: var(--type-meta); color: var(--text-secondary); padding: 0 var(--space-3); display: flex; align-items: center; min-height: 40px; border-top: var(--border-width) solid var(--border-subtle); }
+.map .cell { min-height: 40px; border-top: var(--border-width) solid var(--border-subtle); border-left: var(--border-width) dashed var(--border-subtle); display: flex; flex-direction: column; justify-content: center; gap: var(--space-1); padding: var(--space-1); min-width: 0; }
+.node { display: flex; align-items: center; gap: var(--space-1-5); position: relative; overflow: hidden; width: 100%; height: var(--size-control-tiny); padding: 0 var(--space-2); border-radius: var(--radius-control); background: var(--surface-panel); box-shadow: var(--shadow-row); text-decoration: none; min-width: 0; }
+.node .no { font-family: var(--font-mono); font-size: var(--type-micro); color: var(--text-muted); }
+.node .nm { font-size: var(--type-meta); line-height: var(--leading-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node .pb { position: absolute; left: var(--space-2); right: var(--space-2); bottom: 3px; height: 2px; border-radius: var(--radius-round); background: var(--surface-inset); overflow: hidden; }
+.node .pb i { display: block; height: 100%; background: var(--text-muted); }
+.node.done { background: transparent; box-shadow: inset 0 0 0 var(--border-width) var(--border-subtle); }
+.node.done .nm { color: var(--text-secondary); }
+.node.done .pb i { background: var(--signal-done); }
+.node.run { box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--signal-running) var(--mix-decision-edge), transparent), var(--shadow-row); }
+.node.run .pb i { background: var(--signal-running); }
+.node.need { box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent), var(--shadow-row); }
+.legend { display: flex; gap: var(--space-5); margin-top: var(--space-2); font-size: var(--type-meta); color: var(--text-muted); }
+.legend span { display: inline-flex; align-items: center; gap: var(--space-1-5); }
+.sw { display: inline-block; width: 14px; height: 10px; border-radius: var(--radius-key); background: var(--surface-panel); box-shadow: var(--shadow-row); }
+.sw.need { box-shadow: inset 0 0 0 var(--border-width) var(--needs); }
+.sw.run { box-shadow: inset 0 0 0 var(--border-width) var(--signal-running); }
+.sw.done { background: transparent; box-shadow: inset 0 0 0 var(--border-width) var(--border-strong); }
+
+/* below the map */
+.below { display: grid; grid-template-columns: 1fr 360px; gap: var(--space-8); margin-top: var(--space-8); }
+.below h2 { font-size: var(--type-title); line-height: var(--leading-title); margin: 0 0 var(--space-3); font-weight: var(--weight-medium); }
+table.tk { width: 100%; border-collapse: collapse; font-size: var(--type-small); line-height: var(--leading-small); }
+table.tk th { text-align: left; font-size: var(--type-meta); color: var(--text-muted); font-weight: var(--weight-medium); padding: 0 var(--space-3) var(--space-1) 0; }
+table.tk td { border-top: var(--border-width) solid var(--border-subtle); padding: var(--space-2) var(--space-3) var(--space-2) 0; vertical-align: top; }
+table.tk td.n { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); width: 32px; }
+table.tk td.m { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); white-space: nowrap; }
+table.tk details summary { cursor: pointer; list-style: none; }
+table.tk details summary::-webkit-details-marker { display: none; }
+table.tk details summary::after { content: " +"; color: var(--text-muted); }
+table.tk details[open] summary::after { content: " −"; }
+table.tk details p { margin: var(--space-1) 0 0; color: var(--text-secondary); }
+table.tk details .f { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.inf { display: grid; grid-template-columns: var(--size-icon) 1fr; gap: 0 var(--layout-icon-gap); padding: var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); font-size: var(--type-small); line-height: var(--leading-small); }
+.inf:first-of-type { border-top: 0; }
+.inf svg { margin-top: var(--space-0-5); }
+.inf .y { grid-column: 2; color: var(--text-secondary); }
+.inf b { font-weight: var(--weight-regular); color: var(--text-primary); }
+.foot { margin-top: var(--space-8); padding-top: var(--space-3); border-top: var(--border-width) solid var(--border-subtle); }
+
+/* spec */
+.appr { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+.ap { border-radius: var(--radius-bar); padding: var(--space-3) var(--space-4); background: var(--surface-inset); font-size: var(--type-small); line-height: var(--leading-small); display: grid; gap: var(--space-1); align-content: start; }
+.ap.ch { background: var(--surface-panel); box-shadow: inset 0 0 0 var(--border-width) var(--border-strong); }
+.ap .id { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); display: flex; justify-content: space-between; }
+.ap .y { color: var(--text-secondary); }
+.pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin-top: var(--space-3); }
+.st { border-radius: var(--radius-control); padding: var(--space-2) var(--space-3); background: var(--surface-panel); box-shadow: var(--shadow-row); font-size: var(--type-small); line-height: var(--leading-small); position: relative; }
+.st small { display: block; color: var(--text-muted); font-size: var(--type-meta); }
+.st:not(:last-child)::after { content: ""; position: absolute; right: calc(-1 * var(--space-2)); top: 50%; width: var(--space-2); border-top: var(--border-width) solid var(--border-strong); }
+ol.dw { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); font-size: var(--type-small); line-height: var(--leading-small); color: var(--text-secondary); }
+ol.dw li::marker { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="stage"><div id="app"></div></div>
+<script src="data.js"></script>
+<script src="explore.js"></script>
+<script>
+const R = window.REVIEW, I = X.icon;
+
+function needCol(doc, resolved, word) {
+  return `<div><h2>${resolved ? `<span class="label" style="color:var(--text-secondary)">${I('check', 't')}Decided at Plan Go</span>` : `<span class="label needs">${I('alert', 's')}Needs you · ${doc.needs.length} ${word}</span>`}</h2>
+    <div class="needcol${resolved ? ' resolved' : ''}">${doc.needs.map((d) => `<div class="nd"><b>${d.title}</b><span class="y">${d.why}</span>
+      <span class="o">${resolved ? `<em>${d.options[0]}</em>` : `Default <em>${d.options[0]}</em> · or ${d.options[1].charAt(0).toLowerCase() + d.options[1].slice(1)}`}</span></div>`).join('')}</div></div>`;
+}
+
+function plan(screen) {
+  const d = R.plan;
+  const needTasks = d.needs.map((n) => n.task);
+  const st = (t) => {
+    const p = screen === 2 ? (d.progress[t.n] || 0) : 0;
+    return { p, done: p === t.steps, run: screen === 2 && d.running.includes(t.n), need: screen === 1 && needTasks.includes(t.n) };
+  };
+  const doneSteps = Object.values(d.progress).reduce((a, b) => a + b, 0);
+  let map = `<div class="wh"></div>${[...Array(9)].map((_, i) => `<div class="wh">Wave ${i + 1}</div>`).join('')}`;
+  d.lanes.forEach((l) => {
+    map += `<div class="lane">${l.name}</div>`;
+    for (let w = 1; w <= 9; w++) {
+      const ts = d.tasks.filter((t) => t.lane === l.id && t.wave === w);
+      map += `<div class="cell">${ts.map((t) => { const s = st(t); return `<a class="node${s.done ? ' done' : s.run ? ' run' : s.need ? ' need' : ''}" href="#t${t.n}" title="${t.title}"><span class="no">${t.n}</span><span class="nm">${d.short[t.n]}</span><span class="pb"><i style="width:${(s.p / t.steps) * 100}%"></i></span></a>`; }).join('')}</div>`;
+    }
+  });
+  const rows = d.tasks.map((t) => { const s = st(t); return `<tr id="t${t.n}"><td class="n">${t.n}</td><td><details${t.n === 4 ? ' open' : ''}><summary>${t.title}</summary><p>${t.does}</p><p class="f">${t.files.join(' · ')}</p><p>${t.agent} · reviews: ${t.review}</p></details></td>
+    <td class="m">${d.lanes.find((l) => l.id === t.lane).name}</td><td class="m">${t.needs.length ? 'after ' + t.needs.join(', ') : 'start'}</td><td class="m ${s.done ? 'sig-done' : s.run ? 'sig-running' : ''}">${s.done ? 'done' : `${s.p} of ${t.steps}`}</td></tr>`; }).join('');
+  return `
+    <div class="band">
+      <div><h2>${X.label('plan', 'Plan')}<span>M1 builds</span></h2><p class="what">A real Claude Code session, end to end, that survives a restart</p>
+        <ul class="blist">${d.builds.map((b) => `<li>${I('check', 's')}<span>${b}</span></li>`).join('')}</ul>
+        <div class="counts">${d.counts.tasks} tasks · ${d.counts.steps} steps · ${d.counts.lanes} lanes</div></div>
+      ${needCol(d, screen === 2, 'decisions')}
+      <div><h2>Risks the tests pin<span style="margin-left:auto">Task</span></h2>${d.risks.map((r) => `<div class="rk" title="Expected: ${r.expect}"><span>${r.text}</span><span class="tk">${r.tasks.join(', ')}</span></div>`).join('')}
+        <div class="rk"><span>${I('clock', 't')} T1 fails: the plan stops after Task 1 and you decide</span><span class="tk">1</span></div></div>
+    </div>
+    <div class="maphead"><h2>${screen === 2 ? `${doneSteps} of ${d.counts.steps} steps · wave 5 runs` : 'Lanes and waves'}</h2><span>A column is one wave. Tasks in one column run at the same time, each in its own worktree.</span></div>
+    <div class="map">${map}</div>
+    <div class="legend">${screen === 1 ? `<span><i class="sw need"></i>Touches a decision that needs you</span>` : `<span><i class="sw run"></i>Running</span><span><i class="sw done"></i>Done</span>`}<span><i class="sw"></i>Open</span><span>Bar: steps done</span></div>
+    <div class="below"><div><h2>Tasks</h2><table class="tk"><tr><th></th><th>Task</th><th>Lane</th><th>Needs</th><th>Steps</th></tr>${rows}</table></div>
+      <div><h2 class="label info" style="font-size:var(--type-title);line-height:var(--leading-title);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">Info</span></h2>${d.info.map((i) => `<div class="inf info">${I('info', 's')}<b>${i.title}</b><span class="y">${i.why}</span></div>`).join('')}</div></div>
+    <div class="foot">${X.sourceLine(d)}</div>`;
+}
+
+function spec() {
+  const d = R.spec;
+  return `
+    <div class="band">
+      <div><h2>${X.label('plan', 'Spec')}<span>Intent</span></h2><p class="what" style="font-size:var(--type-body);line-height:var(--leading-body);font-weight:var(--weight-regular)">${d.intent}</p>
+        <div class="counts">Not in M1: ${d.notInM1}</div></div>
+      ${needCol(d, false, 'calls to confirm')}
+      <div><h2>Done when</h2><ol class="dw">${d.doneWhen.map((x) => `<li>${x}</li>`).join('')}</ol></div>
+    </div>
+    <div class="maphead"><h2>Approach</h2><span>Chosen by you: C. Where a hook event goes:</span></div>
+    <div class="appr">${d.approaches.map((a) => `<div class="ap${a.chosen ? ' ch' : ''}"><span class="id"><span>${a.id}</span>${a.chosen ? `<span class="label sig-done">${X.lamp()}chosen</span>` : '<span>rejected</span>'}</span><span>${a.name}</span><span class="y">${a.tradeoff}</span></div>`).join('')}</div>
+    <div class="pipe"><div class="st">Hook fires<small>in the session</small></div><div class="st">Helper posts<small>to the local API, 500 ms</small></div><div class="st">App closed<small>appends to the spool file</small></div><div class="st">Next start<small>imports the spool once</small></div></div>
+    <div class="below"><div><h2>Checks before code depends on them</h2><table class="tk"><tr><th></th><th>Question</th><th>If it fails</th></tr>${d.checks.map((c) => `<tr><td class="n">${c[0]}</td><td>${c[1]}</td><td class="m" style="white-space:normal;font-family:var(--font-ui);font-size:var(--type-small)">${c[2]}</td></tr>`).join('')}</table></div>
+      <div><h2 class="label info" style="font-size:var(--type-title);line-height:var(--leading-title);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">Lead’s calls, info</span></h2>${d.info.map((i) => `<div class="inf info">${I('info', 's')}<b>${i.title}</b><span class="y">${i.why}</span></div>`).join('')}</div></div>
+    <div class="foot">${X.sourceLine(d)}</div>`;
+}
+
+X.start((st) => {
+  const isSpec = st.screen === 3, doc = isSpec ? R.spec : R.plan;
+  const acts = st.screen === 2
+    ? `<div class="acts">${X.label('running', 'Running · approved 2026-11-27')}</div>`
+    : `<div class="acts">${X.label('plan', `${doc.kind} waits for you`)}<button class="btn ghost small">${I('chat', 's')}Advisor</button><button class="btn secondary small">Ask for changes</button><button class="btn primary small">${I('check', 's')}${isSpec ? 'Spec OK' : 'Plan Go'}</button></div>`;
+  return `<div class="window">${X.titlebar(st.screen)}
+    <div class="body"><aside class="panel sessions">${X.sessionList(st.screen)}</aside>
+      <main class="panel view">
+        <div class="vhead"><button class="btn ghost small">${I('back', 's')}Back</button><h1>${doc.kind} · ${doc.title}</h1>
+          <span class="links"><a class="btn ghost small" href="../../../${doc.source.replace('docs/', '')}">${I('file', 's')}Raw Markdown</a></span>${acts}</div>
+        <div class="scroll">${isSpec ? spec() : plan(st.screen)}</div>
+      </main></div>
+    ${X.statusbar(st.screen, [['Esc', 'Back'], ['M', 'Markdown']])}</div>`;
+});
+</script>
+</body>
+</html>

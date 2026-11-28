@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review page C · Parts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="chrome.css">
+<style>
+/* Direction C, Parts: the document is cut into short parts of one or two
+   minutes. One part at a time, a list of parts with read marks on the
+   left, the decisions answered in place, and the decision bar at the
+   bottom of the view. */
+.view { display: grid; grid-template-rows: var(--size-header) 1fr auto; overflow: hidden; }
+.cols { display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
+.parts { border-right: var(--border-width) solid var(--border-subtle); padding: var(--space-4) var(--space-3); display: flex; flex-direction: column; gap: var(--space-0-5); overflow-y: auto; }
+.parts h4 { margin: 0 var(--space-2) var(--space-2); font-size: var(--type-meta); color: var(--text-muted); font-weight: var(--weight-medium); display: flex; justify-content: space-between; }
+.pt { display: grid; grid-template-columns: var(--size-icon) 1fr auto; gap: var(--layout-icon-gap); align-items: center; min-height: var(--size-nav-row); padding: var(--space-1-5) var(--space-2); border-radius: var(--radius-control); cursor: pointer; border: 0; background: transparent; font: inherit; color: var(--text-secondary); text-align: left; transition: background-color var(--motion-fast) var(--motion-ease-hover); }
+.pt:hover { background: var(--surface-hover); }
+.pt.cur { background: var(--surface-selected); box-shadow: var(--shadow-row); color: var(--text-primary); }
+.pt .mk { width: var(--size-icon); height: var(--size-icon); display: grid; place-items: center; color: var(--text-muted); }
+.pt .mk .ring { width: 10px; height: 10px; border-radius: var(--radius-round); box-shadow: inset 0 0 0 1.5px currentColor; }
+.pt.read .mk { color: var(--signal-done); }
+.pt .tm { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.pt .label { font-size: var(--type-meta); }
+.parts .src { margin-top: auto; padding: var(--space-3) var(--space-2) 0; border-top: var(--border-width) solid var(--border-subtle); display: grid; gap: var(--space-1-5); font-size: var(--type-meta); color: var(--text-muted); }
+.parts .src a { color: var(--text-secondary); display: inline-flex; gap: var(--space-1-5); align-items: center; text-decoration: none; }
+.parts .src a:hover { color: var(--text-primary); }
+.okline { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--signal-done); font-weight: var(--weight-medium); }
+
+.part { overflow-y: auto; padding: var(--space-6) var(--space-10) var(--space-8); scrollbar-width: thin; }
+.part-in { max-width: 820px; }
+.ph { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-1); color: var(--text-muted); font-size: var(--type-meta); }
+.part h2 { font-size: var(--type-heading); line-height: var(--leading-heading); font-weight: var(--weight-medium); margin: 0 0 var(--space-5); }
+.part h3 { font-size: var(--type-body); line-height: var(--leading-body); font-weight: var(--weight-medium); margin: var(--space-6) 0 var(--space-2); display: flex; align-items: center; gap: var(--space-2); }
+
+/* summary part: three blocks */
+.sum { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.blk { border-radius: var(--radius-bar); background: var(--surface-inset); padding: var(--space-4); display: grid; gap: var(--space-2); align-content: start; font-size: var(--type-small); line-height: var(--leading-small); }
+.blk.wide { grid-column: 1 / -1; }
+.blk h3 { margin: 0 0 var(--space-1); font-size: var(--type-small); }
+.blk ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1-5); }
+.blk li { display: grid; grid-template-columns: var(--size-icon-small) 1fr auto; gap: var(--space-2); }
+.blk li svg { margin-top: 3px; color: var(--text-muted); }
+.blk .tk { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.blk.need { background: color-mix(in srgb, var(--needs) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent); }
+.blk.need li svg { color: var(--needs); }
+.blk .more { color: var(--text-secondary); font-size: var(--type-meta); }
+.counts { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* decisions part */
+.q { border-radius: var(--radius-bar); padding: var(--space-4) var(--space-5); margin-bottom: var(--space-3); background: var(--surface-panel); box-shadow: inset 0 0 0 var(--border-width) var(--border-subtle); display: grid; gap: var(--space-2); }
+.q.open { background: color-mix(in srgb, var(--needs) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--needs) var(--mix-decision-edge), transparent); }
+.q .top { display: flex; align-items: center; gap: var(--space-3); }
+.q .top b { font-weight: var(--weight-medium); font-size: var(--type-title); line-height: var(--leading-title); }
+.q .top .id { margin-left: auto; font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.q .y { color: var(--text-secondary); font-size: var(--type-small); }
+.opts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.opt { display: inline-flex; align-items: center; gap: var(--space-2); height: var(--size-control-small); padding: 0 var(--space-3); border-radius: var(--radius-control); background: var(--surface-inset); font-size: var(--type-small); cursor: pointer; border: var(--border-width) solid transparent; color: var(--text-secondary); }
+.opt .r { width: 14px; height: 14px; border-radius: var(--radius-round); box-shadow: inset 0 0 0 1.5px var(--border-strong); }
+.opt.on { background: var(--surface-panel); border-color: var(--border-strong); color: var(--text-primary); }
+.opt.on .r { box-shadow: inset 0 0 0 4px var(--accent-default); }
+.host { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-meta); color: var(--text-muted); margin-top: var(--space-4); }
+
+/* flow part */
+.waves { display: grid; grid-template-columns: 80px repeat(4, minmax(0, 1fr)); border-radius: var(--radius-bar); background: var(--surface-inset); overflow: hidden; }
+.waves .h { font-size: var(--type-meta); color: var(--text-muted); padding: var(--space-2) var(--space-2) var(--space-1); }
+.waves .ln { font-size: var(--type-meta); color: var(--text-muted); padding: 0 var(--space-3); display: flex; align-items: center; height: 40px; border-top: var(--border-width) solid var(--border-subtle); }
+.waves .c { height: 40px; border-top: var(--border-width) solid var(--border-subtle); border-left: var(--border-width) dashed var(--border-subtle); padding: var(--space-1); display: flex; align-items: center; }
+.tn { width: 100%; height: 32px; border-radius: var(--radius-control); background: var(--surface-panel); box-shadow: var(--shadow-row); padding: 0 var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); position: relative; overflow: hidden; }
+.tn .a { font-size: var(--type-small); line-height: var(--leading-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: var(--space-1); }
+.tn .a span { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.tn .s { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); white-space: nowrap; }
+.tn.done { background: transparent; box-shadow: inset 0 0 0 var(--border-width) var(--border-subtle); }
+.tn.done .s { color: var(--signal-done); }
+.tn.run { box-shadow: inset 0 0 0 var(--border-width) color-mix(in srgb, var(--signal-running) var(--mix-decision-edge), transparent), var(--shadow-row); }
+.tn.run .s { color: var(--signal-running); }
+.tn i { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--signal-running); }
+.tn.done i { background: var(--signal-done); }
+.lnote { font-size: var(--type-small); color: var(--text-secondary); margin: var(--space-3) 0 0; }
+.tasks { margin-top: var(--space-2); border-top: var(--border-width) solid var(--border-subtle); }
+details.task { border-bottom: var(--border-width) solid var(--border-subtle); }
+details.task summary { list-style: none; display: grid; grid-template-columns: 28px 1fr 96px var(--size-icon); gap: var(--space-3); align-items: center; height: 40px; cursor: pointer; font-size: var(--type-small); }
+details.task summary::-webkit-details-marker { display: none; }
+details.task summary .no { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+details.task summary .st { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); text-align: right; }
+details.task summary .chev { color: var(--text-muted); transition: transform var(--motion-fast) var(--motion-ease-out); }
+details[open].task summary .chev { transform: rotate(90deg); }
+details.task .b { padding: 0 0 var(--space-3) calc(28px + var(--space-3)); font-size: var(--type-small); color: var(--text-secondary); display: grid; gap: var(--space-1); }
+details.task .b .f { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* spec bits */
+ol.dw { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-1); }
+ol.dw li::marker { font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+
+/* decision bar: host chrome at the bottom of the view */
+.dbar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); border-top: var(--border-width) solid var(--border-subtle); }
+.dbar.wait { background: color-mix(in srgb, var(--signal-plan) var(--mix-decision-fill), var(--surface-panel)); box-shadow: inset 0 var(--border-width) 0 color-mix(in srgb, var(--signal-plan) var(--mix-decision-edge), transparent); border-radius: 0 0 var(--radius-panel) var(--radius-panel); }
+.dbar .txt { color: var(--text-secondary); font-size: var(--type-small); }
+.dbar .sp { margin-left: auto; display: flex; gap: var(--space-2); }
+.readp { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: var(--type-meta); color: var(--text-muted); }
+.readp .bar { width: 72px; height: 4px; border-radius: var(--radius-round); background: var(--surface-inset); overflow: hidden; }
+.readp .bar i { display: block; height: 100%; background: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="stage"><div id="app"></div></div>
+<script src="data.js"></script>
+<script src="explore.js"></script>
+<script>
+const R = window.REVIEW, I = X.icon;
+let picked = {};   // part chosen by click, per screen
+
+function partsFor(screen) {
+  if (screen === 3) return [
+    { id: 'sum', name: 'Summary', min: 1 },
+    { id: 'dec', name: 'Your calls', min: 2, needs: 3 },
+    { id: 'done', name: 'Done when', min: 1 },
+    { id: 'appr', name: 'Approach and checks', min: 2 },
+    { id: 'info', name: 'Lead’s calls, info', min: 1, info: 5 }
+  ];
+  return [
+    { id: 'sum', name: 'Summary', min: 1 },
+    { id: 'dec', name: 'Your decisions', min: 2, needs: 3 },
+    { id: 'flow', name: 'Flow and lanes', min: 2 },
+    { id: 'risk', name: 'Risks', min: 1 },
+    { id: 't1', name: 'Tasks 1 to 6', min: 2, range: [1, 6] },
+    { id: 't2', name: 'Tasks 7 to 12', min: 2, range: [7, 12] },
+    { id: 't3', name: 'Tasks 13 to 17', min: 2, range: [13, 17] },
+    { id: 'info', name: 'Info', min: 1, info: 6 }
+  ];
+}
+
+const tstate = (t, screen) => { const p = screen === 2 ? (R.plan.progress[t.n] || 0) : 0; return { p, done: p === t.steps, run: screen === 2 && R.plan.running.includes(t.n) }; };
+
+function waves(screen) {
+  const d = R.plan;
+  let h = `<div class="h"></div>${d.lanes.map((l) => `<div class="h">${l.name}</div>`).join('')}`;
+  for (let w = 1; w <= 9; w++) {
+    h += `<div class="ln">Wave ${w}</div>`;
+    d.lanes.forEach((l) => {
+      const t = d.tasks.find((x) => x.lane === l.id && x.wave === w);
+      if (!t) { h += '<div class="c"></div>'; return; }
+      const s = tstate(t, screen);
+      h += `<div class="c"><div class="tn${s.done ? ' done' : s.run ? ' run' : ''}"><span class="a"><span>${t.n}</span>${d.short[t.n]}</span><span class="s">${s.done ? 'done' : s.run ? `running ${s.p} of ${t.steps}` : `${t.steps} steps`}</span>${screen === 2 ? `<i style="width:${(s.p / t.steps) * 100}%"></i>` : ''}</div></div>`;
+    });
+  }
+  return `<div class="waves">${h}</div>`;
+}
+
+function taskList(a, b, screen, only) {
+  return `<div class="tasks">${R.plan.tasks.filter((t) => only ? only.includes(t.n) : t.n >= a && t.n <= b).map((t) => { const s = tstate(t, screen); return `<details class="task"${t.n === a || (only && t.n === only[0]) ? ' open' : ''}><summary><span class="no">${t.n}</span><span>${t.title}</span><span class="st ${s.done ? 'sig-done' : s.run ? 'sig-running' : ''}">${s.done ? 'done' : `${s.p} of ${t.steps}`}</span>${I('chev', 's chev')}</summary>
+    <div class="b"><span>${t.does}</span><span>After ${t.needs.length ? 'tasks ' + t.needs.join(', ') : 'nothing'} · ${t.agent} · reviews: ${t.review}</span><span class="f">${t.files.join(' · ')}</span></div></details>`; }).join('')}</div>`;
+}
+
+function decisionsPart(list, word) {
+  return list.map((d, i) => `<div class="q open"><div class="top"><b>${d.title}</b><span class="id">${d.task ? 'Task ' + d.task : d.id}</span></div>
+    <span class="y">${d.why}</span>
+    <div class="opts">${d.options.map((o, j) => `<span class="opt${j === 0 ? ' on' : ''}"><span class="r"></span>${o}${j === 0 ? ' · default' : ''}</span>`).join('')}<span class="opt"><span class="r"></span>Write my own</span></div></div>`).join('')
+    + `<div class="host">${I('shield', 't')}<span>The answer controls belong to Orchtopus, not to the page. A changed answer goes to the session with “Ask for changes”.</span></div>`;
+}
+
+function content(part, screen) {
+  const d = screen === 3 ? R.spec : R.plan;
+  const all = partsFor(screen), idx = all.findIndex((p) => p.id === part.id);
+  const head = `<div class="ph"><span>Part ${idx + 1} of ${all.length}</span><span>about ${part.min} min</span></div>`;
+  if (part.id === 'sum' && screen !== 3) return `${head}<h2>M1 builds a real Claude Code session, end to end, that survives a restart</h2>
+    <div class="sum">
+      <div class="blk wide"><h3>What gets built</h3><ul>${d.builds.map((b) => `<li>${I('check', 's')}<span>${b}</span><span></span></li>`).join('')}</ul><span class="counts">${d.counts.tasks} tasks · ${d.counts.steps} steps · ${d.counts.waves} waves · ${d.counts.lanes} lanes</span></div>
+      <div class="blk need"><h3 class="label needs">${I('alert', 's')}Needs you · ${d.needs.length} decisions</h3><ul>${d.needs.map((n) => `<li>${I('chev', 's')}<span>${n.title}</span><span class="tk">${n.task}</span></li>`).join('')}</ul><span class="more">Each has a default. Part 2 asks them one by one.</span></div>
+      <div class="blk"><h3>Risks the tests pin</h3><ul>${d.risks.map((r) => `<li>${I('alert', 's')}<span>${r.text}</span><span class="tk">${r.tasks.join(', ')}</span></li>`).join('')}</ul></div>
+      <div class="blk wide" style="grid-template-columns:var(--size-icon) 1fr;gap:var(--space-1) var(--layout-icon-gap)">${I('clock')}<span>${d.stopRule}</span></div>
+    </div>`;
+  if (part.id === 'sum') return `${head}<h2>${d.intent}</h2><div class="sum">
+      <div class="blk need"><h3 class="label needs">${I('alert', 's')}Needs you · ${d.needs.length} calls</h3><ul>${d.needs.map((n) => `<li>${I('chev', 's')}<span>${n.title}</span><span class="tk">${n.id}</span></li>`).join('')}</ul></div>
+      <div class="blk"><h3>Not in M1</h3><span>${d.notInM1}</span></div></div>`;
+  if (part.id === 'dec') return `${head}<h2>${screen === 3 ? 'Three calls by the lead that you can correct' : 'Three decisions are yours'}</h2>${decisionsPart(d.needs)}`;
+  if (part.id === 'flow') return `${head}<h2>${screen === 2 ? '55 of 92 steps done, wave 5 runs' : 'Nine waves in four lanes'}</h2>${waves(screen)}
+    <p class="lnote">A lane is one worktree. Tasks in one wave run at the same time. A task starts when the tasks in its Consumes line are done.</p>
+    ${screen === 2 ? `<h3>${X.label('running', 'Running now')}</h3>${taskList(0, 0, screen, R.plan.running)}` : `<h3>First wave</h3>${taskList(0, 0, screen, [1])}`}`;
+  if (part.id === 'risk') return `${head}<h2>Five risks, each pinned by a test</h2>${d.risks.map((r) => `<div class="q"><div class="top"><b style="font-size:var(--type-body)">${r.text}</b><span class="id">Task ${r.tasks.join(', ')}</span></div><span class="y">${r.expect}</span></div>`).join('')}`;
+  if (part.range) return `${head}<h2>${part.name}</h2>${taskList(part.range[0], part.range[1], screen)}`;
+  if (part.id === 'info') return `${head}<h2 class="label info" style="font-size:var(--type-heading);line-height:var(--leading-heading);font-weight:var(--weight-medium)">${I('info')}<span style="color:var(--text-primary)">For your information</span></h2>${d.info.map((i) => `<div class="q"><div class="top"><b style="font-size:var(--type-body)">${i.title}</b></div><span class="y">${i.why}</span></div>`).join('')}`;
+  if (part.id === 'done') return `${head}<h2>Done when</h2><ol class="dw">${d.doneWhen.map((x) => `<li>${x}</li>`).join('')}</ol>`;
+  if (part.id === 'appr') return `${head}<h2>Approach C: one process plus a spool</h2>${d.approaches.map((a) => `<div class="q"><div class="top"><b style="font-size:var(--type-body)">${a.id} · ${a.name}</b>${a.chosen ? `<span class="id"><span class="label sig-done">${X.lamp()}chosen</span></span>` : '<span class="id">rejected</span>'}</div><span class="y">${a.tradeoff}</span></div>`).join('')}`;
+  return head;
+}
+
+X.start((st) => {
+  const ps = partsFor(st.screen);
+  const def = { 1: 'sum', 2: 'flow', 3: 'dec' }[st.screen];
+  const cur = ps.find((p) => p.id === (picked[st.screen] || def));
+  const readUpTo = st.screen === 2 ? ps.length : ps.findIndex((p) => p.id === cur.id);
+  const doc = st.screen === 3 ? R.spec : R.plan;
+  const readCount = st.screen === 2 ? ps.length : readUpTo;
+  const next = ps[ps.indexOf(cur) + 1];
+  const nav = ps.map((p, i) => {
+    const read = i < readUpTo;
+    const mk = read ? I('check', 's') : '<span class="ring"></span>';
+    const tail = p.needs ? `<span class="label needs">${X.lamp()}${p.needs}</span>` : p.info ? `<span class="label info">${X.lamp()}${p.info}</span>` : `<span class="tm">${p.min} min</span>`;
+    return `<button class="pt${p === cur ? ' cur' : ''}${read ? ' read' : ''}" data-part="${p.id}"><span class="mk">${mk}</span><span>${p.name}</span>${tail}</button>`;
+  }).join('');
+  const total = ps.reduce((a, p) => a + p.min, 0);
+  const bar = st.screen === 2
+    ? `<div class="dbar">${X.label('running', 'Running')}<span class="txt">Approved by you on 2026-11-27. 9 of 17 tasks done.</span><span class="sp"><button class="btn secondary small">${I('chat', 's')}Ask the advisor</button></span></div>`
+    : `<div class="dbar wait">${X.label('plan', `${doc.kind} waits for you`)}<span class="readp"><span class="bar"><i style="width:${(readCount / ps.length) * 100}%"></i></span>${readCount} of ${ps.length} parts read</span>
+       <span class="sp">${next ? `<button class="btn ghost small">Next: ${next.name}${I('chev', 's')}</button>` : ''}<button class="btn secondary small">Ask for changes</button><button class="btn primary small">${I('check', 's')}${st.screen === 3 ? 'Spec OK' : 'Plan Go'}</button></span></div>`;
+  setTimeout(() => document.querySelectorAll('.pt').forEach((b) => b.addEventListener('click', () => { picked[st.screen] = b.dataset.part; dispatchEvent(new HashChangeEvent('hashchange')); })));
+  return `<div class="window">${X.titlebar(st.screen)}
+    <div class="body"><aside class="panel sessions">${X.sessionList(st.screen)}</aside>
+      <main class="panel view">
+        <div class="vhead"><button class="btn ghost small">${I('back', 's')}Back</button><h1>${doc.kind} · ${doc.title}</h1><span class="meta">${I('branch', 't')} ${R.plan.branch}</span>
+          <span class="links"><button class="btn ghost small">${I('history', 's')}Session history</button><button class="btn ghost small" aria-label="Close">${I('x', 's')}</button></span></div>
+        <div class="cols"><nav class="parts"><h4><span>${ps.length} parts</span><span>about ${total} min</span></h4>${nav}
+            <div class="src"><span class="okline">${I('check', 't')}Matches the Markdown</span><span class="mono">sha256 ${doc.sha256.slice(0, 12)}</span><a href="../../../${doc.source.replace('docs/', '')}">${I('file', 't')}Raw Markdown</a></div></nav>
+          <div class="part"><div class="part-in">${content(cur, st.screen)}</div></div></div>
+        ${bar}
+      </main></div>
+    ${X.statusbar(st.screen, [['Esc', 'Back'], ['J', 'Next part'], ['K', 'Previous']])}</div>`;
+});
+</script>
+</body>
+</html>
