@@ -75,6 +75,8 @@ export interface StatuslineReceivedPayload {
   /** Context fill in percent, or null when unknown. */
   contextPct?: number | null;
   rateLimits?: unknown;
+  /** Model id from the status line, or null when unknown. */
+  model?: string | null;
 }
 
 export interface ActionStartedPayload {
@@ -104,6 +106,8 @@ export interface SpoolDamagedPayload {
   file: string;
   line: number;
   reason: string;
+  /** Number of damaged lines kept in that file by one import. */
+  count?: number;
 }
 
 /** Maps every event type to its payload. */
