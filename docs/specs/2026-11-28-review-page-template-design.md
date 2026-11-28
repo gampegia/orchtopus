@@ -53,7 +53,7 @@ The template owns the order, the headings, the styles and the markup of each sec
 | 4 | `flow` | Lanes and waves | One flow diagram the spec needs (for M1: where a hook event goes) | Yes |
 | 5 | `tasks` / `approach` | Task parts of about six tasks. One collapsible row per task: what, its flag if a decision touches it, after which tasks, agent, reviews, files, and every step collapsible with its full text | Approaches with the chosen one marked, checks with fallbacks | No |
 | 6 | `info` | Facts the user should know but need not decide | The same | No |
-| 7 | `source` | Source path, sha256, template version (written by the template, filled by the session) | The same | Footer |
+| 7 | `source` | Source path, sha256 of the normalised Markdown (check 1), template version (written by the template, filled by the session) | The same | Footer |
 
 Rules for the fixed parts:
 
@@ -77,13 +77,13 @@ Rules for the fixed parts:
 | Flow | Lanes and waves, or one spec diagram | Lanes and waves come from each task's "Consumes" line; a lane is one worktree, tasks in one wave run at the same time. They are the session's reading and are only checked for consistency (see checks), not against the Consumes lines |
 | Tasks | Number, title, one-line purpose, after which tasks, agent and effort, reviews, files, step names | One row per `### Task` heading, same numbers |
 | Step source | The Markdown of every step, from its `- [ ] **Step N: …**` line to the last indented line under it, in `<pre data-step-source>` | Copied verbatim, never summarised or rendered by the session. Orchtopus hashes it and renders it (see checks) |
-| Source | Path, sha256, template version | Written into the head and the footer |
+| Source | Path, sha256 of the normalised Markdown (check 1, not the plain file hash), template version | Written into the head and the footer |
 
 The session never invents content the Markdown does not have. If a slot has nothing, the template shows "None" in that section, never an empty block.
 
 ## Markup contract
 
-The page is static HTML that Orchtopus can check without a model.
+The page is static HTML that Orchtopus can check without a model. `orchtopus:source-sha256` is the sha256 of the Markdown normalised as in check 1 (BOM dropped, LF, checkboxes open), not the sha256 of the file as it lies on disk. For the M1 plan both are the same, because it has no ticked boxes, no BOM and LF line endings.
 
 ```html
 <html lang="en">
@@ -126,20 +126,19 @@ Orchtopus runs these checks when the view opens and whenever the Markdown or the
    - plan, lanes: every number in `data-after` names a task, and every task's `data-wave` is higher than the waves of the tasks it waits for. This checks consistency only; whether the lanes follow the Consumes lines is not checked;
    - spec: the number of "Done when" items against `data-count` of that section;
    - both: every section in the fixed list is present once, in order.
-3. **Template.** `orchtopus:template` names a known template and a version Orchtopus supports (the current one and the one before). The page passes the "not allowed" list above. The style block equals the template's style block byte for byte.
+3. **Template.** `orchtopus:template` names a known template and a version Orchtopus supports (the current one and the one before). The page passes the "not allowed" list above. That scan covers elements and attributes only (`href`, `src`, `url()` in the style block); it does not look at the text inside `<pre data-step-source>`, because plan steps quote `https` URLs. The style block equals the template's style block byte for byte.
 
 What the checks prove and what they do not:
 
 - `orchtopus:source-sha256` proves only which revision the page claims to show. The session writes it, so on its own it proves nothing about the content.
 - The structure check proves that every task and every step is on the page, with step text identical to the Markdown, and that the lanes are consistent.
 - The summary, the needs-you items, the risks, the info items and the lane assignment are the session's reading of the Markdown. No check proves them right. That is what the user reviews, with the raw Markdown one key away.
-3. **Template.** `orchtopus:template` names a known template and a version Orchtopus supports (current and one before). The page passes the "not allowed" list above. The style block equals the template's style block byte for byte.
 
 Results:
 
 | Result | What the user sees | Spec OK / Plan Go |
 |---|---|---|
-| All checks pass | The page, with "Matches the Markdown · sha256 2ac7d468…" in the source line | Enabled |
+| All checks pass | The page, with "Matches the Markdown · sha256 2ac7d468…" in the source line (the hash of the normalised Markdown) | Enabled |
 | Revision or structure differs | The raw Markdown, with a line "The review page is older than the Markdown · Ask the session to rewrite it" | Enabled; it approves the Markdown on screen |
 | Template check fails | The raw Markdown, with "The review page was not shown: <reason>" | Enabled, as above |
 
