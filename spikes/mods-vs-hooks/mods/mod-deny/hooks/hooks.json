@@ -1,0 +1,1 @@
+{ "description": "mod-deny hooks module", "modules": ["./register.mjs"] }

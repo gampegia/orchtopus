@@ -148,7 +148,9 @@ Added 2026-11-28. Status: idea, researched once. Suggested place: M2 (dangerous 
 
 ## User mods in Orchtopus sessions
 
-Added 2026-11-28. Status: needs a check in M2, before the dangerous-command hold ships.
+Added 2026-11-28. Status: tested in the spike `docs/spikes/2026-11-28-mods-vs-hooks.md` (2026-11-28); the M2 spec decides.
+
+**Spike result:** confirmed and worse than feared. Without the built-in guard, a mod that registers `tool.call` or `tool.check` gets past our PR block and deny rules; a holding mod holds before our hooks and Orchtopus does not see it. Classic plugin hooks cannot beat our deny. Recommendation: before every start, find such mods read-only (`claude plugin list --json`, `claude plugin validate`), switch them off for the session with `enabledPlugins: false` in our `--settings` file, tell the user, and make it a project setting. Not `--safe-mode`, `--bare` or `disableAllHooks`.
 
 **Finding:** mods load by default from Claude Code v2.1.287, and only `--safe-mode`, `--bare` or `disableAllHooks` turn them off. Orchtopus passes none of these, so a user's installed mods probably load in our sessions. This is an inference and is not tested. See [EV-I3].
 

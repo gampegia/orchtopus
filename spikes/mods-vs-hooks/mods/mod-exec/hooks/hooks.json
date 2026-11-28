@@ -1,0 +1,1 @@
+{ "description": "mod-exec hooks module", "modules": ["./register.mjs"] }

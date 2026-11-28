@@ -1,0 +1,1 @@
+{ "description": "mod-next hooks module", "modules": ["./register.mjs"] }
