@@ -87,6 +87,16 @@ export function hookInvocation(
   if (/["\r\n\0]/.test(paths.launcher)) {
     throw new Error('the launcher path cannot be written into a command line');
   }
+  // cmd /c drops the quotes around a path that holds & ( ) and splits the line there, and it
+  // expands %name% even inside quotes; the status line shell expands $ and backticks. A broken
+  // pr-block hook (onFailure: block) would block every shell call, so refuse such a path.
+  const special = /[&()^%|<>$`]/.exec(paths.launcher);
+  if (special) {
+    throw new Error(
+      `The data folder path contains "${special[0]}", which the hook command line cannot carry. ` +
+        'Move the data folder to a path without & ( ) ^ % | < > $ or `.',
+    );
+  }
   return {
     command: systemExe(systemRoot, 'cmd.exe'),
     args: (mode) => ['/d', '/c', paths.launcher, mode],

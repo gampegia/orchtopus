@@ -150,6 +150,29 @@ describe('hookInvocation', () => {
     const broken = { ...paths, launcher: 'C:\\data "x"\\bin\\orchtopus-hook.cmd' };
     expect(() => hookInvocation(broken, 'C:\\Windows')).toThrow(/launcher/);
   });
+
+  // cmd /c drops the quotes around a path that holds & ( ) and splits the line there; it expands
+  // %name% even inside quotes; the status line shell expands $ and backticks. With
+  // onFailure: block a broken pr-block hook would block every shell call, so refuse up front.
+  it.each(['&', '(', ')', '^', '%', '|', '<', '>', '$', '`'])(
+    'refuses a launcher path with %s and names the character',
+    (char) => {
+      const broken = { ...paths, launcher: `C:\\Users\\acme${char}dev\\Orchtopus\\bin\\hook.cmd` };
+      expect(() => hookInvocation(broken, 'C:\\Windows')).toThrow(
+        new RegExp(`data folder.*"${char.replace(/[$^()|]/g, '\\$&')}"`),
+      );
+    },
+  );
+
+  it('accepts a launcher path with spaces, dots, dashes and non-Latin letters', () => {
+    const fine = { ...paths, launcher: 'C:\\Users\\Zoë O.-Brien\\Orchtopus\\bin\\hook.cmd' };
+    expect(hookInvocation(fine, 'C:\\Windows').args('state')).toEqual([
+      '/d',
+      '/c',
+      fine.launcher,
+      'state',
+    ]);
+  });
 });
 
 describe('writeSessionFiles', () => {
