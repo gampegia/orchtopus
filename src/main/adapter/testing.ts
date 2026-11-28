@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { runClaude, type ClaudeCommand } from '../claude/cli';
+import { nodePtySpawn, type PtySpawn } from './attach-terminal';
 
 const FAKE_CLI = fileURLToPath(new URL('../../../tooling/fake-claude/cli.mjs', import.meta.url));
 
@@ -51,6 +52,24 @@ export function isAlive(pid: number): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * rmSync with a longer window: on Windows a child that has just exited can hold its cwd
+ * for a moment (EPERM or EBUSY). Retries for up to `ms`, then throws the last error.
+ */
+export async function removeDir(dir: string, ms = 15_000): Promise<void> {
+  const until = Date.now() + ms;
+  for (;;) {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if ((code !== 'EPERM' && code !== 'EBUSY') || Date.now() > until) throw error;
+      await sleep(200);
+    }
   }
 }
 
@@ -98,14 +117,51 @@ export function setupFakeClaude(scenario = 'basic'): FakeClaude {
         .map((line) => JSON.parse(line) as string[]),
     cleanup: async () => {
       await runClaude({ command: process.execPath, prefixArgs: [FAKE_CLI] }, ['--fake-cleanup'], {
-        cwd: root,
+        // Not the temp root: on Windows a process's cwd keeps the folder from being removed.
+        cwd: tmpdir(),
         timeoutMs: 15_000,
       });
       for (const [key, value] of Object.entries(saved)) {
         if (value === undefined) Reflect.deleteProperty(process.env, key);
         else process.env[key] = value;
       }
-      rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      await removeDir(root);
+    },
+  };
+}
+
+export interface TrackedPtySpawn {
+  spawn: PtySpawn;
+  /** Process ids of every PTY child spawned so far. */
+  pids: () => number[];
+  /** Resolves once every PTY spawned so far has exited (capped at `ms`). */
+  allExited: (ms?: number) => Promise<void>;
+}
+
+/**
+ * The real node-pty spawn, recording each child. On Windows a ConPTY child keeps its cwd
+ * (a temp folder) locked until it has exited, so tests wait for it before removing the folder.
+ */
+export function trackedPtySpawn(): TrackedPtySpawn {
+  const children: { pid: number; exited: Promise<void> }[] = [];
+  return {
+    spawn: (file, args, opts) => {
+      const pty = nodePtySpawn(file, args, opts);
+      // nodePtySpawn returns node-pty's IPty, which carries the child's pid.
+      const pid = (pty as { pid?: number }).pid ?? 0;
+      const exited = new Promise<void>((resolve) => {
+        pty.onExit(() => {
+          resolve();
+        });
+      });
+      children.push({ pid, exited });
+      return pty;
+    },
+    pids: () => children.map((c) => c.pid),
+    allExited: async (ms = 10_000) => {
+      const cap = sleep(ms);
+      await Promise.race([Promise.all(children.map((c) => c.exited)), cap]);
+      await waitFor(() => children.every((c) => !isAlive(c.pid)), ms).catch(() => undefined);
     },
   };
 }

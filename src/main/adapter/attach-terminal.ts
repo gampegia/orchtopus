@@ -36,7 +36,8 @@ function plainText(text: string): string {
   return text.replace(ESCAPES, ' ').replace(/\s+/g, ' ');
 }
 
-const defaultSpawn: PtySpawn = (file, args, opts) =>
+/** node-pty with ConPTY; the default spawn of openPtyTerminal. */
+export const nodePtySpawn: PtySpawn = (file, args, opts) =>
   spawnNodePty(file, args, {
     name: 'xterm-256color',
     cols: opts.cols,
@@ -54,7 +55,7 @@ export function openPtyTerminal(opts: {
   spawn?: PtySpawn;
   env?: Record<string, string>;
 }): TerminalHandle {
-  const spawn = opts.spawn ?? defaultSpawn;
+  const spawn = opts.spawn ?? nodePtySpawn;
   const pty = spawn(opts.file, [...opts.args], {
     cwd: opts.cwd,
     cols: opts.size.cols,

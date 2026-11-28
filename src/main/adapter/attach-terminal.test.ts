@@ -4,7 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TerminalExit, TerminalHandle } from './agent-adapter';
 import { openPtyTerminal, REPLAY_BYTES, type PtyProcess } from './attach-terminal';
 import { createBackgroundAdapter } from './background-adapter';
-import { isAlive, setupFakeClaude, sleep, waitFor, type FakeClaude } from './testing';
+import {
+  isAlive,
+  setupFakeClaude,
+  sleep,
+  trackedPtySpawn,
+  waitFor,
+  type FakeClaude,
+  type TrackedPtySpawn,
+} from './testing';
 
 const SIZE = { cols: 100, rows: 30 };
 const PROMPT_BOX = '╭─ fake prompt ─╮';
@@ -127,17 +135,46 @@ describe('attach terminal (scripted PTY)', () => {
 
 describe('attach terminal (fake claude)', { timeout: 30_000 }, () => {
   let fake: FakeClaude | undefined;
+  let ptys: TrackedPtySpawn | undefined;
   const handles: TerminalHandle[] = [];
 
   afterEach(async () => {
     for (const h of handles.splice(0)) h.dispose();
+    // A ConPTY child still holds the temp folder as its cwd until it has exited.
+    await ptys?.allExited();
+    ptys = undefined;
     await fake?.cleanup();
     fake = undefined;
   });
 
+  it('the tracked spawn resolves once every PTY has exited after dispose', async () => {
+    const tracked = trackedPtySpawn();
+    const h = openPtyTerminal({
+      file: process.execPath,
+      args: ['-e', 'setInterval(() => {}, 1000)'],
+      cwd: process.cwd(),
+      size: SIZE,
+      spawn: tracked.spawn,
+    });
+    expect(tracked.pids()).toHaveLength(1);
+    let done = false;
+    const all = tracked.allExited().then(() => (done = true));
+    await sleep(200);
+    expect(done).toBe(false);
+    h.dispose();
+    await all;
+    expect(done).toBe(true);
+  });
+
   async function startSession(scenario: string) {
     fake = setupFakeClaude(scenario);
-    const adapter = createBackgroundAdapter({ cmd: fake.cmd, now: Date.now, sleep });
+    ptys = trackedPtySpawn();
+    const adapter = createBackgroundAdapter({
+      cmd: fake.cmd,
+      now: Date.now,
+      sleep,
+      spawnPty: ptys.spawn,
+    });
     const ref = await adapter.start({
       cwd: fake.folder('acme-app'),
       settingsFile: `${fake.root}\\settings.json`,
