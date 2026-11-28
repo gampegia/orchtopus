@@ -160,7 +160,7 @@ function report(event, hook, result) {
  */
 async function runHooks(event, payload = {}) {
   const groups = readSettings().hooks?.[event];
-  if (!Array.isArray(groups)) return;
+  if (!Array.isArray(groups)) return false;
   const input = {
     session_id: record.sessionId,
     transcript_path: path.join(path.dirname(log), `${record.id}.jsonl`),

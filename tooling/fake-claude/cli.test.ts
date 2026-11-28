@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ranFile } from './store.mjs';
 
 const CLI = fileURLToPath(new URL('./cli.mjs', import.meta.url));
 const NODE = process.execPath;
@@ -423,6 +424,26 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     await waitFor(async () => ((await byName('report-export')) === 'done' ? true : undefined));
   });
 
+  it('ORCH_FAKE_SCENARIOS that is not JSON fails with exit code 2', async () => {
+    const dir = await makeRepo('acme-app');
+    const res = await run(['--bg', '--name', 'upload-fix', 'Install.'], {
+      cwd: dir,
+      env: { ORCH_FAKE_SCENARIOS: '{not json' },
+    });
+    expect(res.code).toBe(2);
+    expect(res.stderr).toContain('ORCH_FAKE_SCENARIOS is not JSON');
+    expect(await agents()).toEqual([]);
+  });
+
+  it('--fake-release refuses missing or bad arguments', async () => {
+    for (const args of [[], ['upload-fix'], ['../upload-fix', 'finish'], ['upload-fix', 'a/b']]) {
+      const res = await run(['--fake-release', ...args]);
+      expect(res.code).toBe(2);
+      expect(res.stderr).toContain('bad gate name');
+    }
+    await expect(fs.readdir(join(cfg, 'fake', 'gates'))).rejects.toThrow();
+  });
+
   it('mid-turn: the turn waits for --fake-release, then finishes', async () => {
     const dir = await makeRepo('acme-app');
     const id = await startBg(dir, ['--name', 'upload-fix', 'Fix the upload.'], 'mid-turn');
@@ -458,7 +479,7 @@ describe('fake claude CLI', { timeout: 30_000 }, () => {
     // pr-attempt calls `gh pr create` (denied here) and then `git push` through PowerShell.
     const id = await startBg(dir, ['--settings', settings, 'Open a pull request.'], 'pr-attempt');
     await waitFor(async () => ((await agents())[0]?.state === 'done' ? true : undefined));
-    const ran = (await fs.readFile(join(cfg, 'fake', 'sessions', `${id}.ran.jsonl`), 'utf8'))
+    const ran = (await fs.readFile(ranFile(join(cfg, 'fake'), id), 'utf8'))
       .split('\n')
       .filter((l) => l !== '')
       .map((l) => JSON.parse(l) as { tool_name: string; tool_input: { command: string } });
