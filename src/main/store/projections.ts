@@ -160,7 +160,7 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
       // A new process: its context fill and limits are unknown until its first status line.
       db.prepare(
         `UPDATE session_state SET process_started_at = ?, starting = 0, start_failed = NULL,
-           context_pct = NULL, rate_limits = NULL WHERE session_id = ?`,
+           context_pct = NULL, rate_limits = NULL, context_at = NULL WHERE session_id = ?`,
       ).run(p.processStartedAt ?? event.at, sessionId);
       touch();
       return;
@@ -212,12 +212,14 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
     }
     case 'statusline.received': {
       const p = event.payload as EventPayloads['statusline.received'];
-      // A status line older than the newest activity or than the current process (a spooled
-      // envelope imported late) must not overwrite the live context fill and limits.
+      // A status line older than the newest status line or than the current process (a spooled
+      // envelope imported late) must not overwrite the live context fill and limits. Only status
+      // lines set context_at: hooks run as parallel helpers, so a hook with a later at often lands
+      // before the status line of the same turn, and gating on last_activity_at would drop it.
       const fresh = db
         .prepare(
           `SELECT 1 FROM session_state WHERE session_id = ?
-             AND (last_activity_at IS NULL OR last_activity_at <= ?)
+             AND (context_at IS NULL OR context_at <= ?)
              AND (process_started_at IS NULL OR process_started_at <= ?)`,
         )
         .get(sessionId, event.at, event.at);
@@ -226,6 +228,10 @@ function applySessionEvent(db: Db, event: StoredEvent): void {
         touch();
         return;
       }
+      db.prepare('UPDATE session_state SET context_at = ? WHERE session_id = ?').run(
+        event.at,
+        sessionId,
+      );
       if (p.contextPct !== undefined) {
         db.prepare('UPDATE session_state SET context_pct = ? WHERE session_id = ?').run(
           p.contextPct,

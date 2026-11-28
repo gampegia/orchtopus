@@ -208,6 +208,49 @@ describe('projections', () => {
     });
   });
 
+  it('a live status line that lands after a later live hook still updates context_pct', () => {
+    emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
+    // The status line and the Stop hook run as parallel helpers: the hook (later at) lands first.
+    store.append({
+      id: 'live-hook',
+      type: 'hook.received',
+      at: '2026-11-28T09:00:02.000Z',
+      sessionId: 's1',
+      payload: { hookEventName: 'Stop' },
+    });
+    store.append({
+      id: 'live-status',
+      type: 'statusline.received',
+      at: '2026-11-28T09:00:01.000Z',
+      sessionId: 's1',
+      payload: { contextPct: 55, rateLimits: { fiveHour: 20 } },
+    });
+    expect(getSessionState(store.db, 's1')).toMatchObject({
+      contextPct: 55,
+      rateLimits: { fiveHour: 20 },
+      lastActivityAt: '2026-11-28T09:00:02.000Z',
+    });
+  });
+
+  it('an older status line does not overwrite a newer one', () => {
+    emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
+    store.append({
+      id: 'status-new',
+      type: 'statusline.received',
+      at: '2026-11-28T09:00:05.000Z',
+      sessionId: 's1',
+      payload: { contextPct: 70 },
+    });
+    store.append({
+      id: 'status-old',
+      type: 'statusline.received',
+      at: '2026-11-28T09:00:04.000Z',
+      sessionId: 's1',
+      payload: { contextPct: 60 },
+    });
+    expect(getSessionState(store.db, 's1')?.contextPct).toBe(70);
+  });
+
   it('a spooled status line from before the current process does not set context_pct', () => {
     emit('session.created', created, { projectId: 'p1', sessionId: 's1' });
     emit(

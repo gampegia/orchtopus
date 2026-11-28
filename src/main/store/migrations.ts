@@ -56,6 +56,7 @@ CREATE TABLE session_state (
   starting INTEGER NOT NULL DEFAULT 0,
   start_failed TEXT,
   context_pct REAL,
+  context_at TEXT,
   rate_limits TEXT,
   updated_at TEXT NOT NULL
 );
