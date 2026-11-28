@@ -100,6 +100,27 @@ function hasBody(req: IncomingMessage): boolean {
 
 class BodyTooLarge extends Error {}
 
+/** How long a refused upload is still drained after the 413, so the client can read it. */
+const BODY_LINGER_MS = 1000;
+
+/**
+ * Ends the connection BODY_LINGER_MS after a 413 went out, so a client that keeps sending is not
+ * drained forever. Closing at once (Connection: close) would reset the connection while the
+ * client still sends, and Windows then drops the 413 the client has not read yet.
+ */
+function closeAfterLinger(req: IncomingMessage, res: ServerResponse): void {
+  res.once('finish', () => {
+    const socket = req.socket;
+    const timer = setTimeout(() => {
+      socket.destroy();
+    }, BODY_LINGER_MS);
+    timer.unref();
+    socket.once('close', () => {
+      clearTimeout(timer);
+    });
+  });
+}
+
 /** Reads the body up to MAX_BODY_BYTES; larger bodies reject with BodyTooLarge. */
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -109,7 +130,7 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
         req.off('data', onData);
-        // Keep draining so the client can read the 413 instead of a reset.
+        // Keep draining while the 413 goes out, so the client can read it instead of a reset.
         req.resume();
         reject(new BodyTooLarge());
         return;
@@ -126,10 +147,24 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 
 function rejectUpgrade(socket: Duplex, status: number): void {
   const text = STATUS_TEXT[status] ?? 'Error';
+  // Destroy only once the status line is flushed: a destroy right away could drop it, and end
+  // alone only half-closes (server sockets allow half-open), so a client that never closes its
+  // side would keep the socket, and with it server.close(), waiting forever.
   socket.end(
     `HTTP/1.1 ${String(status)} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+    () => {
+      socket.destroy();
+    },
   );
-  socket.destroy();
+}
+
+/**
+ * True when the preferred port cannot be used and a free one should be taken instead:
+ * EADDRINUSE (taken) and EACCES (inside a port range Windows reserves for Hyper-V, WSL or Docker).
+ */
+export function isPortUnavailable(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return code === 'EADDRINUSE' || code === 'EACCES';
 }
 
 function listen(server: ReturnType<typeof createServer>, port: number): Promise<void> {
@@ -166,14 +201,22 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
   };
   const hub = createStreamHub({ snapshot: options.snapshot });
 
-  const routes: RouteTable = {
-    ...options.routes,
-    'POST /v1/token/renew': async () => {
+  // Renews run one after the other, so two at once never race on the token file.
+  let renewing: Promise<unknown> = Promise.resolve();
+  const renew = (): Promise<string> => {
+    const next = renewing.then(async () => {
       token = await renewToken(paths.tokenFile);
       hub.closeStale(token);
       options.onTokenRenewed?.();
-      return { status: 200, body: { token } };
-    },
+      return token;
+    });
+    renewing = next.catch(() => undefined);
+    return next;
+  };
+
+  const routes: RouteTable = {
+    ...options.routes,
+    'POST /v1/token/renew': async () => ({ status: 200, body: { token: await renew() } }),
   };
   const route = createRouter(routes);
 
@@ -209,6 +252,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
       if (Number(req.headers['content-length'] ?? 0) > MAX_BODY_BYTES) {
         req.resume();
         sendError(res, 413, cors);
+        closeAfterLinger(req, res);
         return;
       }
       let raw: Buffer;
@@ -217,6 +261,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
       } catch (error) {
         if (error instanceof BodyTooLarge) {
           sendError(res, 413, cors);
+          closeAfterLinger(req, res);
           return;
         }
         throw error;
@@ -279,7 +324,7 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
   try {
     await listen(server, options.preferredPort);
   } catch (error) {
-    if ((error as { code?: unknown }).code !== 'EADDRINUSE') throw error;
+    if (!isPortUnavailable(error)) throw error;
     await listen(server, 0);
   }
   const address = server.address() as AddressInfo;
@@ -303,14 +348,18 @@ export async function startApiServer(options: ApiServerOptions): Promise<ApiServ
     },
     close: () => {
       closing ??= (async () => {
-        await removePortFile(paths.apiFile);
-        hub.closeAll();
-        await new Promise<void>((resolve) => {
-          server.close(() => {
-            resolve();
+        try {
+          await removePortFile(paths.apiFile);
+        } finally {
+          // A failed delete (EPERM) must not keep the streams and the server open.
+          hub.closeAll();
+          await new Promise<void>((resolve) => {
+            server.close(() => {
+              resolve();
+            });
+            server.closeAllConnections();
           });
-          server.closeAllConnections();
-        });
+        }
       })();
       return closing;
     },

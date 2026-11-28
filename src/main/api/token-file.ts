@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
+import { TOKEN_PATTERN } from './auth';
 
 const run = promisify(execFile);
 /**
@@ -14,8 +15,6 @@ const run = promisify(execFile);
 function systemTool(name: string): string {
   return join(process.env['SystemRoot'] ?? 'C:\\Windows', 'System32', name);
 }
-
-const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
 async function readToken(file: string): Promise<string | null> {
   try {
@@ -36,7 +35,9 @@ async function readToken(file: string): Promise<string | null> {
 async function writeToken(file: string): Promise<string> {
   const token = randomBytes(32).toString('hex');
   await mkdir(dirname(file), { recursive: true });
-  const temp = `${file}.${String(process.pid)}.tmp`;
+  // A random part, so a temp file a crashed process left behind never blocks a later write
+  // (its pid may be reused).
+  const temp = `${file}.${String(process.pid)}.${randomBytes(8).toString('hex')}.tmp`;
   await writeFile(temp, '', { flag: 'wx', mode: 0o600 });
   try {
     await restrictToCurrentUser(temp);
@@ -49,9 +50,15 @@ async function writeToken(file: string): Promise<string> {
   return token;
 }
 
-/** Returns the stored token, creating it on first use (or when the file is damaged). */
+/**
+ * Returns the stored token, creating it on first use (or when the file is damaged). An existing
+ * file is restricted again, since a copied or restored data folder may carry a wider ACL.
+ */
 export async function ensureToken(file: string): Promise<string> {
-  return (await readToken(file)) ?? writeToken(file);
+  const stored = await readToken(file);
+  if (stored === null) return writeToken(file);
+  await restrictToCurrentUser(file);
+  return stored;
 }
 
 /** Replaces the token with a new one. */

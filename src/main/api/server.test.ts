@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer, request as httpRequest, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { connect, type AddressInfo } from 'node:net';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
 import { z } from 'zod';
 import { parseBody } from './schemas';
+import { isPortUnavailable } from './server';
 import { startTestApi, type TestApi } from './testing';
 
 let api: TestApi | undefined;
@@ -56,6 +57,13 @@ describe('startApiServer', () => {
     expect((await request('/v1/health')).status).toBe(200);
   });
 
+  it('takes a free port for a taken or a reserved (EACCES) preferred port only', () => {
+    expect(isPortUnavailable(Object.assign(new Error('taken'), { code: 'EADDRINUSE' }))).toBe(true);
+    expect(isPortUnavailable(Object.assign(new Error('reserved'), { code: 'EACCES' }))).toBe(true);
+    expect(isPortUnavailable(Object.assign(new Error('other'), { code: 'EINVAL' }))).toBe(false);
+    expect(isPortUnavailable(null)).toBe(false);
+  });
+
   it('writes api.json with the port and removes it on close', async () => {
     const test = await started();
     const written = JSON.parse(readFileSync(test.paths.apiFile, 'utf8')) as Record<string, unknown>;
@@ -65,6 +73,77 @@ describe('startApiServer', () => {
     expect(Number.isNaN(Date.parse(String(written['startedAt'])))).toBe(false);
     await test.server.close();
     expect(existsSync(test.paths.apiFile)).toBe(false);
+  });
+
+  it('closes the server even when api.json cannot be deleted', async () => {
+    const test = await started();
+    api = undefined;
+    // A folder in place of api.json makes the delete fail.
+    rmSync(test.paths.apiFile);
+    mkdirSync(test.paths.apiFile);
+    try {
+      await expect(test.server.close()).rejects.toThrow();
+      await expect(fetch(test.url('/v1/health'))).rejects.toThrow();
+    } finally {
+      test.temp.remove();
+    }
+  });
+
+  it('sends the status line of a refused WebSocket upgrade', async () => {
+    const { server } = await started();
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = httpRequest({
+        host: '127.0.0.1',
+        port: server.port,
+        path: '/v1/events',
+        headers: {
+          host: `localhost:${String(server.port)}`,
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+          'sec-websocket-version': '13',
+          'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        },
+      });
+      req.on('response', (res) => {
+        res.resume();
+        resolve(res.statusCode ?? 0);
+      });
+      req.on('error', reject);
+      req.end();
+    });
+    expect(status).toBe(421);
+  });
+
+  it('closes after a refused upgrade whose client keeps its side open', async () => {
+    const test = await started();
+    const socket = connect({ host: '127.0.0.1', port: test.server.port, allowHalfOpen: true });
+    socket.on('error', () => undefined);
+    onTestFinished(() => {
+      socket.destroy();
+    });
+    const response = await new Promise<string>((resolve) => {
+      let text = '';
+      socket.on('data', (chunk: Buffer) => {
+        text += chunk.toString('latin1');
+        if (text.includes('\r\n\r\n')) resolve(text);
+      });
+      socket.write(
+        'GET /v1/events HTTP/1.1\r\n' +
+          `Host: 127.0.0.1:${String(test.server.port)}\r\n` +
+          'Connection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+      );
+    });
+    expect(response.startsWith('HTTP/1.1 401 ')).toBe(true);
+    // The client never ends its side; the server must still drop the socket and shut down.
+    const timeout = new Promise<'timeout'>((resolve) =>
+      setTimeout(() => {
+        resolve('timeout');
+      }, 2000),
+    );
+    expect(await Promise.race([test.server.close().then(() => 'done' as const), timeout])).toBe(
+      'done',
+    );
   });
 
   it('GET /v1/health with the token returns apiVersion 1', async () => {
@@ -106,6 +185,50 @@ describe('startApiServer', () => {
       body: JSON.stringify({ blob: 'x'.repeat(2 * 1024 * 1024) }),
     });
     expect(response.status).toBe(413);
+  });
+
+  it('answers a chunked upload over 1 MiB with 413 and closes the connection', async () => {
+    const { server } = await started({
+      routes: { 'POST /v1/echo': (req) => Promise.resolve({ status: 200, body: req.body }) },
+    });
+    const result = await new Promise<{ status: number; closed: boolean }>((resolve, reject) => {
+      const chunk = Buffer.alloc(64 * 1024, 0x20);
+      let status = 0;
+      const req = httpRequest({
+        host: '127.0.0.1',
+        port: server.port,
+        path: '/v1/echo',
+        method: 'POST',
+        headers: {
+          host: `127.0.0.1:${String(server.port)}`,
+          authorization: `Bearer ${server.token()}`,
+          'content-type': 'application/json',
+          'transfer-encoding': 'chunked',
+        },
+      });
+      // Keeps sending until the server ends the connection; a server that drains forever
+      // would never end it.
+      const pump = setInterval(() => {
+        if (!req.destroyed) req.write(chunk);
+      }, 1);
+      const deadline = setTimeout(() => {
+        clearInterval(pump);
+        req.destroy();
+        resolve({ status, closed: false });
+      }, 5000);
+      req.on('response', (res) => {
+        status = res.statusCode ?? 0;
+        res.resume();
+      });
+      req.on('error', () => undefined);
+      req.on('close', () => {
+        clearInterval(pump);
+        clearTimeout(deadline);
+        if (status === 0) reject(new Error('closed before a response'));
+        else resolve({ status, closed: true });
+      });
+    });
+    expect(result).toEqual({ status: 413, closed: true });
   });
 
   it('rejects text/plain with 415', async () => {
@@ -197,5 +320,22 @@ describe('startApiServer', () => {
       headers: { authorization: `Bearer ${token}` },
     });
     expect(withNew.status).toBe(200);
+  });
+
+  it('runs concurrent renews one after the other, and the last token wins', async () => {
+    const test = await started();
+    const renew = (): Promise<Response> =>
+      test.request('/v1/token/renew', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+      });
+    const responses = await Promise.all([renew(), renew(), renew()]);
+    expect(responses.map((r) => r.status)).toEqual([200, 200, 200]);
+    const tokens = await Promise.all(
+      responses.map(async (r) => ((await r.json()) as { token: string }).token),
+    );
+    expect(new Set(tokens).size).toBe(3);
+    expect(tokens).toContain(test.server.token());
+    expect(readFileSync(test.paths.tokenFile, 'utf8')).toBe(test.server.token());
   });
 });

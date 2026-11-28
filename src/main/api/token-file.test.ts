@@ -81,14 +81,29 @@ describe('token file', () => {
     expect(await ensureToken(file)).toBe(renewed);
   });
 
-  it('fails and leaves a pre-existing temp file untouched', async () => {
+  it('renews past a temp file a crashed process left behind, and leaves it untouched', async () => {
     const file = temp.file('api-token');
-    const planted = `${file}.${String(process.pid)}.tmp`;
-    writeFileSync(planted, 'planted');
-    await expect(renewToken(file)).rejects.toMatchObject({ code: 'EEXIST' });
-    expect(readFileSync(planted, 'utf8')).toBe('planted');
-    expect(existsSync(file)).toBe(false);
+    const leftover = `${file}.${String(process.pid)}.tmp`;
+    writeFileSync(leftover, 'leftover');
+    const token = await renewToken(file);
+    expect(readFileSync(file, 'utf8')).toBe(token);
+    expect(readFileSync(leftover, 'utf8')).toBe('leftover');
   });
+
+  it.runIf(process.platform === 'win32')(
+    'restricts an existing token file to the current user (copied or restored data folder)',
+    async () => {
+      const file = temp.file('api-token');
+      const token = 'a'.repeat(64);
+      writeFileSync(file, token);
+      expect(acesOf(file).length).toBeGreaterThan(1);
+      expect(await ensureToken(file)).toBe(token);
+      const aces = acesOf(file);
+      expect(aces).toHaveLength(1);
+      expect(aces[0]?.toLowerCase()).toContain(userInfo().username.toLowerCase());
+    },
+    30_000,
+  );
 
   it.runIf(process.platform === 'win32')(
     'restricts the temp file to the current user before the token is written',
@@ -121,12 +136,13 @@ describe('token file', () => {
   it.runIf(process.platform === 'win32')(
     'restrictToCurrentUser ignores whoami and icacls found earlier on PATH',
     async () => {
-      // Fakes that fail like GNU whoami from Git for Windows: node.exe run with these arguments
-      // exits with an error.
+      // Fakes that fail like GNU whoami from Git for Windows: hostname.exe run with these
+      // arguments prints no SID and exits with an error. It is small, so copying stays fast.
       const fakeBin = temp.file('fake-bin');
       mkdirSync(fakeBin);
-      copyFileSync(process.execPath, join(fakeBin, 'whoami.exe'));
-      copyFileSync(process.execPath, join(fakeBin, 'icacls.exe'));
+      const hostnameExe = join(icaclsExe, '..', 'hostname.exe');
+      copyFileSync(hostnameExe, join(fakeBin, 'whoami.exe'));
+      copyFileSync(hostnameExe, join(fakeBin, 'icacls.exe'));
       const file = temp.file('probe');
       writeFileSync(file, 'x');
       const originalPath = process.env['PATH'];

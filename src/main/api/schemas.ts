@@ -17,12 +17,19 @@ export function parseBody<S extends z.ZodType>(schema: S, body: unknown): z.outp
 
 // Project routes (Task 8).
 
-/** An absolute local folder path. */
+/** A local drive path such as `C:\x` or `C:/x`. Rejects UNC (`\\host`, `//host`), device
+ *  (`\\?\`, `//./`) and drive-less rooted paths before any file system call touches them, so
+ *  git and fs never reach a network host (which could leak the NTLM hash). */
+export const DRIVE_PATH = /^[A-Za-z]:[\\/]/;
+
+/** An absolute local folder path on a drive. */
 export const folderPathSchema = z
   .string()
   .min(1)
   .max(1024)
-  .refine((p) => isAbsolute(p) && !p.includes('\0'), { error: 'Use an absolute folder path' });
+  .refine((p) => DRIVE_PATH.test(p) && isAbsolute(p) && !p.includes('\0'), {
+    error: 'Use an absolute folder path on a local drive',
+  });
 
 /** Ids that clients make up for idempotent requests; they become part of event ids. */
 export const requestIdSchema = z

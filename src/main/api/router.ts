@@ -50,6 +50,14 @@ function compile(key: string, handler: RouteHandler): CompiledRoute {
   return { method, segments: path.slice(1).split('/'), handler };
 }
 
+/**
+ * A decoded param must not be empty, `.` or `..`, nor contain `/`, `\` or NUL. Defence in depth:
+ * later routes may build paths from ids.
+ */
+function isSafeParam(value: string): boolean {
+  return value !== '' && value !== '.' && value !== '..' && !/[/\\\0]/.test(value);
+}
+
 /** Matches one route; null when the path does not fit. Params are URI-decoded. */
 function matchSegments(route: CompiledRoute, parts: string[]): Record<string, string> | null {
   if (route.segments.length !== parts.length) return null;
@@ -63,7 +71,7 @@ function matchSegments(route: CompiledRoute, parts: string[]): Record<string, st
       } catch {
         return null;
       }
-      if (value === '') return null;
+      if (!isSafeParam(value)) return null;
       params[segment.slice(1)] = value;
     } else if (segment !== part) {
       return null;
