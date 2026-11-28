@@ -17,6 +17,7 @@ const types: Record<string, string> = {
 let server: Server | undefined;
 let app: ElectronApplication | undefined;
 let devUrl = '';
+let cleanupLaunch: (() => void) | undefined;
 
 function electronApp(): ElectronApplication {
   if (app === undefined) throw new Error('Electron did not launch');
@@ -51,12 +52,18 @@ test.beforeAll(async () => {
 
   // The packaged app ignores ELECTRON_RENDERER_URL, so this suite always runs the unpacked one.
   const launched = await launchApp({ env: { ELECTRON_RENDERER_URL: devUrl }, unpacked: true });
+  cleanupLaunch = launched.cleanup;
   app = launched.app;
   await launched.page.waitForLoadState('load');
 });
 
 test.afterAll(async () => {
-  if (app !== undefined) await app.close();
+  try {
+    if (app !== undefined) await app.close();
+  } finally {
+    // Removes the data folder and Claude home launchApp made for this suite.
+    cleanupLaunch?.();
+  }
   const running = server;
   if (running !== undefined) {
     await new Promise<void>((resolve) => {
