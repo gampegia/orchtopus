@@ -4,10 +4,11 @@
 //
 //   hook-helper.js state        state hooks (SessionStart, Stop, …): always exit 0, no output
 //   hook-helper.js statusline   prints `ctx <n> %` or `ctx unknown`, then sends the envelope
+//   hook-helper.js pr-block     PreToolUse on shell tools: denies PR and MR create or merge
 //
 // It reads the port and the token at each call, posts the envelope with a 500 ms timeout and
-// appends it to the spool when that fails. It imports only Node built-ins and the envelope
-// module, so it starts fast and never needs the app to be running.
+// appends it to the spool when that fails. It imports only Node built-ins, the envelope module
+// and the PR block matcher, so it starts fast and never needs the app to be running.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
@@ -22,6 +23,7 @@ import {
   type EnvelopeValue,
   type HookEnvelope,
 } from '../shared/hook-envelope';
+import { detectPrCommand, PR_BLOCK_REASON } from '../shared/pr-block';
 import { appendToSpool } from './spool-append';
 
 export const POST_TIMEOUT_MS = 500;
@@ -57,6 +59,8 @@ export interface HelperIo {
 export interface HelperResult {
   exitCode: number;
   stdout: string;
+  /** Only the PR block sets it, when it blocks a command it cannot read. */
+  stderr?: string;
 }
 
 const MODES: Readonly<Record<string, EnvelopeMode>> = { state: 'hook', statusline: 'statusline' };
@@ -173,7 +177,56 @@ async function deliver(io: HelperIo, body: string): Promise<boolean> {
   }
 }
 
+/** Exit 2 blocks a PreToolUse call in Claude Code even without `onFailure: "block"`. */
+export const PR_BLOCK_FAIL_EXIT = 2;
+
+function denyOutput(): string {
+  return JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: PR_BLOCK_REASON,
+    },
+  });
+}
+
+/**
+ * The PR block decides locally and never contacts the app. A command it cannot read is
+ * blocked (non-zero exit, `onFailure: "block"`), because it cannot rule a PR command out.
+ * A match is also spooled with `fields.blocked`, without the command text.
+ */
+function runPrBlock(io: HelperIo): HelperResult {
+  const input = parseInput(io.stdin);
+  const command = child(input?.['tool_input'], 'command');
+  if (input === null || typeof command !== 'string') {
+    return {
+      exitCode: PR_BLOCK_FAIL_EXIT,
+      stdout: '',
+      stderr: 'Orchtopus PR block could not read the shell command, so it blocked it.',
+    };
+  }
+  const match = detectPrCommand(command);
+  if (match === null) return { exitCode: 0, stdout: '' };
+  try {
+    const envelope = buildEnvelope('hook', input, io.now());
+    if (envelope !== null) {
+      envelope.fields['blocked'] = match.kind;
+      appendToSpool(join(io.dataDir, HELPER_FILES.spoolFile), JSON.stringify(envelope));
+    }
+  } catch {
+    // The record is a convenience; the deny below is what matters.
+  }
+  return { exitCode: 0, stdout: denyOutput() };
+}
+
 export async function runHelper(io: HelperIo): Promise<HelperResult> {
+  if (io.argv[0] === 'pr-block') {
+    try {
+      return runPrBlock(io);
+    } catch {
+      return { exitCode: PR_BLOCK_FAIL_EXIT, stdout: '', stderr: 'Orchtopus PR block failed.' };
+    }
+  }
   const mode = MODES[io.argv[0] ?? ''];
   if (mode === undefined) return { exitCode: 0, stdout: '' };
   let stdout = '';
@@ -244,7 +297,8 @@ function main(): void {
     },
   })
     .catch(() => ({ exitCode: 0, stdout: '' }))
-    .then((result) => {
+    .then((result: HelperResult) => {
+      if (result.stderr !== undefined) process.stderr.write(result.stderr);
       process.stdout.write(result.stdout, () => {
         process.exit(result.exitCode);
       });

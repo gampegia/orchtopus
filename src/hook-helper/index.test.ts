@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveDataPaths } from '../main/data-folder';
 import { makeTempDir, type TempDir } from '../main/store/testing';
 import { parseEnvelope } from '../shared/hook-envelope';
+import { PR_BLOCK_REASON } from '../shared/pr-block';
 import { HELPER_FILES, POST_TIMEOUT_MS, runHelper, type PostFn } from './index';
 
 const TOKEN = 'a'.repeat(64);
@@ -277,5 +278,77 @@ describe('runHelper', () => {
     });
     expect(result).toEqual({ exitCode: 0, stdout: '' });
     expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe('runHelper pr-block', () => {
+  function shellCall(command: unknown): string {
+    return JSON.stringify({
+      session_id: 'c0ffee00-0000-4000-8000-000000000001',
+      cwd: 'C:\\repos\\acme-app\\.claude\\worktrees\\upload-fix',
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      permission_mode: 'auto',
+      tool_input: { command, description: 'secret description' },
+    });
+  }
+
+  it('pr-block denies gh pr create with PR_BLOCK_REASON', async () => {
+    writeApiFiles();
+    const result = await run(['pr-block'], shellCall('gh pr create --draft'), fakePost);
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: PR_BLOCK_REASON,
+      },
+    });
+  });
+
+  it('pr-block spools a hook.received envelope with the blocked kind', async () => {
+    writeApiFiles();
+    await run(['pr-block'], shellCall('glab mr merge 3'), fakePost);
+    const lines = spoolLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain('glab mr merge');
+    expect(lines[0]).not.toContain('secret description');
+    expect(parseEnvelope(JSON.parse(lines[0] ?? 'null'))).toMatchObject({
+      mode: 'hook',
+      hook: 'PreToolUse',
+      sessionId: 'c0ffee00-0000-4000-8000-000000000001',
+      fields: { tool_name: 'Bash', blocked: 'glab-mr-merge' },
+    });
+  });
+
+  it('pr-block allows git push with empty stdout', async () => {
+    writeApiFiles();
+    const result = await run(['pr-block'], shellCall('git push -u origin upload-fix'), fakePost);
+    expect(result).toEqual({ exitCode: 0, stdout: '' });
+    expect(spoolLines()).toHaveLength(0);
+  });
+
+  it('pr-block exits non-zero on unreadable stdin', async () => {
+    for (const stdin of ['', '{not json', '[]', 'null', shellCall(42), shellCall(undefined)]) {
+      const result = await run(['pr-block'], stdin, fakePost);
+      expect(result.exitCode, stdin).not.toBe(0);
+      expect(result.stdout).toBe('');
+    }
+  });
+
+  it('pr-block still denies when the spool cannot be written', async () => {
+    writeFileSync(join(temp.dir, 'spool'), 'not a folder');
+    const result = await run(['pr-block'], shellCall('gh pr merge 12'), fakePost);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('"permissionDecision":"deny"');
+  });
+
+  it('pr-block never calls post', async () => {
+    writeApiFiles();
+    const { calls, post } = recordingPost(202);
+    await run(['pr-block'], shellCall('gh pr create'), post);
+    await run(['pr-block'], shellCall('git status'), post);
+    await run(['pr-block'], '{oops', post);
+    expect(calls).toHaveLength(0);
   });
 });
