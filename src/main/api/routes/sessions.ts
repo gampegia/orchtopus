@@ -21,7 +21,7 @@ export function createSessionRoutes(deps: { service: SessionService }): RouteTab
   return {
     'POST /v1/sessions': async (req) => {
       const input = parseBody(startSessionSchema, req.body);
-      return { status: 201, body: await service.start(input, input.requestId) };
+      return { status: 201, body: await service.start(input) };
     },
     'POST /v1/sessions/:id/open': async (req) => {
       const size = parseBody(openSessionSchema, req.body);

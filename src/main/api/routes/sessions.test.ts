@@ -53,11 +53,11 @@ const START = {
 };
 
 describe('session routes', () => {
-  it('POST /v1/sessions starts with the request id as action id', async () => {
+  it('POST /v1/sessions starts with the parsed input (the service uses its request id)', async () => {
     const { service, send } = await setup();
     const res = await send('POST', '/v1/sessions', START);
     expect(res.status).toBe(201);
-    expect(service.start).toHaveBeenCalledWith(START, 'request-0001');
+    expect(service.start).toHaveBeenCalledWith(START);
   });
 
   it('POST /v1/sessions answers 422 on the task field for an invalid task name', async () => {
