@@ -9,7 +9,6 @@ import type { TerminalState } from '../app-context';
 import type { AgentAdapter, SessionRef, TerminalHandle, TerminalSize } from './agent-adapter';
 
 export const MAX_INPUT_BYTES = 64 * 1024;
-export const TRUST_CLOSE_MS = 5_000;
 const POLICY_VIOLATION = 1008;
 const NORMAL_CLOSE = 1000;
 
@@ -17,7 +16,7 @@ export interface TerminalRegistry {
   /** The session's live terminal id, or a new attach PTY. */
   openForSession(sessionId: string, ref: SessionRef, size: TerminalSize): Promise<string>;
   openTrust(cwd: string, size: TerminalSize): Promise<string>;
-  /** Types `/exit` into a trust terminal and kills it after 5 s; false for any other id. */
+  /** Kills a trust terminal without typing into it; false for any other id. */
   closeTrust(id: string): Promise<boolean>;
   get(id: string): TerminalHandle | undefined;
   /** Calls `cb` once when the terminal exits or is disposed; returns the unsubscribe. */
@@ -107,13 +106,10 @@ export function createTerminalRegistry(
     closeTrust: (id) => {
       const entry = entries.get(id);
       if (entry?.kind !== 'trust') return Promise.resolve(false);
-      entry.handle.write('/exit\r');
-      const timer = setTimeout(() => {
-        dispose(id);
-      }, TRUST_CLOSE_MS);
-      entry.ended.add(() => {
-        clearTimeout(timer);
-      });
+      // Kill without typing: the trust dialog is a select list with 'Yes, proceed' focused, so
+      // any Enter (even after '/exit') would accept trust the user did not give. Claude Code
+      // writes trust as soon as it is accepted, so a trust terminal has nothing left to save.
+      dispose(id);
       return Promise.resolve(true);
     },
 

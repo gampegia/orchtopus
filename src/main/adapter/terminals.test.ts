@@ -15,11 +15,21 @@ import type {
   TerminalHandle,
   TerminalSize,
 } from './agent-adapter';
+import { createBackgroundAdapter } from './background-adapter';
+import { readTrust } from '../claude/trust';
+import {
+  setupFakeClaude,
+  sleep,
+  trackedPtySpawn,
+  waitFor,
+  type FakeClaude,
+  type TrackedPtySpawn,
+} from './testing';
 import {
   createTerminalRegistry,
   createTerminalStreamHandler,
   MAX_INPUT_BYTES,
-  TRUST_CLOSE_MS,
+  type TerminalRegistry,
 } from './terminals';
 
 interface StubHandle extends TerminalHandle {
@@ -233,17 +243,17 @@ describe('terminal registry', () => {
     expect(plain[0]?.disposed).toBe(true);
   });
 
-  it('closeTrust writes /exit and kills the trust terminal after 5 s', async () => {
-    vi.useFakeTimers();
+  it('closeTrust kills the trust terminal at once and types nothing', async () => {
     const { adapter, plain } = stubAdapter();
     const registry = createTerminalRegistry(adapter);
     const id = await registry.openTrust('C:\\acme-app', SIZE);
+    let ended = false;
+    registry.onEnd(id, () => (ended = true));
     expect(await registry.closeTrust(id)).toBe(true);
-    expect(plain[0]?.written).toEqual(['/exit\r']);
-    await vi.advanceTimersByTimeAsync(TRUST_CLOSE_MS - 1);
-    expect(plain[0]?.disposed).toBe(false);
-    await vi.advanceTimersByTimeAsync(1);
+    // Any Enter would confirm the focused 'Yes, proceed' of an unanswered trust dialog.
+    expect(plain[0]?.written).toEqual([]);
     expect(plain[0]?.disposed).toBe(true);
+    expect(ended).toBe(true);
     expect(registry.get(id)).toBeUndefined();
   });
 
@@ -391,7 +401,8 @@ describe('trust terminal routes', () => {
     const { terminalId } = (await res.json()) as { terminalId: string };
     const del = await test.request(`/v1/terminals/${terminalId}`, { method: 'DELETE' });
     expect(del.status).toBe(204);
-    expect(plain[0]?.written).toEqual(['/exit\r']);
+    expect(plain[0]?.written).toEqual([]);
+    expect(plain[0]?.disposed).toBe(true);
 
     const sessionTerminal = await registry.openForSession('upload-fix', REF, SIZE);
     const refused = await test.request(`/v1/terminals/${sessionTerminal}`, { method: 'DELETE' });
@@ -399,5 +410,71 @@ describe('trust terminal routes', () => {
     expect(attached[0]?.written).toEqual([]);
     const unknown = await test.request('/v1/terminals/term-none', { method: 'DELETE' });
     expect(unknown.status).toBe(404);
+  });
+});
+
+describe('trust terminal (fake claude, select-list trust dialog)', { timeout: 30_000 }, () => {
+  let fake: FakeClaude | undefined;
+  let ptys: TrackedPtySpawn | undefined;
+  let registry: TerminalRegistry | undefined;
+
+  afterEach(async () => {
+    registry?.closeAll();
+    registry = undefined;
+    // A ConPTY child still holds the temp folder as its cwd until it has exited.
+    await ptys?.allExited();
+    ptys = undefined;
+    await fake?.cleanup();
+    fake = undefined;
+  });
+
+  function setup() {
+    const f = setupFakeClaude('trust-select');
+    const p = trackedPtySpawn();
+    const r = createTerminalRegistry(
+      createBackgroundAdapter({ cmd: f.cmd, now: Date.now, sleep, spawnPty: p.spawn }),
+    );
+    fake = f;
+    ptys = p;
+    registry = r;
+    const dir = f.folder('acme-app', false);
+    const trust = () => readTrust(join(f.root, 'cfg', '.claude.json'), dir);
+    const close = async (id: string): Promise<void> => {
+      const ended = new Promise<void>((resolve) => r.onEnd(id, resolve));
+      expect(await r.closeTrust(id)).toBe(true);
+      await ended;
+      await p.allExited();
+      // Time for a CLI that was still running to write its config.
+      await sleep(500);
+    };
+    return { registry: r, dir, trust, close };
+  }
+
+  it('cancelling before the terminal is ready leaves the folder untrusted', async () => {
+    const t = setup();
+    const id = await t.registry.openTrust(t.dir, SIZE);
+    await t.close(id);
+    expect(await t.trust()).not.toBe('trusted');
+  });
+
+  it('cancelling while the trust question is shown leaves the folder untrusted', async () => {
+    const t = setup();
+    const id = await t.registry.openTrust(t.dir, SIZE);
+    const handle = t.registry.get(id);
+    await waitFor(() => handle?.replay().includes('Do you trust the files in this folder?'));
+    await handle?.ready;
+    await t.close(id);
+    expect(await t.trust()).not.toBe('trusted');
+  });
+
+  it('closing after the user accepted keeps the folder trusted', async () => {
+    const t = setup();
+    const id = await t.registry.openTrust(t.dir, SIZE);
+    const handle = t.registry.get(id);
+    await waitFor(() => handle?.replay().includes('Do you trust the files in this folder?'));
+    handle?.write('\r');
+    await waitFor(() => handle?.replay().includes('fake prompt'));
+    await t.close(id);
+    expect(await t.trust()).toBe('trusted');
   });
 });

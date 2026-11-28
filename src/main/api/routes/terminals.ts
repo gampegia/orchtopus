@@ -1,7 +1,7 @@
 // Trust-step terminals (spec section 2, step 4): plain `claude` in a folder, so the user can
 // answer Claude Code's own trust prompt. Session terminals are opened by the session service.
 //   POST   /v1/terminals/trust { path }  → { terminalId }
-//   DELETE /v1/terminals/:id             → 204; trust terminals only (writes /exit, kills after 5 s)
+//   DELETE /v1/terminals/:id             → 204; trust terminals only (killed at once, nothing typed)
 import { realpath, stat } from 'node:fs/promises';
 import type { TerminalRegistry } from '../../adapter/terminals';
 import { HttpError, type RouteTable } from '../router';
