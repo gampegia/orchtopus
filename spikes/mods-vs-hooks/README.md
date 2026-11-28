@@ -4,7 +4,7 @@ Small Node 24 scripts that run `claude -p` in the M1 test project with Orchtopus
 
 Nothing is installed into user scope and no user settings change. Runs write only to `%TEMP%\orchtopus-spike\mods-vs-hooks\` (settings, copies of the mods, logs), and with `--skills-dir-mod` to the test project's `.claude\skills\<mod>\` for the length of one run. Sessions run in `%TEMP%\orchtopus-spike\acme-app`, made by `node ../m1-claude-code/setup.mjs`.
 
-Safety: `run.mjs` refuses to run unless every remote of the test project is a local path, and drops `GH_*`, `GITHUB_*`, `GLAB_*` and `GITLAB_*` from the child environment. Probe commands use the word `ORCH_PROBE`, never a real `gh pr create`.
+Safety: `run.mjs` refuses to run unless every remote of the test project is an existing local directory (`node selftest-remotes.mjs` checks the rule against local, missing, scp-like and URL remotes), and drops `GH_*`, `GITHUB_*`, `GLAB_*` and `GITLAB_*` from the child environment. Probe commands use the word `ORCH_PROBE`, never a real `gh pr create`.
 
 ## Files
 
@@ -15,6 +15,7 @@ Safety: `run.mjs` refuses to run unless every remote of the test project is a lo
 | `statusline.mjs` | Status line command that logs each run |
 | `run.mjs --name <run> [--settings <variant>] [--mods a,b] [--skills-dir-mod <mod>] [--flags safe-mode,bare] -- "<prompt>"` | One `claude -p` run (`--model haiku --effort low`, stream-json, `--debug-file`). `--mods` loads each mod with `--plugin-dir`; `--skills-dir-mod` copies one into the test project's `.claude\skills\` and removes it afterwards. Prints tool calls, results, the final text, the stand-in hooks that ran and the loaded plugins from `system/init` |
 | `lib.mjs` | Paths, the child environment and the local-remote check |
+| `selftest-remotes.mjs` | Self-test of the local-remote check; exits 1 on a wrong verdict |
 | `mods/<name>/` | Test mods (`.claude-plugin/plugin.json`, `hooks/hooks.json`, `hooks/register.mjs`) |
 
 Settings variants:

@@ -6,7 +6,7 @@
 //        [--mode default] [--skills-dir-mod <mod>] -- "<prompt>"
 // --skills-dir-mod copies a test mod to <repo>/.claude/skills/<mod>/ for this run only (id <mod>@skills-dir).
 import { spawnSync } from 'node:child_process';
-import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assertLocalRemotes, childEnv, claudeExe, ensureDir, parseArgs, paths } from './lib.mjs';
 
@@ -49,7 +49,10 @@ if (typeof args.flags === 'string') {
 argv.push(prompt);
 
 const skillsMod = typeof args['skills-dir-mod'] === 'string' ? args['skills-dir-mod'] : null;
-const skillsDir = skillsMod === null ? null : join(paths.repo, '.claude', 'skills', skillsMod);
+const skillsRoot = join(paths.repo, '.claude', 'skills');
+const skillsDir = skillsMod === null ? null : join(skillsRoot, skillsMod);
+// Remove the skills folder afterwards only if this run created it.
+const skillsRootExisted = existsSync(skillsRoot);
 if (skillsDir !== null)
   cpSync(join(paths.plugins, String(skillsMod)), skillsDir, { recursive: true });
 
@@ -64,7 +67,10 @@ try {
     windowsHide: true,
   });
 } finally {
-  if (skillsDir !== null) rmSync(skillsDir, { recursive: true, force: true });
+  if (skillsDir !== null) {
+    rmSync(skillsDir, { recursive: true, force: true });
+    if (!skillsRootExisted) rmSync(skillsRoot, { recursive: true, force: true });
+  }
 }
 writeFileSync(join(paths.logs, `${name}.stream.jsonl`), res.stdout ?? '');
 writeFileSync(join(paths.logs, `${name}.stderr.txt`), res.stderr ?? '');

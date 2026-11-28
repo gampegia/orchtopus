@@ -152,13 +152,13 @@ Added 2026-11-28. Status: tested in the spike `docs/spikes/2026-11-28-mods-vs-ho
 
 **Finding (observed, without the built-in guard `cc-plugin-sec-default`):**
 
-- A user's mods load in our sessions. A mod in a repository's `.claude/skills/<name>/` loads too, with no install step.
+- A user's mods load in our sessions (user-scope mods: inferred; seen for user-scope classic plugins). A mod in a repository's `.claude/skills/<name>/` loads too, with no install step.
 - A mod that registers `tool.call` or `tool.check` gets past our PR block and our deny rules. A `tool.call` that answers the call itself skips all our hooks; a mod's `$.process.run` runs commands no hook sees.
 - A classic plugin hook (`hooks.json`) that answers `allow` does not beat our deny.
 - A holding mod such as Blast Radius holds before our hooks run. Orchtopus sees nothing during that hold. After the user presses Proceed in the mod, our hook holds again.
-- The guard is loaded only with managed settings or a Team or Enterprise login. The docs say deny rules and `PreToolUse` blocks then hold against users' mods; not observed.
+- The guard is loaded only with managed settings, a `managed-mcp.json`, or a Team or Enterprise login. The docs say deny rules and `PreToolUse` blocks then hold against users' mods; not observed.
 
-**Switches:** `enabledPlugins: { "<id>": false }` in our `--settings` file switches a plugin off for one session and keeps our hooks (observed for a `--plugin-dir` mod, a skills-directory mod and user-scope classic plugins). `--safe-mode` and `disableAllHooks` also stop our own hooks. `--bare` ends with "Not logged in" on a subscription login. None of the three fits.
+**Switches:** `enabledPlugins: { "<id>": false }` in our `--settings` file switches a plugin off for one session and keeps our hooks (observed for a `--plugin-dir` mod, a skills-directory mod and user-scope classic plugins; user-scope mods: inferred). `--safe-mode` and `disableAllHooks` also stop our own hooks. `--bare` ends with "Not logged in" on a subscription login. None of the three fits.
 
 **Recommendation for M2:**
 

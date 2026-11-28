@@ -6,7 +6,7 @@
 - Harness: `spikes/mods-vs-hooks/` (see its README). `claude -p --model haiku --effort low --output-format stream-json --debug-file …` in `<scratch>\acme-app` (`<scratch>` = `%TEMP%\orchtopus-spike`), plus one `claude --bg` session watched with `claude agents --json`, `claude logs` and `claude attach` in ConPTY. Exact commands: [Runs](#runs).
 - Session settings: a stand-in for what M1 writes (`src/main/base-setup/settings.ts` on `feat/m1-walking-skeleton`): state hooks on `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` (synchronous here; M1 marks them `async`, which does not change their order); a PR-block command hook on `Bash|PowerShell` with `onFailure: "block"` that denies `gh pr create` and a harmless probe word; a status line; deny rules. Loaded with `--settings`.
 - Test mods were loaded for one session only: with `--plugin-dir`, or copied into the scratch repository's `.claude/skills/<name>/` for one run and deleted afterwards. Nothing was installed and no user setting changed (`~/.claude/settings.json` checked after the runs).
-- Probes: most runs send `echo ORCH_PROBE_…`, which the PR block treats like `gh pr create`. Runs r1, r2a, r6 to r9 and r12 sent a real `gh pr create --title probe --body probe`; only the test project's local bare remote kept it off GitHub ("none of the git remotes … point to a known GitHub host"). The harness now refuses to run unless every remote is local and drops `GH_*`, `GITHUB_*`, `GLAB_*` and `GITLAB_*` from the child environment; r1p and r2p repeat r1 and r2a with the probe word and give the same result.
+- Probes: most runs send `echo ORCH_PROBE_…`, which the PR block treats like `gh pr create`. Runs r1, r2a, r6 to r9 and r12 sent a real `gh pr create --title probe --body probe` (historical: the harness no longer does this, and the Runs table marks them); only the test project's local bare remote kept it off GitHub ("none of the git remotes … point to a known GitHub host"). The harness now refuses to run unless every remote is an existing local directory and drops `GH_*`, `GITHUB_*`, `GLAB_*` and `GITLAB_*` from the child environment; r1p and r2p repeat r1 and r2a with the probe word and give the same result.
 - How a deny looks: Claude Code shows every `PreToolUse` deny as `PreToolUse:Bash hook error: <reason>`, also when the hook ran fine (the M1 spike saw the same, Q7). Our hook log records `decision: deny` for these calls, and the control run c0 shows a command that is not a probe passing the PR block.
 - **Observed** means seen in the stream-json output, the stand-in hook log, the debug log, `claude agents --json` or the PTY screen. **Docs** means read only. **Inferred** means neither.
 
@@ -141,9 +141,9 @@ From `spikes/mods-vs-hooks/`, after `node make-settings.mjs`. `P` stands for the
 |---|---|---|
 | c0 | `--settings orch` | `echo ORCH_CONTROL_ok` |
 | r0 | `--settings orch` | `echo ORCH_PROBE_base` |
-| r1 | `--settings orch --mods mod-result` | `gh pr create --title probe --body probe` |
+| r1 | `--settings orch --mods mod-result` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
 | r1p | `--settings orch --mods mod-result` | `echo ORCH_PROBE_result` |
-| r2a | `--settings orch --mods mod-check-allow` | `gh pr create --title probe --body probe` |
+| r2a | `--settings orch --mods mod-check-allow` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
 | r2p | `--settings orch --mods mod-check-allow` | `echo ORCH_PROBE_check` |
 | r2c | `--settings none --mods mod-check-allow` | `node -e "console.log('ORCH_PROBE_ask')"` |
 | r3a | `--settings deny-only` | `echo ORCH_DENYRULE_ORCH_PROBE` |
@@ -151,11 +151,11 @@ From `spikes/mods-vs-hooks/`, after `node make-settings.mjs`. `P` stands for the
 | r4 | `--settings orch --mods mod-exec` | `echo ORCH_PROBE_exec` (then `git -C <scratch>\acme-app tag -d orch-mod-exec-probe`) |
 | r5 | `--settings orch --mods mod-deny` | `echo ORCH_PROBE_hold` |
 | r5b | `--settings orch --mods mod-next` | `echo ORCH_PROBE_next` (our PR block ran after the mod; in this run it timed out under load and blocked through `onFailure`) |
-| r6 | `--settings orch --mods mod-check-allow --flags safe-mode` | `gh pr create --title probe --body probe` |
-| r7 | `--settings orch --mods mod-check-allow --flags bare` | `gh pr create --title probe --body probe` |
-| r8 | `--settings orch-disable-hooks --mods mod-check-allow` | `gh pr create --title probe --body probe` |
-| r9 | `--settings orch-disable-mods --mods mod-check-allow` | `gh pr create --title probe --body probe` |
-| r12 | `--settings orch --mods plugin-hook-allow` | `gh pr create --title probe --body probe` |
+| r6 | `--settings orch --mods mod-check-allow --flags safe-mode` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
+| r7 | `--settings orch --mods mod-check-allow --flags bare` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
+| r8 | `--settings orch-disable-hooks --mods mod-check-allow` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
+| r9 | `--settings orch-disable-mods --mods mod-check-allow` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
+| r12 | `--settings orch --mods plugin-hook-allow` | `gh pr create --title probe --body probe` (historical; rerun with the ORCH_PROBE word) |
 | r13 | `--settings orch --mods plugin-hook-allow` | `node -e "console.log(4242)"` |
 | r13b | `--settings orch` | `node -e "console.log(4242)"` |
 | r14 | `--settings orch --skills-dir-mod mod-check-allow` | `echo ORCH_PROBE_skillsdir` |
@@ -182,4 +182,4 @@ The first attach also sent `left` and `tab` after the snapshot; neither changed 
 
 ## Cleanup
 
-`claude stop` and `claude rm` for the one `--bg` session; `-p` runs exit by themselves. The probe tag from r4 was deleted, and `run.mjs` removes a skills-directory copy after its run. The test project's `git status` is clean, its `.claude` folder holds only what it held before, and user settings are unchanged.
+`claude stop` and `claude rm` for the one `--bg` session; `-p` runs exit by themselves. The probe tag from r4 was deleted, and `run.mjs` removes a skills-directory copy after its run, and the `.claude/skills/` folder too when the run created it. The test project's `git status` is clean, its `.claude` folder holds only what it held before, and user settings are unchanged.

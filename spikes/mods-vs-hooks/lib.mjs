@@ -2,6 +2,7 @@
 // <scratch>\mods-vs-hooks\ (<scratch> = %TEMP%\orchtopus-spike); sessions run in the M1 test
 // project <scratch>\acme-app, which Claude Code already trusts.
 import { spawnSync } from 'node:child_process';
+import { existsSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanEnv, paths as m1Paths } from '../m1-claude-code/lib/common.mjs';
@@ -39,7 +40,18 @@ export function childEnv() {
   );
 }
 
-/** Refuses to run unless every remote of the test project is a local path (the bare remote). */
+/**
+ * A remote counts as local only if its URL, resolved against `base`, is an existing directory.
+ * Everything else is refused: `scheme://` URLs (file:// included), scp-like `host:path` and
+ * `user@host:path`, and paths that do not exist. Checked by `selftest-remotes.mjs`.
+ */
+export function isLocalRemote(url, base = paths.repo) {
+  if (url === '' || url.includes('://')) return false;
+  const dir = resolve(base, url);
+  return existsSync(dir) && statSync(dir).isDirectory();
+}
+
+/** Refuses to run unless every remote of the test project is local (the bare remote). */
 export function assertLocalRemotes() {
   const res = spawnSync('git', ['-C', paths.repo, 'remote', '-v'], { encoding: 'utf8' });
   if (res.status !== 0) throw new Error(`git remote -v failed in ${paths.repo}`);
@@ -47,7 +59,7 @@ export function assertLocalRemotes() {
     .split('\n')
     .filter(Boolean)
     .map((line) => line.split(/\s+/)[1] ?? '');
-  const remote = urls.find((url) => /:\/\/|^[^/\]+@|^[A-Za-z0-9.-]{2,}:/.test(url));
+  const remote = urls.find((url) => !isLocalRemote(url));
   if (remote !== undefined) {
     throw new Error(`the test project has a non-local remote (${remote}); refusing to run`);
   }
