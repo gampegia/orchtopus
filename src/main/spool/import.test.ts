@@ -212,9 +212,9 @@ describe('importSpool', () => {
     expect(kept).toBe('{torn\n{"v":2,"id":"x"}\nplain text\n');
     const logged = readEvents(store.db).filter((e) => e.type === 'spool.damaged');
     expect(logged).toHaveLength(1);
-    expect(logged[0]?.payload).toMatchObject({
+    expect(logged[0]?.payload).toEqual({
       file: `damaged/${damagedFiles[0] ?? ''}`,
-      line: 1,
+      reason: 'not a valid envelope',
       count: 3,
     });
     expect(pendingSpoolFiles()).toEqual([]);

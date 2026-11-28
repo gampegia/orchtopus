@@ -155,7 +155,6 @@ class ImportRun {
     if (this.damagedFile === null) return;
     const payload: SpoolDamagedPayload = {
       file: `damaged/${this.damagedFile}`,
-      line: 1,
       reason: 'not a valid envelope',
       count: this.result.damaged,
     };
