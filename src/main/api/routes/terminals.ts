@@ -5,25 +5,22 @@
 import { realpath, stat } from 'node:fs/promises';
 import type { TerminalRegistry } from '../../adapter/terminals';
 import { HttpError, type RouteTable } from '../router';
-import { parseBody, trustTerminalBodySchema } from '../schemas';
+import { DRIVE_PATH, parseBody, trustTerminalBodySchema } from '../schemas';
 
 /** The first size of a trust terminal; the client sends its real size on connect. */
 export const TRUST_TERMINAL_SIZE = { cols: 120, rows: 30 } as const;
 
-/** A local drive path such as `C:\x` or `C:/x`. Rejects UNC (`\\host`, `//host`), device
- *  (`\\?\`, `//./`) and drive-less rooted paths before any file system call touches them. */
-const DRIVE_PATH = /^[A-Za-z]:[\\/]/;
-
-/** True for an existing local folder. The real path is checked too, so a junction or
- *  symlink cannot lead to a network share. */
-async function isLocalFolder(path: string): Promise<boolean> {
-  if (!DRIVE_PATH.test(path)) return false;
+/** The real path of an existing local folder, or null. The real path is checked too, so a
+ *  junction or symlink cannot lead to a network share, and the caller uses it, so a junction
+ *  swapped after the check cannot either. */
+async function localFolder(path: string): Promise<string | null> {
+  if (!DRIVE_PATH.test(path)) return null;
   try {
     const real = await realpath(path);
-    if (!DRIVE_PATH.test(real)) return false;
-    return (await stat(real)).isDirectory();
+    if (!DRIVE_PATH.test(real)) return null;
+    return (await stat(real)).isDirectory() ? real : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -32,10 +29,9 @@ export function createTerminalRoutes(deps: { registry: TerminalRegistry }): Rout
   return {
     'POST /v1/terminals/trust': async (req) => {
       const { path } = parseBody(trustTerminalBodySchema, req.body);
-      if (!(await isLocalFolder(path))) {
-        throw new HttpError(422, 'Not an existing local folder', 'path');
-      }
-      const terminalId = await registry.openTrust(path, { ...TRUST_TERMINAL_SIZE });
+      const folder = await localFolder(path);
+      if (folder === null) throw new HttpError(422, 'Not an existing local folder', 'path');
+      const terminalId = await registry.openTrust(folder, { ...TRUST_TERMINAL_SIZE });
       return { status: 200, body: { terminalId } };
     },
 
